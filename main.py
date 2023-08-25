@@ -51,12 +51,12 @@ if __name__ == '__main__':
 
     depths = np.array([532, 678, 201, 768, 834])
     run_exp = 1
-    exp_num = 4
+    exp_num = 5
 
     trials = 100
 
-    pAveSourcePerPixel = 1000000
-    pAveAmbientPerPixel = 10
+    pAveSourcePerPixel = 100000
+    pAveAmbientPerPixel = 100
 
     pAveSourceList = np.linspace(100, 1000000, num=50)
     pAveAmbientList = np.linspace(10, 10000, num=50)

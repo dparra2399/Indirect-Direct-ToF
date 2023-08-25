@@ -22,15 +22,14 @@ def tof_scene(depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, fMax,
 
     gamma = 1. / (meanBeta * T * (pAveAmbient + pAveSource)) # Camera gain. Ensures all values are between 0-1
 
-    (ModFs, DemodFs) = CodingFunctions.GetCosCos(n_tbins=n_tbins, K=K)
+    (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
     kappas = np.sum(DemodFs, 0) * dt
     Ambient = pAveAmbient * kappas
 
 
-    Incident = (gamma * meanBeta) * (T/tau) * (ModFs)
+    Incident = (gamma * meanBeta) * (T/tau) * (ModFs + Ambient)
     Incident = Utils.ScaleIncident(Incident, desiredArea=pAveSource)
-    Incident = Incident + Ambient
 
     Measures = Utils.GetMeasurements(Incident, DemodFs)
 
