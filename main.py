@@ -25,9 +25,9 @@ if __name__ == '__main__':
     T = 0.1  # Integration time. Exposure time in seconds
     #### Coding function parameters
     speedOfLight = 299792458. * 1000.  # mm / sec
-    dMax = 1000 # maximum depth
-    fMax = speedOfLight / (2 * float(dMax))  # Maximum unambiguous repetition frequency (in Hz)
+    fMax = 1e+7 # Maximum unambiguous repetition frequency (in Hz)
     tauMin = 1. / fMax
+    dMax = 15
     fSampling = float(dMax) * fMax  # Sampling frequency of mod and demod functuion
     dt = 1 / float(n_tbins)
     freq = fMax  # Fundamental frequency of modulation and demodulation functions
@@ -49,17 +49,20 @@ if __name__ == '__main__':
     # idtof_image = np.asarray((decoded_depths_idtof / (dMax - 1)) * depth_res).reshape(shape)
     # itof_image = np.asarray((decoded_depths_itof / (dMax - 1)) * depth_res).reshape(shape)
 
-    depths = np.array([532, 678, 201, 768, 834])
+    depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
+    depths = (depths/dMax) * n_tbins
+
+
     run_exp = 1
-    exp_num = 5
+    exp_num = 13
 
     trials = 100
 
-    pAveSourcePerPixel = 100000
-    pAveAmbientPerPixel = 100
+    pAveSourcePerPixel = 1000000
+    pAveAmbientPerPixel = 500
 
-    pAveSourceList = np.linspace(100, 1000000, num=50)
-    pAveAmbientList = np.linspace(10, 10000, num=50)
+    pAveSourceList = np.linspace(1000, 1000000, num=5)
+    pAveAmbientList = np.linspace(50, 5000, num=5)
 
     pAveSourceList, pAveAmbientList = np.meshgrid(pAveSourceList, pAveAmbientList)
 
