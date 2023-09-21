@@ -61,10 +61,15 @@ if __name__ == '__main__':
     pAveSourcePerPixel = 1000000
     pAveAmbientPerPixel = 500
 
-    pAveSourceList = np.linspace(1000, 1000000, num=5)
-    pAveAmbientList = np.linspace(50, 5000, num=5)
+    grid = 25
+    pAveSourceList = np.linspace(10, 1000000, num=grid)
+    pAveAmbientList = np.linspace(100, 100000, num=grid)
+    #sbr_levels0 = np.linspace(1/10, 10, num=5)
 
+    #sbr_levels, photon_levels = np.meshgrid(sbr_levels0, pAveSourceList)
     pAveSourceList, pAveAmbientList = np.meshgrid(pAveSourceList, pAveAmbientList)
+
+    #pAveAmbientList = photon_levels / sbr_levels
 
     if run_exp:
 
