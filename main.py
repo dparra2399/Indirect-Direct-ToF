@@ -19,7 +19,7 @@ import FileUtils
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    n_tbins = 1000
+    n_tbins = 1024
     K = 4
     #### Sensor parameters
     T = 0.1  # Integration time. Exposure time in seconds
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     tauMin = 1. / fMax
     dMax = 15
     fSampling = float(dMax) * fMax  # Sampling frequency of mod and demod functuion
-    dt = 1 / float(n_tbins)
+    dt = tauMin / float(n_tbins)
     freq = fMax  # Fundamental frequency of modulation and demodulation functions
     tau = 1 / freq
     #### Scene parameters
@@ -50,21 +50,28 @@ if __name__ == '__main__':
     # itof_image = np.asarray((decoded_depths_itof / (dMax - 1)) * depth_res).reshape(shape)
 
     depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
-    depths = (depths/dMax) * n_tbins
+    depths = np.round((depths/dMax) * n_tbins)
 
 
     run_exp = 1
-    exp_num = 13
+    exp_num = 18
 
-    trials = 100
+    trials = 50
 
-    pAveSourcePerPixel = 1000000
-    pAveAmbientPerPixel = 500
+    pAveSourcePerPixel = 100000
+    pAveAmbientPerPixel = 10
 
-    pAveSourceList = np.linspace(1000, 1000000, num=5)
-    pAveAmbientList = np.linspace(50, 5000, num=5)
+    grid = 25
 
+    pAveSourceList = np.linspace(10, 1000000, num=grid)
+    pAveAmbientList = np.linspace(100, 100000, num=grid)
+    #sbr_levels0 = np.linspace(1/10, 10, num=5)
+
+    #sbr_levels, photon_levels = np.meshgrid(sbr_levels0, pAveSourceList)
     pAveSourceList, pAveAmbientList = np.meshgrid(pAveSourceList, pAveAmbientList)
+
+    #pAveAmbientList = photon_levels / sbr_levels
+
 
     if run_exp:
 
