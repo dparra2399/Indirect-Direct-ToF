@@ -8,7 +8,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from IPython.core import debugger
 breakpoint = debugger.set_trace
-
+mpl.use('qt5agg')
 import CodingFunctions
 import Utils
 from Utils import plot
@@ -20,27 +20,26 @@ def tof_scene(depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, fMax,
                    tauMin, fSampling, dt, freq, tau, meanBeta):
 
 
-    #gamma = 1. / (meanBeta * T * (pAveAmbient + pAveSource)) # Camera gain. Ensures all values are between 0-1
-    gamma = 1
+    gamma = 1 / (pAveSource + pAveAmbient)
+
 
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
     kappas = np.sum(DemodFs, 0) * dt
     Ambient = pAveAmbient * kappas
 
-    #ModFs = Utils.ScaleIncident(ModFs, desiredArea=pAveSource, dx=dt)
-    Incident = (gamma * meanBeta) * (T/tau) * (ModFs + Ambient)
-    Incident = Utils.ScaleIncident(Incident, desiredArea=pAveSource)
+    ModFs = Utils.ScaleIncident(ModFs, desiredArea=pAveSource)
+    Incident = (gamma * meanBeta) * (T / tauMin) * (ModFs + Ambient)
 
-    Measures = Utils.GetMeasurements(Incident, DemodFs)
+    Measures = Utils.GetMeasurements(Incident, DemodFs, dt=dt)
 
 
     NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)
     NormMeasures = NormMeasures.transpose()
 
     ###DEPTH ESTIMATIONS
-    IDTOF = Utils.IDTOF(Incident, DemodFs)
-    ITOF = Utils.ITOF(Incident, DemodFs)
+    IDTOF = Utils.IDTOF(Incident, DemodFs, dt=dt)
+    ITOF = Utils.ITOF(Incident, DemodFs, dt=dt)
 
     measures_idtof = IDTOF[depths.astype(int), :]
     measures_itof = ITOF[depths.astype(int), :]
