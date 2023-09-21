@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ### Python imports
 #### Library imports
 import numpy as np
@@ -52,7 +51,7 @@ def GetMeasurements(Incident, DemodFs, dt=1):
     return measures
 
 
-def IDTOF(Incident, DemodFs, dt=1):
+def IDTOF(Incident, DemodFs, Ambient=1, gamma=1, meanBeta=1, T=1, tauMin=1, dt=1):
     (n_tbins, K) = Incident.shape
     measures_noisy = np.zeros(Incident.shape)
 
@@ -63,19 +62,13 @@ def IDTOF(Incident, DemodFs, dt=1):
             measures_noisy[l, j] = np.inner(cc, demod)
 
     measures_noisy = measures_noisy * dt
-    return measures_noisy
+    measures = (gamma * meanBeta) * (T/tauMin) * (measures_noisy + Ambient)
+    return measures
 
-def ITOF(Incident, DemodFs, dt=1):
+def ITOF(Incident, DemodFs, Ambient=1, gamma=1, meanBeta=1, T=1, tauMin=1, dt=1):
     (n_tbins, K) = Incident.shape
     measures_noisy = np.zeros(Incident.shape)
-    #tmp = np.zeros(Incident.shape)
 
-    #for i in range(0, K):
-    #    IncidentK = np.expand_dims(Incident[:, i], axis=1)
-    #    DemodFK = np.expand_dims(DemodFs[:, i], axis=1)
-    #    clean = np.sum(np.inner(IncidentK, DemodFK), axis=0)
-    #    for j in range(0, n_tbins):
-    #        measures_noisy[j, i] = AddPoissonNoiseLam(clean[j])
 
     for j in range(0, K):
         demod = DemodFs[:, j]
@@ -84,126 +77,11 @@ def ITOF(Incident, DemodFs, dt=1):
             measures_noisy[l, j] = AddPoissonNoiseLam(np.inner(cc, demod))
 
     measures_noisy = measures_noisy * dt
-    return measures_noisy
-
-
-def ScaleAreaUnderCurve(x, dx=1., desiredArea=1.):
-    oldArea = np.sum(x) * dx
-    y = x * desiredArea / oldArea
-    return y
-
-
-def ScaleIncident(ModFs, dx=1., desiredArea=1.):
-    (N, K) = ModFs.shape
-    for i in range(0, K):
-        ModFs[:, i] = ScaleAreaUnderCurve(x=ModFs[:, i], dx=dx, desiredArea=desiredArea)
-
-    return ModFs
-
-def ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof):
-    errors_idtof = np.abs(decoded_depths_idtof - depths)
-    mae_idtof = np.mean(errors_idtof)
-
-    errors_itof = np.abs(decoded_depths_itof - depths)
-    mae_itof = np.mean(errors_itof)
-
-    return (mae_idtof, mae_itof)
-
-
-def plot(Measures, ITOF, IDTOF):
-    plt.plot(ITOF)
-    plt.plot(Measures, marker='o',
-     linewidth=1)
-=======
-### Python imports
-#### Library imports
-import numpy as np
-from scipy import stats
-from IPython.core import debugger
-import matplotlib.pyplot as plt
-
-breakpoint = debugger.set_trace
-
-def ApplyKPhaseShifts(x, shifts):
-    K = 0
-    if (type(shifts) == np.ndarray):
-        K = shifts.size
-    elif (type(shifts) == list):
-        K = len(shifts)
-    else:
-        K = 1
-    for i in range(0, K):
-        x[:, i] = np.roll(x[:, i], int(round(shifts[i])))
-
-    return x
-
-def NormalizeMeasureVals(b_vals, axis=-1):
-    """
-        b_vals = n x k numpy matrix where each row corresponds to a set of k brightness measurements
-    """
-    ## Normalized correlation functions, zero mean, unit variance. We have to transpose so that broadcasting works.
-    norm_bvals = (b_vals - np.mean(b_vals, axis=axis, keepdims=True)) / np.std(b_vals, axis=axis, keepdims=True)
-
-    return norm_bvals
-
-def AddPoissonNoiseArr(Signal):
-    rng = np.random.default_rng()
-    return rng.poisson(lam=Signal).astype(Signal.dtype)
-
-def AddPoissonNoiseLam(lam):
-    rng = np.random.default_rng()
-    return rng.poisson(lam=lam)
-
-def GetMeasurements(Incident, DemodFs, dt=1):
-    (n_tbins, K) = Incident.shape
-    measures = np.zeros(Incident.shape)
-
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            cc = np.roll(Incident[:, j], l)
-            measures[l, j] = np.inner(cc, demod)
-
-    measures = measures * dt
+    measures = (gamma * meanBeta) * (T / tauMin) * (measures_noisy + Ambient)
     return measures
 
 
-def IDTOF(Incident, DemodFs, dt=1):
-    (n_tbins, K) = Incident.shape
-    measures_noisy = np.zeros(Incident.shape)
-
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            cc = np.roll(AddPoissonNoiseArr(Incident[:, j]), l)
-            measures_noisy[l, j] = np.inner(cc, demod)
-
-    measures_noisy = measures_noisy * dt
-    return measures_noisy
-
-def ITOF(Incident, DemodFs, dt=1):
-    (n_tbins, K) = Incident.shape
-    measures_noisy = np.zeros(Incident.shape)
-    #tmp = np.zeros(Incident.shape)
-
-    #for i in range(0, K):
-    #    IncidentK = np.expand_dims(Incident[:, i], axis=1)
-    #    DemodFK = np.expand_dims(DemodFs[:, i], axis=1)
-    #    clean = np.sum(np.inner(IncidentK, DemodFK), axis=0)
-    #    for j in range(0, n_tbins):
-    #        measures_noisy[j, i] = AddPoissonNoiseLam(clean[j])
-
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            cc = np.roll(Incident[:, j], l)
-            measures_noisy[l, j] = AddPoissonNoiseLam(np.inner(cc, demod))
-
-    measures_noisy = measures_noisy * dt
-    return measures_noisy
-
-
-def ScaleAreaUnderCurve(x, dx=1., desiredArea=1.):
+def ScaleIncidentAreaUnderCurve(x, dx=1., desiredArea=1.):
     oldArea = np.sum(x) * dx
     y = x * desiredArea / oldArea
     return y
@@ -212,7 +90,7 @@ def ScaleAreaUnderCurve(x, dx=1., desiredArea=1.):
 def ScaleIncident(ModFs, dx=1., desiredArea=1.):
     (N, K) = ModFs.shape
     for i in range(0, K):
-        ModFs[:, i] = ScaleAreaUnderCurve(x=ModFs[:, i], dx=dx, desiredArea=desiredArea)
+        ModFs[:, i] = ScaleIncidentAreaUnderCurve(x=ModFs[:, i], dx=dx, desiredArea=desiredArea)
 
     return ModFs
 
@@ -226,9 +104,53 @@ def ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof):
     return (mae_idtof, mae_itof)
 
 
+def ScaleAreaUnderCurve(x, dx=0., desiredArea=1.):
+    """ScaleAreaUnderCurve: Scale the area under the curve x to some desired area.
+
+    Args:
+        x (TYPE): Discrete set of points that lie on the curve. Numpy vector
+        dx (float): delta x. Set to 1/length of x by default.
+        desiredArea (float): Desired area under the curve.
+
+    Returns:
+        numpy.ndarray: Scaled vector x with new area.
+    """
+    #### Validate Input
+    # assert(UtilsTesting.IsVector(x)),'Input Error - ScaleAreaUnderCurve: x should be a vector.'
+    #### Calculate some parameters
+    N = x.size
+    #### Set default value for dc
+    if (dx == 0): dx = 1. / float(N)
+    #### Calculate new area
+    oldArea = np.sum(x) * dx
+    y = x * desiredArea / oldArea
+    #### Return scaled vector
+    return y
+
+
+def ScaleMod(ModFs, tau=1., pAveSource=1.):
+    """ScaleMod: Scale modulation appropriately given the beta of the scene point, the average
+    source power and the repetition frequency.
+
+    Args:
+        ModFs (np.ndarray): N x K matrix. N samples, K modulation functions
+        tau (float): Repetition frequency of ModFs
+        pAveSource (float): Average power emitted by the source
+        beta (float): Average reflectivity of scene point
+
+    Returns:
+        np.array: ModFs
+    """
+    (N, K) = ModFs.shape
+    dt = tau / float(N)
+    eTotal = tau * pAveSource  # Total Energy
+    for i in range(0, K):
+        ModFs[:, i] = ScaleAreaUnderCurve(x=ModFs[:, i], dx=dt, desiredArea=eTotal)
+
+    return ModFs
+
 def plot(Measures, ITOF, IDTOF):
     plt.plot(ITOF)
     plt.plot(Measures, marker='o',
      linewidth=1)
->>>>>>> origin/main
     plt.plot(IDTOF)
