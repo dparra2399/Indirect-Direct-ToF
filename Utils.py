@@ -51,33 +51,34 @@ def GetMeasurements(Incident, DemodFs, dt=1):
     return measures
 
 
-def IDTOF(Incident, DemodFs, Ambient=1, gamma=1, meanBeta=1, T=1, tauMin=1, dt=1):
+def IDTOF(Incident, DemodFs, depths, dt=1):
     (n_tbins, K) = Incident.shape
-    measures_noisy = np.zeros(Incident.shape)
 
+    measures = np.zeros((depths.shape[0], K))
+    depths = depths.astype(int)
     for j in range(0, K):
         demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            cc = np.roll(AddPoissonNoiseArr(Incident[:, j]), l)
-            measures_noisy[l, j] = np.inner(cc, demod)
 
-    measures_noisy = measures_noisy * dt
-    measures = (gamma * meanBeta) * (T/tauMin) * (measures_noisy + Ambient)
+        for l in range(0, depths.shape[0]):
+            cc = np.roll(AddPoissonNoiseArr(Incident[:, j]), depths[l])
+            measures[l, j] = np.inner(cc, demod)
+
+    measures = measures * dt
     return measures
 
-def ITOF(Incident, DemodFs, Ambient=1, gamma=1, meanBeta=1, T=1, tauMin=1, dt=1):
+def ITOF(Incident, DemodFs, depths, dt=1):
     (n_tbins, K) = Incident.shape
-    measures_noisy = np.zeros(Incident.shape)
-
+    measures = np.zeros((depths.shape[0], K))
+    depths = depths.astype(int)
 
     for j in range(0, K):
         demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            cc = np.roll(Incident[:, j], l)
-            measures_noisy[l, j] = AddPoissonNoiseLam(np.inner(cc, demod))
 
-    measures_noisy = measures_noisy * dt
-    measures = (gamma * meanBeta) * (T / tauMin) * (measures_noisy + Ambient)
+        for l in range(0, depths.shape[0]):
+            cc = np.roll(Incident[:, j], depths[l])
+            measures[l, j] = AddPoissonNoiseLam(np.inner(cc, demod))
+
+    measures = measures * dt
     return measures
 
 
