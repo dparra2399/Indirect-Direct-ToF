@@ -50,27 +50,27 @@ if __name__ == '__main__':
     # itof_image = np.asarray((decoded_depths_itof / (dMax - 1)) * depth_res).reshape(shape)
 
     depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
-    depths = np.round((depths/dMax) * n_tbins)
 
 
     run_exp = 1
-    exp_num = 18
+    exp_num = 21
 
-    trials = 50
+    trials = 1000
 
-    pAveSourcePerPixel = 100000
-    pAveAmbientPerPixel = 10
+    pAveSourcePerPixel = 1000
+    pAveAmbientPerPixel = 1000
 
     grid = 25
 
-    pAveSourceList = np.linspace(10, 1000000, num=grid)
-    pAveAmbientList = np.linspace(100, 100000, num=grid)
-    #sbr_levels0 = np.linspace(1/10, 10, num=5)
+    #pAveSourceList = np.linspace(10, 1000000, num=grid)
+    #pAveAmbientList = np.linspace(100, 100000, num=grid)
 
-    #sbr_levels, photon_levels = np.meshgrid(sbr_levels0, pAveSourceList)
+    (min_signal_exp, max_signal_exp) = (1, 6)
+    (min_amb_exp, max_amb_exp) = (2, 5)
+
+    pAveSourceList = np.round(np.power(10, np.linspace(min_signal_exp, max_signal_exp, grid)))
+    pAveAmbientList = np.power(10, np.linspace(min_amb_exp, max_amb_exp, grid))
     pAveSourceList, pAveAmbientList = np.meshgrid(pAveSourceList, pAveAmbientList)
-
-    #pAveAmbientList = photon_levels / sbr_levels
 
 
     if run_exp:
@@ -88,22 +88,12 @@ if __name__ == '__main__':
 
 
     else:
-        mae_idtof = 0
-        mae_itof = 0
         tic = time.perf_counter()
-        for i in range(0, trials):
-            (decoded_depths_idtof, decoded_depths_itof) = simulate_tof_scene.tof_scene(
-                depths=depths, n_tbins=n_tbins, K=K, pAveAmbient=pAveAmbientPerPixel,
+        (mae_idtof, mae_itof) = simulate_tof_scene.tof_scene_mae(
+                trials=trials, depths=depths, n_tbins=n_tbins, K=K, pAveAmbient=pAveAmbientPerPixel,
                 pAveSource=pAveSourcePerPixel, T=T,
                 dMax=dMax, fMax=fMax, tauMin=tauMin, fSampling=fSampling, dt=dt,
                 freq=freq, tau=tau, meanBeta=meanBeta)
-
-            (idtof, itof) = Utils.ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof)
-            mae_idtof += idtof
-            mae_itof += itof
-
-        mae_itof = mae_itof / trials
-        mae_idtof = mae_idtof / trials
 
         toc = time.perf_counter()
 
