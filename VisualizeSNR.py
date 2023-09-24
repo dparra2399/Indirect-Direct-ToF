@@ -23,7 +23,7 @@ import FileUtils
 fig = plt.figure()
 ax = plt.axes(projection='3d')
 
-mae = np.load('./data/ntbins_1024_k_4_coding_coscos_monte_1000_exp_21.npz')
+mae = np.load('./data/ntbins_1024_k_4_coding_coscos_monte_1000_exp_19.npz')
 
 pAveSourceList = mae['pAveSourceList']
 pAveAmbientList = mae['pAveAmbientList']
