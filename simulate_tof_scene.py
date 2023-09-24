@@ -16,11 +16,11 @@ from Utils import plot
 
 
 
-def tof_scene(depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, fMax,
+def tof_scene_mae(trials, depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, fMax,
                    tauMin, fSampling, dt, freq, tau, meanBeta):
 
 
-    gamma = 1 / (pAveSource + pAveAmbient)
+    gamma = 1./(pAveAmbient) #Camera gain
 
 
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
@@ -28,29 +28,44 @@ def tof_scene(depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, fMax,
     kappas = np.sum(DemodFs, 0) * dt
     Ambient = pAveAmbient * kappas
 
-    ModFs = Utils.ScaleIncident(ModFs, desiredArea=pAveSource)
-    Incident = (gamma * meanBeta) * (T / tauMin) * (ModFs + Ambient)
+    #ModFs = Utils.ScaleIncident(ModFs, desiredArea=pAveSource)
+    ModFs = Utils.ScaleMod(ModFs, tau=tauMin, pAveSource=pAveSource)
+    Incident = (gamma * meanBeta) * (T / tau) * (ModFs + Ambient)
 
-    Measures = Utils.GetMeasurements(Incident, DemodFs, dt=dt)
+    Measures = Utils.GetMeasurements(ModFs, DemodFs, dt=dt)
 
 
     NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)
     NormMeasures = NormMeasures.transpose()
 
-    ###DEPTH ESTIMATIONS
-    IDTOF = Utils.IDTOF(Incident, DemodFs, dt=dt)
-    ITOF = Utils.ITOF(Incident, DemodFs, dt=dt)
+    mae_idtof = 0
+    mae_itof = 0
 
-    measures_idtof = IDTOF[depths.astype(int), :]
-    measures_itof = ITOF[depths.astype(int), :]
+    gt_depths = depths
+    depths = np.round((depths / dMax) * n_tbins)
+    for i in range(0, trials):
+        ###DEPTH ESTIMATIONS
+        measures_idtof = Utils.IDTOF(Incident, DemodFs, depths, dt=dt)
+        measures_itof = Utils.ITOF(Incident, DemodFs, depths, dt=dt)
 
-    norm_measurements_idtof = Utils.NormalizeMeasureVals(measures_idtof)
-    norm_measurements_itof = Utils.NormalizeMeasureVals(measures_itof)
+        norm_measurements_idtof = Utils.NormalizeMeasureVals(measures_idtof)
+        norm_measurements_itof = Utils.NormalizeMeasureVals(measures_itof)
 
-    decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
-    decoded_depths_itof = np.argmax(np.dot(NormMeasures, norm_measurements_itof.transpose()), axis=0)
+        decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
+        decoded_depths_itof = np.argmax(np.dot(NormMeasures, norm_measurements_itof.transpose()), axis=0)
 
-    return (decoded_depths_idtof, decoded_depths_itof)
+        #decoded_depths_itof = decoded_depths_itof * dMax / n_tbins
+        #decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
+        (idtof, itof) = Utils.ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof)
+
+
+        mae_idtof += idtof
+        mae_itof += itof
+
+    mae_itof = mae_itof / trials
+    mae_idtof = mae_idtof / trials
+
+    return (mae_idtof, mae_itof)
 
 
 def run_experiment(depths, n_tbins, K, T, dMax, fMax, tauMin, fSampling,
@@ -66,22 +81,11 @@ def run_experiment(depths, n_tbins, K, T, dMax, fMax, tauMin, fSampling,
             pAveSourcePerPixel = pAveSourceList[x, y]
             pAveAmbientPerPixel = pAveAmbientList[x, y]
 
-            mae_idtof = 0
-            mae_itof = 0
-
-            for i in range(0, trials):
-                (decoded_depths_idtof, decoded_depths_itof) = tof_scene(
-                    depths=depths, n_tbins=n_tbins, K=K, pAveAmbient=pAveAmbientPerPixel,
-                    pAveSource=pAveSourcePerPixel, T=T,
-                    dMax=dMax, fMax=fMax, tauMin=tauMin, fSampling=fSampling, dt=dt,
-                    freq=freq, tau=tau,meanBeta=meanBeta)
-
-                (idtof, itof) = Utils.ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof)
-                mae_idtof += idtof
-                mae_itof += itof
-
-            mae_itof = mae_itof / trials
-            mae_idtof = mae_idtof / trials
+            (mae_idtof, mae_itof) = tof_scene_mae(
+                trials=trials, depths=depths, n_tbins=n_tbins, K=K, pAveAmbient=pAveAmbientPerPixel,
+                pAveSource=pAveSourcePerPixel, T=T,
+                dMax=dMax, fMax=fMax, tauMin=tauMin, fSampling=fSampling, dt=dt,
+                freq=freq, tau=tau, meanBeta=meanBeta)
 
             SNR_IDTOF[x, y] = mae_idtof
             SNR_ITOF[x, y] = mae_itof
