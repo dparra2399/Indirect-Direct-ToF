@@ -10,6 +10,7 @@ from IPython.core import debugger
 import time
 
 import simulate_tof_scene
+from toflib import tof_utils
 
 breakpoint = debugger.set_trace
 
@@ -21,49 +22,35 @@ import FileUtils
 if __name__ == '__main__':
     n_tbins = 1024
     K = 4
-    #### Sensor parameters
     T = 0.1  # Integration time. Exposure time in seconds
-    #### Coding function parameters
     speedOfLight = 299792458. * 1000.  # mm / sec
-    fMax = 1e+7 # Maximum unambiguous repetition frequency (in Hz)
-    tauMin = 1. / fMax
-    dMax = 15
-    fSampling = float(dMax) * fMax  # Sampling frequency of mod and demod functuion
-    dt = tauMin / float(n_tbins)
-    freq = fMax  # Fundamental frequency of modulation and demodulation functions
-    tau = 1 / freq
-    #### Scene parameters
+    rep_freq = 1e+7
+    rep_tau = 1. / rep_freq
+    dMax = tof_utils.time2depth(rep_tau)
+    fSampling = float(dMax) * rep_freq  # Sampling frequency of mod and demod functuion
+    dt = rep_tau / float(n_tbins)
     meanBeta = 1e-4  # Avg fraction of photons reflected from a scene points back to the detector
-    #### Camera gain parameter
 
+    ##DIRECT
+    depth_padding = 0.02  # Skip the depths at the boundaries
+    pw_factors = np.array([1, 1, 1, 8, 1])
+    rec_algo = 'zncc'
 
-    #depth_img = np.load(
-        #'./data/cvpr22_data/rendered_images/depth_images_240x320_nt-2000/bathroom-cycles-2_nr-240_nc-320_nt-2000_samples-2048_view-0.npy')
-    #shape = depth_img.shape
-    #depths = depth_img.ravel()
-    #depths = depths[0:10]
-
-    #depth_res = np.max(depths)
-    #depths = (depths / depth_res) * (dMax - 1)
-
-    # idtof_image = np.asarray((decoded_depths_idtof / (dMax - 1)) * depth_res).reshape(shape)
-    # itof_image = np.asarray((decoded_depths_itof / (dMax - 1)) * depth_res).reshape(shape)
+    (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
+        (tof_utils.calc_tof_domain_params(n_tbins, rep_tau=rep_tau))
 
     depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
+    gt_tshifts = tof_utils.depth2time(depths)
 
-
-    run_exp = 1
-    exp_num = 21
+    run_exp = 0
+    exp_num = 20
 
     trials = 1000
 
-    pAveSourcePerPixel = 1000
-    pAveAmbientPerPixel = 1000
+    pAveSourcePerPixel = 10
+    pAveAmbientPerPixel = 1
 
     grid = 25
-
-    #pAveSourceList = np.linspace(10, 1000000, num=grid)
-    #pAveAmbientList = np.linspace(100, 100000, num=grid)
 
     (min_signal_exp, max_signal_exp) = (1, 6)
     (min_amb_exp, max_amb_exp) = (2, 5)
@@ -73,32 +60,37 @@ if __name__ == '__main__':
     pAveSourceList, pAveAmbientList = np.meshgrid(pAveSourceList, pAveAmbientList)
 
 
+
     if run_exp:
 
         (SNR_IDTOF, SNR_ITOF) = simulate_tof_scene.run_experiment(
             depths=depths, n_tbins=n_tbins, K=K, pAveSourceList=pAveSourceList,
-            pAveAmbientList=pAveAmbientList, T=T, dMax=dMax, fMax=fMax, tauMin=tauMin,
-            fSampling=fSampling, dt=dt, freq=freq, tau=tau, meanBeta=meanBeta, trials=trials)
+            pAveAmbientList=pAveAmbientList, T=T, dMax=dMax, freq=rep_freq, tau=rep_tau,
+            dt=dt, meanBeta=meanBeta, trials=trials)
 
         FileUtils.WriteErrorsToFile(
             Coding='coscos', Experiment=exp_num, pAveSourceList=pAveSourceList, pAveAmbientList=pAveAmbientList,
             SNR_IDTOF=SNR_IDTOF, SNR_ITOF=SNR_ITOF, depths=depths, n_tbins=n_tbins, K=K,T=T,
-            dMax=dMax, fMax=fMax,tauMin=tauMin, fSampling=fSampling, dt=dt, freq=freq, tau=tau,
+            dMax=dMax, dt=dt, freq=rep_freq, tau=rep_tau,
             meanBeta=meanBeta, trials=trials)
 
 
     else:
         tic = time.perf_counter()
-        (mae_idtof, mae_itof) = simulate_tof_scene.tof_scene_mae(
-                trials=trials, depths=depths, n_tbins=n_tbins, K=K, pAveAmbient=pAveAmbientPerPixel,
-                pAveSource=pAveSourcePerPixel, T=T,
-                dMax=dMax, fMax=fMax, tauMin=tauMin, fSampling=fSampling, dt=dt,
-                freq=freq, tau=tau, meanBeta=meanBeta)
+        (mae_idtof, mae_itof, mae_dtof) = simulate_tof_scene.all_tof_mae(
+                trials=trials, depths=depths, dMax=dMax, n_tbins=n_tbins, pAveAmbient=pAveAmbientPerPixel,
+                pAveSource=pAveSourcePerPixel, freq=rep_freq, tau=rep_tau,
+                depth_padding=depth_padding, tbin_res=tbin_res,
+                tbin_depth_res=tbin_depth_res, t_domain=t_domain,
+                gt_tshifts=gt_tshifts, rec_algo=rec_algo, pw_factors=pw_factors,
+                K=K, T=T, dt=dt, meanBeta=meanBeta)
+
 
         toc = time.perf_counter()
 
         print(f"MAE IDTOF: {mae_idtof: .3f},")
         print(f"MAE ITOF: {mae_itof: .3f},")
+        print(f"MAE DTOF: {mae_dtof: .3f}")
 
         print(f"Completed in {toc - tic:0.4f} seconds")
 
