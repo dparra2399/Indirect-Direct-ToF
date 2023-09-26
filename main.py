@@ -22,11 +22,11 @@ if __name__ == '__main__':
     dMax = direct_tof_utils.time2depth(rep_tau)
     fSampling = float(dMax) * rep_freq  # Sampling frequency of mod and demod functuion
     dt = rep_tau / float(n_tbins)
-    meanBeta = 1./2  # Avg fraction of photons reflected from a scene points back to the detector
+    meanBeta = 1 # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
     depth_padding = 0.02  # Skip the depths at the boundaries
-    pw_factors = np.array([1])
+    pw_factors = np.array([0.5])
     rec_algo = 'linear'
 
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
@@ -36,20 +36,20 @@ if __name__ == '__main__':
     gt_tshifts = direct_tof_utils.depth2time(depths)
 
     run_exp = 1
-    exp_num = 1
+    exp_num = "low_snr"
 
-    trials = 10
+    trials = 1000
 
     sourceExponent = 9
     ambientExponent = 6
 
-    pAveSourcePerPixel = np.power(10, sourceExponent)
-    pAveAmbientPerPixel = np.power(10, ambientExponent)
+    pAveSourcePerPixel = 10**sourceExponent
+    pAveAmbientPerPixel = 10*ambientExponent
 
     grid = 20
 
     (min_signal_exp, max_signal_exp) = (8, 12)
-    (min_amb_exp, max_amb_exp) = (9, 11)
+    (min_amb_exp, max_amb_exp) = (7, 9)
 
     pAveSourceList = np.round(np.power(10, np.linspace(min_signal_exp, max_signal_exp, grid)))
     pAveAmbientList = np.power(10, np.linspace(min_amb_exp, max_amb_exp, grid))
