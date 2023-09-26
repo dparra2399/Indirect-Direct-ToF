@@ -14,16 +14,17 @@ import math
 
 def combined_and_indirect_mae(trials, depths, n_tbins, K, pAveAmbient, pAveSource, T, dMax, dt, freq, tau, meanBeta):
 
-    #gamma = 1. / (meanBeta * T * (pAveAmbient + pAveSource))  # Camera gain. Ensures all values are between 0-1.
-
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
     kappas = np.sum(DemodFs, 0) * dt
-    Ambient = tau * pAveAmbient * kappas
+    Ambient = pAveAmbient * kappas
 
-    ModFs = combined_indirect_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
-    Incident = (ModFs + Ambient)
+    #ModFs = combined_indirect_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+    #Incident = meanBeta * (ModFs + Ambient)
+    Incident = (tau * pAveSource) * meanBeta * (ModFs + Ambient)
 
+    #ModFs = combined_indirect_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+    ModFs = (tau * pAveSource) * (ModFs)
     Measures = combined_indirect_utils.GetMeasurements(ModFs, DemodFs, dt=dt)
 
     NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)

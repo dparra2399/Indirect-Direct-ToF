@@ -12,7 +12,7 @@ breakpoint = debugger.set_trace
 fig = plt.figure()
 ax = plt.axes(projection='3d')
 
-mae = np.load('./data/results/ntbins_1024_monte_10_exp_1.npz')
+mae = np.load('./data/results/ntbins_1024_monte_1000_exp_high_snr.npz')
 
 pAveSourceList = mae['pAveSourceList']
 pAveAmbientList = mae['pAveAmbientList']
@@ -23,7 +23,7 @@ mae_dtof = mae['mae_dtof']
 flag = 0
 
 if flag:
-    arr = []
+    arr = [0, 1, 2, 3, 4, 5]
     pAveSourceList = np.delete(pAveSourceList, obj=arr, axis=1)
     pAveAmbientList = np.delete(pAveAmbientList, obj=arr, axis=1)
     mae_idtof = np.delete(mae_idtof, obj=arr, axis=1)
