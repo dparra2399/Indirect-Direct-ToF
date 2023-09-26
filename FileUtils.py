@@ -1,33 +1,30 @@
 # Python imports
-import math
 # Library imports
 import numpy as np
-from scipy import signal
-from scipy import special
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 from IPython.core import debugger
-
-import simulate_tof_scene
 
 breakpoint = debugger.set_trace
 
-import CodingFunctions
-import Utils
 import os.path
 
 
-def WriteErrorsToFile(Experiment, Coding, pAveSourceList, pAveAmbientList, SNR_IDTOF, SNR_ITOF, depths, n_tbins,
-                      K, T, dMax, dt, freq, tau, meanBeta, trials):
+def WriteErrorsToFile(Experiment,trials, depths, dMax,
+            n_tbins, pAveAmbientList, pAveSourceList, freq, tau,
+            depth_padding, tbin_res, tbin_depth_res, t_domain,
+            gt_tshifts, rec_algo, pw_factors, K, T, dt, meanBeta,
+            mae_idtof, mae_itof, mae_dtof):
 
-    filename = 'ntbins_{}_k_{}_coding_{}_monte_{}_exp_{}.npz'.format(n_tbins, K, Coding, trials,  Experiment)
-    outfile = './data/' + filename
+    filename = 'ntbins_{}_monte_{}_exp_{}.npz'.format(n_tbins, trials,  Experiment)
+    outfile = './data/results/' + filename
+
+
+    np.savez(outfile, trials=trials, depths=depths, dMax=dMax, n_tbins=n_tbins,
+            pAveAmbientList=pAveAmbientList,pAveSourceList=pAveSourceList, freq=freq, tau=tau,
+            depth_padding=depth_padding, tbin_res=tbin_res,
+            tbin_depth_res=tbin_depth_res, t_domain=t_domain,
+            gt_tshifts=gt_tshifts, rec_algo=rec_algo, pw_factors=pw_factors,
+            K=K, T=T, dt=dt, meanBeta=meanBeta, mae_idtof=mae_idtof,
+             mae_itof=mae_itof, mae_dtof=mae_dtof)
 
     if os.path.isfile(outfile):
-        print("Filename {} exits".format(filename))
-        #exit(0)
-
-    np.savez(outfile, Coding='coscos', pAveSourceList=pAveSourceList, pAveAmbientList=pAveAmbientList,
-            SNR_IDTOF=SNR_IDTOF, SNR_ITOF=SNR_ITOF, depths=depths, n_tbins=n_tbins, K=K,T=T,
-            dMax=dMax, dt=dt, freq=freq, tau=tau,
-            meanBeta=meanBeta, trials=trials)
+        print("Filename {} overwritten".format(filename))

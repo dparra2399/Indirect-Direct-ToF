@@ -129,7 +129,7 @@ def ScaleAreaUnderCurve(x, dx=0., desiredArea=1.):
     return y
 
 
-def ScaleMod(ModFs, tau=1., pAveSource=1.):
+def ScaleMod(ModFs, tau=1., pAveSource=1., dt=1.):
     """ScaleMod: Scale modulation appropriately given the beta of the scene point, the average
     source power and the repetition frequency.
 
@@ -143,7 +143,7 @@ def ScaleMod(ModFs, tau=1., pAveSource=1.):
         np.array: ModFs
     """
     (N, K) = ModFs.shape
-    dt = tau / float(N)
+    if (dt is None): dt = tau / float(N)
     eTotal = tau * pAveSource  # Total Energy
     for i in range(0, K):
         ModFs[:, i] = ScaleAreaUnderCurve(x=ModFs[:, i], dx=dt, desiredArea=eTotal)
