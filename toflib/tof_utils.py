@@ -57,7 +57,7 @@ def zero_norm_t(C, axis=-1):
 # 	'''
 # 	return (C - C.mean(axis=axis, keepdims=True)) / (C.std(axis=axis, keepdims=True) + EPSILON)
 
-def set_sbr(v, n_photons=None, sbr=None, axis=-1, inplace=False):
+def set_sbr(v, sbr=None, axis=-1, inplace=False):
 	'''
 		If inplace is False, return a copy of
 	'''
@@ -67,7 +67,7 @@ def set_sbr(v, n_photons=None, sbr=None, axis=-1, inplace=False):
 		assert((sbr_arr.ndim == 0) or ((sbr_arr.ndim+1) == v.ndim)), "incorrect input sbr dims"
 		if(sbr_arr.ndim > 0): sbr_arr = np.expand_dims(sbr_arr, axis=axis)
 		assert(np.all(sbr > 0)), "sbr needs to be > 0"
-		if (n_photons is None): n_photons = v.sum(axis=axis, keepdims=True)
+		n_photons = v.sum(axis=axis, keepdims=True)
 		n_ambient_photons = n_photons / sbr_arr
 		ambient = n_ambient_photons / v.shape[-1] 
 		if(inplace):
@@ -78,7 +78,7 @@ def set_sbr(v, n_photons=None, sbr=None, axis=-1, inplace=False):
 			return v + ambient 
 	return v
 
-def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1,  axis=-1, inplace=False):
+def set_signal_n_photons(v, n_photons=None, sbr=None, axis=-1, inplace=False):
 	'''
 		If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
 		If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -92,15 +92,9 @@ def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1
 		if(n_photons_arr.ndim > 0): n_photons_arr = np.expand_dims(n_photons_arr, axis=axis)
 		assert(np.all(n_photons > 0)), "n_photons need to be > 0"
 		# Set area under the curve to be n_photons_arr
-
 		v_out *= (n_photons_arr / v.sum(axis=axis, keepdims=True))
 	# Add constant offset = n_photons / sbr
-
-	if not(peak_power is None):
-		peak_power *= num_mes
-		v_out = (v_out / np.max(v_out, axis=axis, keepdims=True)) * peak_power
-
-	v_out = set_sbr(v_out, n_photons=n_photons, sbr=sbr, axis=axis, inplace=True)
+	v_out = set_sbr(v_out, sbr=sbr, axis=axis, inplace=True)
 	return v_out
 
 def set_n_photons(v, n_photons=None, sbr=None, axis=-1): 

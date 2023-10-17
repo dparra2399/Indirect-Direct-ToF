@@ -9,9 +9,10 @@ mpl.use('qt5agg')
 
 import simulate_tof_scene
 from direct_toflib import direct_tof_utils
-from combined_indirect_tof import combined_indirect_utils, CodingFunctions
+from indirect_toflib import indirect_tof_utils, CodingFunctions
 breakpoint = debugger.set_trace
 from direct_toflib import tirf
+import PlotUtils
 import FileUtils
 
 
@@ -28,45 +29,56 @@ if __name__ == "__main__":
     meanBeta = 1  # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
-    depth_padding = 0.02  # Skip the depths at the boundaries
-    pw_factors = np.array([0.5])
     rec_algo = 'linear'
 
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (direct_tof_utils.calc_tof_domain_params(n_tbins, rep_tau=rep_tau))
 
+    n_photons = 250
+    sbr = 0.5
 
-    sourceExponent = 9
-    ambientExponent = 9
+    ############### INDIRECT ####################
+    (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
+    Incident = indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr=None)
 
-    pAveSourcePerPixel = np.power(10, sourceExponent)
-    pAveAmbientPerPixel = np.power(10, ambientExponent)
+    peak_power = np.max(Incident)
 
-
-    depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
+    ################### DIRECT ###################
+    depths = np.array([5.5, 6.5, 4.3])
     gt_tshifts = direct_tof_utils.depth2time(depths)
 
-    (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
+    pw_factors = np.array([1])
+    sigma = pw_factors * tbin_res
+    pulses_list = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
 
-    kappas = np.sum(DemodFs, 0) * dt
-    Ambient = rep_tau * pAveSourcePerPixel * kappas
-
-    #ModFs = combined_indirect_utils.ScaleMod(ModFs, tau=rep_tau, pAveSource=pAveSourcePerPixel)
-    Incident = (rep_tau * pAveSourcePerPixel) * meanBeta * (ModFs + Ambient)
-
-    pulses_list = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=gt_tshifts, t_domain=t_domain)
     pulses = pulses_list[0]
 
-    curr_sbr = pAveSourcePerPixel / pAveAmbientPerPixel
-    n_photons = rep_tau * pAveSourcePerPixel #total photons
-    pulses.set_sbr(curr_sbr)
+    pulse = np.squeeze(pulses.tirf)
+    #plt.plot(pulse)
 
-    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=n_photons, n_mc_samples=1)
+    pulses.set_sbr(sbr)
+    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=n_photons,
+                                                        n_mc_samples=1,
+                                                        peak_power=peak_power,
+                                                        num_mes=K,
+                                                        add_noise=False)
+
+
 
     plot_pulses = np.transpose(np.squeeze(simulated_pulses))
-    plot_clean_puleses = np.transpose(np.squeeze(pulses.tirf))
     plt.plot(plot_pulses)
-    #plt.plot(plot_clean_puleses)
-    plt.plot(Incident)
+    plt.plot(indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr))
+
+    #full_idtof = PlotUtils.FULL_IDTOF(Incident, DemodFs, depths)
+    #full_itof = PlotUtils.FULL_ITOF(Incident, DemodFs, depths)
+    #full_pulsed = PlotUtils.FULL_pulses_idtof(simulated_pulses, DemodFs, depths)
+    #plt.plot(np.squeeze(full_itof))
+    #plt.plot(np.squeeze(full_idtof))
     plt.show()
+
+
     print("hello world")
+
+
+
+

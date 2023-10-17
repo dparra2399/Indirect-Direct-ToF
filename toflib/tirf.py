@@ -16,7 +16,7 @@ from research_utils.shared_constants import *
 from research_utils.timer import Timer
 from research_utils.signalproc_ops import circular_conv, gaussian_pulse, expgaussian_pulse_conv
 from research_utils import np_utils
-from direct_toflib import direct_tof_utils
+from toflib import tof_utils
 
 def init_gauss_pulse_list(n_tbins, pulse_widths, mu=0, t_domain=None):
 	'''
@@ -73,11 +73,11 @@ class TemporalIRF(ABC):
 		'''
 		# Simulate the pulses for all depth n_mc_samples times.
 		if(self.sbr.size == 1):
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_sbr(self.tirf[self.nonzero_signal_mask], sbr=self.sbr, axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_sbr(self.tirf[self.nonzero_signal_mask], sbr=self.sbr, axis=-1)
 		else:
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_sbr(self.tirf[self.nonzero_signal_mask], sbr=self.sbr[self.nonzero_signal_mask], axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_sbr(self.tirf[self.nonzero_signal_mask], sbr=self.sbr[self.nonzero_signal_mask], axis=-1)
 		self.tmp_tirf[self.nosignal_mask] = 0
-		return direct_tof_utils.simulate_n_photons(self.tmp_tirf, n_photons=n_photons, n_mc_samples=n_mc_samples)
+		return tof_utils.simulate_n_photons(self.tmp_tirf, n_photons=n_photons, n_mc_samples=n_mc_samples)
 
 	def simulate_n_photons(self, n_photons=None, n_mc_samples=1, add_noise=True):
 		'''
@@ -85,17 +85,17 @@ class TemporalIRF(ABC):
 		'''
 		# Simulate the pulses for all depth n_mc_samples times.
 		if(self.sbr.size == 1):
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr, axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr, axis=-1)
 		else:
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask], axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask], axis=-1)
 		self.tmp_tirf[self.nosignal_mask] = 0
 		if(add_noise):
 			# the following is the most expensive step of this function
-			return direct_tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
+			return tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
 		else:
 			return self.tmp_tirf
 
-	def simulate_n_signal_photons(self, n_photons=None, n_mc_samples=1, peak_power=None, num_mes=1, add_noise=True):
+	def simulate_n_signal_photons(self, n_photons=None, n_mc_samples=1):
 		'''
 			Simulate a signal with n_photons. The ground truth signal will have a total
 			number of photons =  n_photons + (n_photons/sbr)
@@ -103,23 +103,46 @@ class TemporalIRF(ABC):
 			For pixels without a signal, we do not perform simulation, simply set them to 0
 		'''
 		# if(not (n_photons is None)): assert(isinstance(n_photons, (int, float))), "n_photons should be a number"
-		if(self.sbr == None or self.sbr.size == 1):
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr, peak_power=peak_power, num_mes=num_mes, axis=-1)
+		if(self.sbr.size == 1):
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr, axis=-1)
 		else:
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask], peak_power=peak_power, num_mes=num_mes, axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask], axis=-1)
 		self.tmp_tirf[self.nosignal_mask] = 0
+		return tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
 
-		if add_noise:
-			return direct_tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
-		else:
-			return self.tmp_tirf
+# class DataBasedTIRF(TemporalIRF):
+# 	'''
+# 		Load TIRF from file
+# 		**kwargs correspond to the extra args accepted by the parent function
+# 	'''
+# 	def __init__(self, tirf_data, shifts=None, **kwargs):
+# 		# Create a circular gaussian pulse
+# 		assert(os.path.exists(tirf_filepath)), "Input tirf_filepath does not exist ({})".format(tirf_filepath)
+# 		self.tirf_filepath = tirf_filepath
+# 		loaded_tirf = self.load_tirf()
+# 		# Initialize the regular Temporal IRF based on the data
+# 		super().__init__(tirf_data=loaded_tirf, **kwargs)
+
+# 	@abstractmethod
+# 	def load_tirf(self):
+# 		pass
+
+# class TransientImgTIRF(DataBasedTIRF):
+# 	def __init__(self, tirf_filepath):
+# 		super().__init__( tirf_filepath=tirf_filepath )
+
+# 	def load_tirf(self):
+# 		loaded_tirf = np.load(self.tirf_filepath)
+# 		# If npz array extract the first element
+# 		if('.npz' in self.tirf_filepath): loaded_tirf = loaded_tirf['arr_0']
+# 		return loaded_tirf
 
 class DepthImgTIRF(TemporalIRF):
 	def __init__(self, depth_img, n_tbins, delta_depth=1., **kwargs):
 		self.n_tbins = n_tbins
 		self.delta_depth = delta_depth
 		self.depth_img = depth_img
-		super().__init__( tirf_data=direct_tof_utils.depthmap2tirf(self.depth_img, self.n_tbins, self.delta_depth), **kwargs )
+		super().__init__( tirf_data=tof_utils.depthmap2tirf(self.depth_img, self.n_tbins, self.delta_depth), **kwargs )
 
 	# def depthmap2tirf(self, depth_img):
 	# 	# Transform depths to non-zero indeces
@@ -158,5 +181,20 @@ class GaussianTIRF(ModelBasedTIRF):
 
 	def generate_model_tirf(self):
 		# Create a circular gaussian pulse
-		gaussian_tirf = gaussian_pulse(self.t_domain, self.mu, self.sigma, circ_shifted=False)
+		gaussian_tirf = gaussian_pulse(self.t_domain, self.mu, self.sigma, circ_shifted=True)
 		return gaussian_tirf
+
+class ExpModGaussianTIRF(GaussianTIRF):
+
+	def __init__(self, n_tbins, mu=None, sigma=None, exp_lambda=None, **kwargs ):
+		# Set exp_lambda, and sigma params
+		(self.exp_lambda) = 20*(1./n_tbins)
+		if(not (exp_lambda is None)): self.exp_lambda = exp_lambda
+		else: print("Warning: No lambda given, using default lambda = {}".format(self.exp_lambda))
+		# Initialize the regular Temporal IRF
+		super().__init__(n_tbins=n_tbins, mu=mu, sigma=sigma, **kwargs)
+
+	def generate_model_tirf(self):
+		# Create a circular gaussian pulse
+		exp_mod_gaussian_tirf = expgaussian_pulse_conv(self.t_domain, self.mu, self.sigma, self.exp_lambda)
+		return exp_mod_gaussian_tirf

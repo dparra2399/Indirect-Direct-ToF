@@ -8,7 +8,7 @@ from scipy import signal
 # breakpoint = debugger.set_trace
 
 #### Local imports
-from combined_indirect_tof import combined_indirect_utils
+from indirect_toflib import indirect_tof_utils
 
 TotalEnergyDefault = 1.
 TauDefault = 1.
@@ -38,13 +38,11 @@ def GetCosCos(N=1000, K=4):
 	for i in range(0,K):
 		## No need to apply phase shift to modF
 		modFs[:,i] = cosF
-		## Scale  modF so that area matches the total energy
-		#modFs[:,i] = combined_indirect_utils.ScaleAreaUnderCurve(modFs[:, i], dx=dt, desiredArea=TotalEnergyDefault)
 		## Apply phase shift to demodF
 		demodFs[:,i] = cosF
 	#### Apply phase shifts to demodF
 	shifts = np.arange(0, K)*(float(N)/float(K))
-	demodFs = combined_indirect_utils.ApplyKPhaseShifts(demodFs, shifts)
+	demodFs = indirect_tof_utils.ApplyKPhaseShifts(demodFs, shifts)
 	#### Return coding scheme
 	return (modFs, demodFs)
 
@@ -73,12 +71,12 @@ def GetSqSq(N=1000, K=4):
 		## No need to apply phase shift to modF
 		modFs[:,i] = sqF
 		## Scale  modF so that area matches the total energy
-		modFs[:,i] = combined_indirect_utils.ScaleAreaUnderCurve(modFs[:, i], dx=dt, desiredArea=TotalEnergyDefault)
+		modFs[:,i] = indirect_tof_utils.ScaleAreaUnderCurve(modFs[:, i], dx=dt, desiredArea=TotalEnergyDefault)
 		## Apply phase shift to demodF
 		demodFs[:,i] = sqF
 	#### Apply phase shifts to demodF
 	shifts = np.arange(0, K)*(float(N)/float(K))
-	demodFs = combined_indirect_utils.ApplyKPhaseShifts(demodFs, shifts)
+	demodFs = indirect_tof_utils.ApplyKPhaseShifts(demodFs, shifts)
 	#### Return coding scheme
 	return (modFs, demodFs)
 
@@ -109,7 +107,7 @@ def GetHamK3(N=1000):
 		demodFs[0:math.floor(demodDuty*N),i] = 1.
 	## Apply necessary phase shift
 	shifts = [0, (1./3.)*N, (2./3.)*N]
-	demodFs = combined_indirect_utils.ApplyKPhaseShifts(demodFs, shifts)
+	demodFs = indirect_tof_utils.ApplyKPhaseShifts(demodFs, shifts)
 
 	return (modFs, demodFs)
 
@@ -153,7 +151,7 @@ def GetHamK4(N=1000):
 			if((j%2) == 0):
 				demodFs[int(startIndeces[j]):int(endIndeces[j]),i] = 1.
 	## Apply necessary phase shift
-	demodFs = combined_indirect_utils.ApplyKPhaseShifts(demodFs, shifts)
+	demodFs = indirect_tof_utils.ApplyKPhaseShifts(demodFs, shifts)
 
 	return (modFs, demodFs)
 
@@ -201,7 +199,7 @@ def GetHamK5(N=1000):
 				demodFs[int(startIndeces[j]):int(endIndeces[j]),i] = 1.
 
 	## Apply necessary phase shift
-	demodFs = combined_indirect_utils.ApplyKPhaseShifts(demodFs, shifts)
+	demodFs = indirect_tof_utils.ApplyKPhaseShifts(demodFs, shifts)
 
 	return (modFs, demodFs)
 
