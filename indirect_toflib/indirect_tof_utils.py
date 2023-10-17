@@ -7,6 +7,23 @@ import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
+
+
+def GetIncident(ModFs, n_photons, meanBeta, sbr=None):
+
+    (n_tbins, K) = ModFs.shape
+    if not(sbr is None):
+        n_ambient_photons = n_photons / sbr
+        ambient = n_ambient_photons / n_tbins
+    else:
+        ambient = 0
+
+    ModFs *= n_photons / np.sum(ModFs, axis=0, keepdims=True)
+    Incident = meanBeta * (ModFs + ambient)
+    return Incident
+
+
+
 def ApplyKPhaseShifts(x, shifts):
     K = 0
     if (type(shifts) == np.ndarray):
@@ -29,13 +46,10 @@ def NormalizeMeasureVals(b_vals, axis=-1):
 
     return norm_bvals
 
-def AddPoissonNoiseArr(Signal):
+def AddPoissonNoiseLam(lam, trials=1000):
+    new_size = (trials,) + lam.shape
     rng = np.random.default_rng()
-    return rng.poisson(lam=Signal).astype(Signal.dtype)
-
-def AddPoissonNoiseLam(lam):
-    rng = np.random.default_rng()
-    return rng.poisson(lam=lam)
+    return rng.poisson(lam=lam, size=new_size).astype(lam.dtype)
 
 def GetMeasurements(Incident, DemodFs, dt=1):
     (n_tbins, K) = Incident.shape
@@ -51,24 +65,10 @@ def GetMeasurements(Incident, DemodFs, dt=1):
     return measures
 
 
-def IDTOF(Incident, DemodFs, depths, dt=1):
+
+def ITOF(Incident, DemodFs, depths, trials, dt=1):
     (n_tbins, K) = Incident.shape
-
-    measures = np.zeros((depths.shape[0], K))
-    depths = depths.astype(int)
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-
-        for l in range(0, depths.shape[0]):
-            cc = np.roll(AddPoissonNoiseArr(Incident[:, j]), depths[l])
-            measures[l, j] = np.inner(cc, demod)
-
-    measures = measures * dt
-    return measures
-
-def ITOF(Incident, DemodFs, depths, dt=1):
-    (n_tbins, K) = Incident.shape
-    measures = np.zeros((depths.shape[0], K))
+    measures = np.zeros((depths.shape[0], K, trials))
     depths = depths.astype(int)
 
     for j in range(0, K):
@@ -76,7 +76,7 @@ def ITOF(Incident, DemodFs, depths, dt=1):
 
         for l in range(0, depths.shape[0]):
             cc = np.roll(Incident[:, j], depths[l])
-            measures[l, j] = AddPoissonNoiseLam(np.inner(cc, demod))
+            measures[l, j, :] = AddPoissonNoiseLam(np.inner(cc, demod), trials)
 
     measures = measures * dt
     return measures
@@ -95,14 +95,10 @@ def ScaleIncident(ModFs, dx=1., desiredArea=1.):
 
     return ModFs
 
-def ComputeMetrics(depths, decoded_depths_idtof, decoded_depths_itof):
-    errors_idtof = np.abs(decoded_depths_idtof - depths)
-    mae_idtof = np.mean(errors_idtof)
-
-    errors_itof = np.abs(decoded_depths_itof - depths)
-    mae_itof = np.mean(errors_itof)
-
-    return (mae_idtof, mae_itof)
+def ComputeMetrics(depths, decoded_depths):
+    errors = np.abs(decoded_depths - depths[np.newaxis, :])
+    mae = np.mean(np.mean(errors, axis=0))
+    return mae
 
 
 def ScaleAreaUnderCurve(x, dx=0., desiredArea=1.):

@@ -8,23 +8,17 @@ breakpoint = debugger.set_trace
 import os.path
 
 
-def WriteErrorsToFile(Experiment,trials, depths, dMax,
-            n_tbins, pAveAmbientList, pAveSourceList, freq, tau,
-            depth_padding, tbin_res, tbin_depth_res, t_domain,
-            gt_tshifts, rec_algo, pw_factors, K, T, dt, meanBeta,
-            mae_idtof, mae_itof, mae_dtof):
+def WriteErrorsToFile(params, results, exp_num, depths, sbr_levels, photon_levels):
+    n_tbins = params['n_tbins']
+    trials = params['trials']
+    lvls = results['mae_itof'].shape[0]
 
-    filename = 'ntbins_{}_monte_{}_exp_{}.npz'.format(n_tbins, trials,  Experiment)
+
+    filename = 'ntbins_{}_monte_{}_lvls_{}_exp_{}.npz'.format(n_tbins, trials, lvls, exp_num)
     outfile = './data/results/' + filename
 
-
-    np.savez(outfile, trials=trials, depths=depths, dMax=dMax, n_tbins=n_tbins,
-            pAveAmbientList=pAveAmbientList,pAveSourceList=pAveSourceList, freq=freq, tau=tau,
-            depth_padding=depth_padding, tbin_res=tbin_res,
-            tbin_depth_res=tbin_depth_res, t_domain=t_domain,
-            gt_tshifts=gt_tshifts, rec_algo=rec_algo, pw_factors=pw_factors,
-            K=K, T=T, dt=dt, meanBeta=meanBeta, mae_idtof=mae_idtof,
-             mae_itof=mae_itof, mae_dtof=mae_dtof)
+    np.savez(outfile, params=params, results=results, exp_num=exp_num, depths=depths,
+             sbr_levels=sbr_levels, photon_levels=photon_levels)
 
     if os.path.isfile(outfile):
         print("Filename {} overwritten".format(filename))
