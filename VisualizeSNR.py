@@ -35,14 +35,14 @@ mae_pulsed_idtof = mae['mae_pulsed_idtof']
 diff1 = mae_dtof_maxgauss - mae_itof
 diff2 = mae_idtof - mae_itof
 #ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_idtof, cmap=cm.coolwarm,linewidth=0, antialiased=False)
-#ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_itof, cmap=cm.autumn, linewidth=0, antialiased=False)
+ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_itof, cmap=cm.autumn, linewidth=0, antialiased=False)
 
-ax.plot_surface(np.log(sbr_levels), np.log(photons_levels), diff1, cmap=cm.autumn,linewidth=0, antialiased=False)
+#ax.plot_surface(np.log(sbr_levels), np.log(photons_levels), diff1, cmap=cm.autumn,linewidth=0, antialiased=False)
 #ax.plot_surface(np.log(sbr_levels), np.log(photons_levels), diff2, cmap=cm.Blues,linewidth=0, antialiased=False)
 
 
 #ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_dtof_argmax, cmap=cm.summer,linewidth=0, antialiased=False)
-#ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_dtof_maxgauss, cmap=cm.Purples,linewidth=0, antialiased=False)
+ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_dtof_maxgauss, cmap=cm.Purples,linewidth=0, antialiased=False)
 #ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_dtof_maxgauss1024, cmap=cm.PiYG,linewidth=0, antialiased=False)
 
 #ax.plot_surface(np.log10(sbr_levels), np.log10(photons_levels), mae_pulsed_idtof, cmap=cm.winter,linewidth=0, antialiased=False)
