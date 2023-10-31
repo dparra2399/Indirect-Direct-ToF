@@ -27,6 +27,20 @@ mae_itof = mae['mae_idtof']
 mae_itof1024 = mae1024['mae_idtof']
 mae_dtof_maxgauss1024 = mae1024['mae_dtof_maxgauss']
 
+if flag:
+    arr = [0, 1, 2, 3, 4, 5]
+    pAveSourceList = np.delete(pAveSourceList, obj=arr, axis=1)
+    pAveAmbientList = np.delete(pAveAmbientList, obj=arr, axis=1)
+    mae_idtof = np.delete(mae_idtof, obj=arr, axis=1)
+    mae_itof = np.delete(mae_itof, obj=arr, axis=1)
+    mae_dtof = np.delete(mae_dtof, obj=arr, axis=1)
+
+    pAveSourceList = np.delete(pAveSourceList, obj=arr, axis=0)
+    pAveAmbientList = np.delete(pAveAmbientList, obj=arr, axis=0)
+    mae_idtof = np.delete(mae_idtof, obj=arr, axis=0)
+    mae_itof = np.delete(mae_itof, obj=arr, axis=0)
+    mae_dtof = np.delete(mae_dtof, obj=arr, axis=0)
+
 
 mae_dtof_argmax = mae['mae_dtof_argmax']
 mae_dtof_maxgauss = mae['mae_dtof_maxgauss']
