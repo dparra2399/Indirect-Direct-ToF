@@ -8,6 +8,7 @@ breakpoint = debugger.set_trace
 from research_utils.shared_constants import *
 from research_utils.timer import Timer
 from research_utils import np_utils
+from indirect_toflib import CodingFunctions
 
 def linearize_phase(phase):
 	# If phase  < 0 then we need to add 2pi.
@@ -69,16 +70,16 @@ def set_sbr(v, n_photons=None, sbr=None, axis=-1, inplace=False):
 		assert(np.all(sbr > 0)), "sbr needs to be > 0"
 		if (n_photons is None): n_photons = v.sum(axis=axis, keepdims=True)
 		n_ambient_photons = n_photons / sbr_arr
-		ambient = n_ambient_photons / v.shape[-1] 
+		ambient = n_ambient_photons
 		if(inplace):
 			# do not create copy of vector
 			v += ambient
 			return v 
 		else: 
-			return v + ambient 
+			return v + ambient
 	return v
 
-def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1,  axis=-1, inplace=False):
+def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1,  meanBeta=1, axis=-1, inplace=False):
 	'''
 		If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
 		If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -86,7 +87,11 @@ def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1
 	# Scale the signal according to n_photons if provided, otherwise use the signal in v
 	if(not inplace): v_out = np.array(v)
 	else: v_out = v
-	if(not (n_photons is None)):
+
+	if not(peak_power is None):
+		peak_power *= num_mes
+		v_out *= (peak_power / np.max(v_out, axis=axis, keepdims=True))
+	elif not (n_photons is None):
 		n_photons_arr = np_utils.to_nparray(n_photons).squeeze()
 		assert((n_photons_arr.ndim == 0) or ((n_photons_arr.ndim+1) == v.ndim)), "incorrect input n_photons dims"
 		if(n_photons_arr.ndim > 0): n_photons_arr = np.expand_dims(n_photons_arr, axis=axis)
@@ -96,11 +101,8 @@ def set_signal_n_photons(v, n_photons=None, sbr=None, peak_power=None, num_mes=1
 		v_out *= (n_photons_arr / v.sum(axis=axis, keepdims=True))
 	# Add constant offset = n_photons / sbr
 
-	if not(peak_power is None):
-		peak_power *= num_mes
-		v_out = (v_out / np.max(v_out, axis=axis, keepdims=True)) * peak_power
-
 	v_out = set_sbr(v_out, n_photons=n_photons, sbr=sbr, axis=axis, inplace=True)
+	v_out *= meanBeta #set refectivety of scene
 	return v_out
 
 def set_n_photons(v, n_photons=None, sbr=None, axis=-1): 
@@ -119,8 +121,10 @@ def set_flux_n_photons(v, n_photons=None, sbr=None, axis=-1):
 	return v_out
 
 def add_poisson_noise(transient, n_mc_samples=1):
+	transient = transient.astype(np.float64)
+	rng = np.random.default_rng()
 	new_size = (n_mc_samples,) + transient.shape
-	return np.random.poisson(lam=transient, size=new_size).astype(transient.dtype)
+	return rng.poisson(lam=transient, size=new_size).astype(transient.dtype)
 
 def simulate_n_photons(transient, n_photons=1, n_mc_samples=1):
 	# Vectorize transient such that it is only a 2D matrix where the last dimension is the time dim

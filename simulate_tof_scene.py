@@ -12,22 +12,26 @@ from direct_toflib import tirf
 from direct_toflib import direct_tof_utils
 from direct_toflib.direct_tof_utils import time2depth
 import math
-from PlotUtils import plot_signals
+from PlotUtils import plot_clean, plot_noisy
 from toflib.coding import IdentityCoding
 
-plot = 0
-def combined_and_indirect_mae(params, depths, sbr, n_photons):
+plot = 1
+def combined_and_indirect_mae(params, depths, sbr, pAveSource):
 
     n_tbins = params['n_tbins']
     tau = params['tau']
     K = params['K']
     meanBeta = params['meanBeta']
     dMax = params['dMax']
+    dt = params['dt']
     trials = params['trials']
-
+    peak_factor = params['peak_factor']
+    depth_res = params['depth_res']
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
-    Incident = indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr)
+    #ModFs = ModFs / np.max(ModFs) * (peak_factor * pAveSource)
+    ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+    Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, meanBeta=meanBeta, sbr=sbr, dt=dt)
 
     Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
 
@@ -50,47 +54,50 @@ def combined_and_indirect_mae(params, depths, sbr, n_photons):
     decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
 
     results={}
-    results['mae_idtof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof)
-    results['mae_itof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof)
+    results['mae_idtof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof) * depth_res
+    results['mae_itof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof) * depth_res
 
     return results
 
 
-def direct_mae(params, depths, sbr, n_photons):
+def direct_mae(params, depths, sbr, pAveSource):
 
     n_tbins = params['n_tbins']
     tau = params['rep_tau']
     K = params['K']
     meanBeta = params['meanBeta']
     trials = params['trials']
-    addPeak = params['addPeak']
     pw_factors = params['pw_factors']
+    peak_factor = params['peak_factor']
     rec_algo = params['rec_algo']
+    depth_res = params['depth_res']
+    dMax = params['dMax']
     gt_depths = depths
+    depths = np.round((gt_depths / dMax) * n_tbins)
 
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
-    Incident = indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr=None)
-
-    if (addPeak):peak_power = np.max(Incident)
-    else: peak_power = None
-
+    ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+    peak_power = np.max(ModFs)
 
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (direct_tof_utils.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
-    gt_tshifts = direct_tof_utils.depth2time(depths)
+    gt_tshifts = direct_tof_utils.depth2time(gt_depths)
 
     # Create GT gaussian pulses for each coding. Different coding may use different pulse widths
     pulses_list = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=gt_tshifts, t_domain=t_domain)
     pulses = pulses_list[0]
 
-    clean_pulses_list = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=0, t_domain=t_domain)
-    clean_pulses = clean_pulses_list[0]
+    all_depths = np.linspace(0, params['dMax'], n_tbins)
+    all_tshifts = direct_tof_utils.depth2time(all_depths)
+    clean_pulse_list = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=all_tshifts, t_domain=t_domain)
+    clean_pulse = clean_pulse_list[0]
 
     pulses.set_sbr(sbr)
-    clean_pulses.set_sbr(None)
+    clean_pulse.set_sbr(None)
 
-    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=n_photons, n_mc_samples=trials, peak_power=peak_power, num_mes=K)
-    clean_sim_pulses = clean_pulses.simulate_n_signal_photons(n_photons=n_photons, n_mc_samples=1, peak_power=peak_power, num_mes=K, add_noise=False)
+    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=pAveSource, n_mc_samples=trials, peak_power=peak_power, num_mes=K, meanBeta=meanBeta)
+    clean_sim_pulses = clean_pulse.simulate_n_signal_photons(n_photons=pAveSource, n_mc_samples=1, peak_power=peak_power, num_mes=K, add_noise=False)
+    Incident_pulses = indirect_tof_utils.GetIncident(clean_sim_pulses, pAveSource, meanBeta=meanBeta, sbr=sbr)
 
 
     coding_obj = IdentityCoding(n_maxres=n_tbins, account_irf=False, h_irf=None)
@@ -104,15 +111,18 @@ def direct_mae(params, depths, sbr, n_photons):
     NormMeasures = NormMeasures.transpose()
 
 
-    measurements_pulsed_idtof = combined_tof_utils.pulses_idtof(simulated_pulses,DemodFs, trials)
+    measurements_pulsed_idtof = combined_tof_utils.pulses_idtof(Incident_pulses,DemodFs, depths, trials)
     norm_measurements_idtof = indirect_tof_utils.NormalizeMeasureVals(measurements_pulsed_idtof, axis=1)
     decoded_depths_pulsed_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
     decoded_depths_pulsed_idtof = decoded_depths_pulsed_idtof * dMax / n_tbins
 
     results = {}
-    results['mae_dtof_maxgauss'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_maxguass)
-    results['mae_dtof_argmax'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_argmax)
-    results['mae_pulsed_idtof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pulsed_idtof)
+    results['mae_dtof_maxgauss'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_maxguass) * depth_res
+    results['mae_dtof_argmax'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_argmax) * depth_res
+    results['mae_pulsed_idtof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pulsed_idtof) * depth_res
 
-    if (plot):plot_signals(simulated_pulses, indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr))
+    if (plot):
+        plot_noisy(c_vals, indirect_tof_utils.GetIncident(ModFs, pAveSource, meanBeta=meanBeta, sbr=sbr), trials)
+        #plot_clean(pulses.simulate_n_signal_photons(n_photons=pAveSource, n_mc_samples=1, peak_power=peak_power, num_mes=K, meanBeta=meanBeta, add_noise=False), indirect_tof_utils.GetIncident(ModFs, pAveSource, meanBeta=meanBeta, sbr=sbr))
+        plt.show()
     return results
