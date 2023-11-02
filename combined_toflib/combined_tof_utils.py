@@ -28,14 +28,15 @@ def IDTOF(Incident, DemodFs, depths, trials, dt=1):
     return measures
 
 
-def pulses_idtof(pulses, DemodFs, trials, dt=1):
+def pulses_idtof(pulses, DemodFs, depths, trials, dt=1):
     (n_tbins, K) = DemodFs.shape
-    measures = np.zeros((pulses.shape[1], K, trials))
+    measures = np.zeros((depths.shape[0], K, trials))
 
+    depths = depths.astype(int)
     for j in range(0, K):
         demod = DemodFs[:, j]
-        for l in range(0, pulses.shape[1]):
-            pulse = pulses[:, l, :]
+        for l in range(0, depths.shape[0]):
+            pulse = AddPoissonNoiseArr(pulses[:, depths[l]], trials)
             measures[l, j, :] = np.inner(pulse, demod)
 
     measures = measures * dt
@@ -48,7 +49,7 @@ def GetPulseMeasurements(Clean_pulse, DemodFs, dt=1):
     for j in range(0, K):
         demod = DemodFs[:, j]
         for l in range(0, n_tbins):
-            pulse = np.roll(Clean_pulse, l)
+            pulse = Clean_pulse[:, l]
             measures[l, j] = np.inner(pulse, demod)
 
     measures = measures * dt

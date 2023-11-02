@@ -15,59 +15,59 @@ import FileUtils
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     params = {}
-    params['n_tbins'] = 256
+    params['n_tbins'] = 1024
     params['K'] = 4
     params['T'] = 0.1  # Integration time. Exposure time in seconds
-    speedOfLight = 299792458. * 1000.  # mm / sec
     params['rep_freq'] = 1e+7
     params['fund_freq'] = params['rep_freq']
     params['rep_tau'] = 1. / params['rep_freq']
     params['tau'] = 1./ params['fund_freq']
     params['dMax'] = direct_tof_utils.time2depth(params['rep_tau'])
+    params['depth_res'] = 1000
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
-    params['meanBeta'] = 1
+    params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
-    params['pw_factors'] = np.array([8])
-    params['addPeak'] = True
+    params['pw_factors'] = np.array([1])
+    params['peak_factor'] = 1
     params['rec_algo'] = 'linear'
-    params['trials'] = 1000
+    params['trials'] = 10
 
-    depths = np.array([5.32, 6.78, 2.01, 7.68, 8.34])
+    depths = np.array([3.42, 8.78, 12.22, 13.68, 1.34])
 
-    run_exp = 1
-    exp_num = 0
+    run_exp = 0
+    exp_num = 'tmp'
 
-    n_signal_lvls = 20
-    n_sbr_lvls = 20
+    n_signal_lvls = 5
+    n_sbr_lvls = 5
 
-    (min_signal_exp, max_signal_exp) = (0.5, 4.5)
+    (min_power_exp, max_power_exp) = (3.5, 10)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
-    photon_levels_list = np.round(np.power(10, np.linspace(min_signal_exp, max_signal_exp, n_signal_lvls)))
+    pAveSource_levels_list = np.round(np.power(10, np.linspace(min_power_exp, max_power_exp, n_signal_lvls)))
     sbr_levels_list = np.power(10, np.linspace(min_sbr_exp, max_sbr_exp, n_sbr_lvls))
-    sbr_levels, photon_levels = np.meshgrid(sbr_levels_list, photon_levels_list)
+    sbr_levels, pAveSource_levels = np.meshgrid(sbr_levels_list, pAveSource_levels_list)
 
-    n_photons = 10
+    pAveSource = 10**3.5
     sbr = 0.5
 
     if run_exp:
         tic = time.perf_counter()
-        results = run_experiment(params, depths, sbr_levels, photon_levels)
+        results = run_experiment(params, depths, sbr_levels, pAveSource_levels)
 
         toc = time.perf_counter()
         print(f"Completed in {toc - tic:0.4f} seconds")
 
         FileUtils.WriteErrorsToFile(
             params=params, results=results, exp_num=exp_num, depths=depths,
-            sbr_levels=sbr_levels, photon_levels=photon_levels)
+            sbr_levels=sbr_levels, pAveSource_levels=pAveSource_levels)
 
 
     else:
         tic = time.perf_counter()
-        results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, n_photons)
+        results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, pAveSource)
 
-        results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, n_photons)
+        results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, pAveSource)
 
         toc = time.perf_counter()
 

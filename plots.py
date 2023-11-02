@@ -26,7 +26,7 @@ if __name__ == "__main__":
     dMax = direct_tof_utils.time2depth(rep_tau)
     fSampling = float(dMax) * rep_freq  # Sampling frequency of mod and demod functuion
     dt = rep_tau / float(n_tbins)
-    meanBeta = 1  # Avg fraction of photons reflected from a scene points back to the detector
+    meanBeta = 1e-4  # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
     rec_algo = 'linear'
@@ -34,14 +34,14 @@ if __name__ == "__main__":
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (direct_tof_utils.calc_tof_domain_params(n_tbins, rep_tau=rep_tau))
 
-    n_photons = 250
-    sbr = 0.5
+    pAveSource = 10**9
+    sbr = 10**-1
 
     ############### INDIRECT ####################
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
-    Incident = indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr=None)
+    ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=rep_tau, pAveSource=pAveSource)
+    peak_power = np.max(ModFs)
 
-    peak_power = np.max(Incident)
 
     ################### DIRECT ###################
     depths = np.array([5.5, 6.5, 4.3])
@@ -49,35 +49,27 @@ if __name__ == "__main__":
 
     pw_factors = np.array([1])
     sigma = pw_factors * tbin_res
+
     pulses_list = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
 
     pulses = pulses_list[0]
 
     pulse = np.squeeze(pulses.tirf)
-    #plt.plot(pulse)
+    # plt.plot(pulse)
 
-    pulses.set_sbr(sbr)
-    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=n_photons,
+    pulses.set_sbr(None)
+    simulated_pulses = pulses.simulate_n_signal_photons(n_photons=pAveSource,
                                                         n_mc_samples=1,
                                                         peak_power=peak_power,
                                                         num_mes=K,
                                                         add_noise=False)
 
-
-
     plot_pulses = np.transpose(np.squeeze(simulated_pulses))
     plt.plot(plot_pulses)
-    plt.plot(indirect_tof_utils.GetIncident(ModFs, n_photons, meanBeta, sbr))
+    plt.plot(ModFs)
 
-    #full_idtof = PlotUtils.FULL_IDTOF(Incident, DemodFs, depths)
-    #full_itof = PlotUtils.FULL_ITOF(Incident, DemodFs, depths)
-    #full_pulsed = PlotUtils.FULL_pulses_idtof(simulated_pulses, DemodFs, depths)
-    #plt.plot(np.squeeze(full_itof))
-    #plt.plot(np.squeeze(full_idtof))
     plt.show()
 
-
-    print("hello world")
 
 
 

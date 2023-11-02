@@ -4,21 +4,21 @@ import numpy as np
 from scipy import stats
 from IPython.core import debugger
 import matplotlib.pyplot as plt
-
+from indirect_toflib import CodingFunctions
 breakpoint = debugger.set_trace
 
 
 
-def GetIncident(ModFs, n_photons, meanBeta, sbr=None):
+def GetIncident(ModFs, pAveSource, peak_factor=0, meanBeta=1, sbr=None, dt=1):
+
 
     (n_tbins, K) = ModFs.shape
     if not(sbr is None):
-        n_ambient_photons = n_photons / sbr
-        ambient = n_ambient_photons / n_tbins
+        pAveAmbient = pAveSource / sbr
+        ambient = pAveAmbient
     else:
         ambient = 0
 
-    ModFs *= n_photons / np.sum(ModFs, axis=0, keepdims=True)
     Incident = meanBeta * (ModFs + ambient)
     return Incident
 
@@ -125,7 +125,7 @@ def ScaleAreaUnderCurve(x, dx=0., desiredArea=1.):
     return y
 
 
-def ScaleMod(ModFs, tau=1., pAveSource=1., dt=1.):
+def ScaleMod(ModFs, tau=1., pAveSource=1., dt=None):
     """ScaleMod: Scale modulation appropriately given the beta of the scene point, the average
     source power and the repetition frequency.
 

@@ -56,8 +56,13 @@ def FULL_ITOF(Incident, DemodFs, depths, trials=1, dt=1):
     return measures
 
 
-def plot_signals(pulses, sin):
-    plot_pulses = np.transpose(np.squeeze(pulses[0,...]))
+def plot_noisy(pulses, sin, trials):
+    plot_pulses = np.transpose(np.squeeze(np.mean(pulses, axis=0)))
     plt.plot(plot_pulses)
-    plt.plot(np.squeeze(AddPoissonNoiseArr(sin, trials=1)))
-    plt.show()
+    plt.plot(np.squeeze(np.mean(AddPoissonNoiseArr(sin, trials=trials), axis=0)))
+
+
+def plot_clean(pulses, sin):
+    plot_pulses = np.transpose(np.squeeze(pulses))
+    plt.plot(plot_pulses, linewidth=3)
+    plt.plot(np.squeeze(sin), linewidth=3)

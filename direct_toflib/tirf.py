@@ -95,7 +95,7 @@ class TemporalIRF(ABC):
 		else:
 			return self.tmp_tirf
 
-	def simulate_n_signal_photons(self, n_photons=None, n_mc_samples=1, peak_power=None, num_mes=1, add_noise=True):
+	def simulate_n_signal_photons(self, n_photons=None, n_mc_samples=1, peak_power=None, num_mes=1, meanBeta=1, add_noise=True):
 		'''
 			Simulate a signal with n_photons. The ground truth signal will have a total
 			number of photons =  n_photons + (n_photons/sbr)
@@ -104,9 +104,13 @@ class TemporalIRF(ABC):
 		'''
 		# if(not (n_photons is None)): assert(isinstance(n_photons, (int, float))), "n_photons should be a number"
 		if(self.sbr == None or self.sbr.size == 1):
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr, peak_power=peak_power, num_mes=num_mes, axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(
+				self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr,
+				peak_power=peak_power, num_mes=num_mes, meanBeta=meanBeta, axis=-1)
 		else:
-			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask], peak_power=peak_power, num_mes=num_mes, axis=-1)
+			self.tmp_tirf[self.nonzero_signal_mask] = direct_tof_utils.set_signal_n_photons(
+				self.tirf[self.nonzero_signal_mask], n_photons=n_photons, sbr=self.sbr[self.nonzero_signal_mask],
+				peak_power=peak_power, num_mes=num_mes, meanBeta=meanBeta, axis=-1)
 		self.tmp_tirf[self.nosignal_mask] = 0
 
 		if add_noise:
