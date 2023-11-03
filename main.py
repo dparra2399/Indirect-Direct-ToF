@@ -32,42 +32,48 @@ if __name__ == '__main__':
     params['pw_factors'] = np.array([1])
     params['peak_factor'] = 1
     params['rec_algo'] = 'linear'
-    params['trials'] = 10
+    params['trials'] = 3000
 
     depths = np.array([3.42, 8.78, 12.22, 13.68, 1.34])
 
-    run_exp = 0
+    run_exp = 1
     exp_num = 'tmp'
 
-    n_signal_lvls = 5
-    n_sbr_lvls = 5
+    n_signal_lvls = 20
+    n_sbr_lvls = 20
 
-    (min_power_exp, max_power_exp) = (3.5, 10)
+    (min_power_exp, max_power_exp) = (4, 10)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
+    (min_amb_exp, max_amb_exp) = (2, 8)
+
     pAveSource_levels_list = np.round(np.power(10, np.linspace(min_power_exp, max_power_exp, n_signal_lvls)))
+    pAveAmbient_levels_list = np.round(np.power(10, np.linspace(min_amb_exp, max_amb_exp, n_signal_lvls)))
     sbr_levels_list = np.power(10, np.linspace(min_sbr_exp, max_sbr_exp, n_sbr_lvls))
     sbr_levels, pAveSource_levels = np.meshgrid(sbr_levels_list, pAveSource_levels_list)
+    pAveAmbient_levels, _ = np.meshgrid(pAveAmbient_levels_list, pAveSource_levels_list)
 
-    pAveSource = 10**3.5
-    sbr = 0.5
+    pAveSource = (10**4)
+    pAveAmbient = (10**8)
+    #pAveAmbient = None
+    sbr = None
 
     if run_exp:
         tic = time.perf_counter()
-        results = run_experiment(params, depths, sbr_levels, pAveSource_levels)
+        results = run_experiment(params, depths, None, pAveAmbient_levels, pAveSource_levels)
 
         toc = time.perf_counter()
         print(f"Completed in {toc - tic:0.4f} seconds")
 
         FileUtils.WriteErrorsToFile(
             params=params, results=results, exp_num=exp_num, depths=depths,
-            sbr_levels=sbr_levels, pAveSource_levels=pAveSource_levels)
+            sbr_levels=sbr_levels, pAveAmbient_levels= pAveAmbient_levels, pAveSource_levels=pAveSource_levels)
 
 
     else:
         tic = time.perf_counter()
-        results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, pAveSource)
+        results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource)
 
-        results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, pAveSource)
+        results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, pAveAmbient, pAveSource)
 
         toc = time.perf_counter()
 
