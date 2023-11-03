@@ -8,7 +8,7 @@ breakpoint = debugger.set_trace
 import os.path
 
 
-def WriteErrorsToFile(params, results, exp_num, depths, sbr_levels, pAveSource_levels):
+def WriteErrorsToFile(params, results, exp_num, depths, sbr_levels, pAveAmbient_levels, pAveSource_levels):
     n_tbins = params['n_tbins']
     trials = params['trials']
     lvls = results['mae_itof'].shape[0]
@@ -18,7 +18,7 @@ def WriteErrorsToFile(params, results, exp_num, depths, sbr_levels, pAveSource_l
     outfile = './data/results/' + filename
 
     np.savez(outfile, params=params, results=results, exp_num=exp_num, depths=depths,
-             sbr_levels=sbr_levels, pAveSource_levels=pAveSource_levels)
+             sbr_levels=sbr_levels, pAveAmbient_levels=pAveAmbient_levels, pAveSource_levels=pAveSource_levels)
 
     if os.path.isfile(outfile):
         print("Filename {} overwritten".format(filename))

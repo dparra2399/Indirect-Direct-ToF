@@ -9,17 +9,19 @@ breakpoint = debugger.set_trace
 
 
 
-def GetIncident(ModFs, pAveSource, peak_factor=0, meanBeta=1, sbr=None, dt=1):
+def GetIncident(ModFs, pAveSource, peak_factor=0, meanBeta=1, sbr=None, pAveAmbient=None, tau=1, dt=1):
 
-
-    (n_tbins, K) = ModFs.shape
+    assert sbr==None or pAveAmbient==None, "sbr or ambient light must be none"
     if not(sbr is None):
-        pAveAmbient = pAveSource / sbr
+        avg_ambient = pAveSource / sbr
+        ambient = avg_ambient
+    elif not(pAveAmbient is None):
         ambient = pAveAmbient
     else:
         ambient = 0
 
-    Incident = meanBeta * (ModFs + ambient)
+    Incident = meanBeta * (ModFs + ambient * tau)
+    #print("sinosoud photon count", np.sum(Incident, axis=0))
     return Incident
 
 
