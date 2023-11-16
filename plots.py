@@ -12,7 +12,7 @@ from direct_toflib import direct_tof_utils
 from indirect_toflib import indirect_tof_utils, CodingFunctions
 breakpoint = debugger.set_trace
 from direct_toflib import tirf
-import PlotUtils
+import debug_utils
 import FileUtils
 
 

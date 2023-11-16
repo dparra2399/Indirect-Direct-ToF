@@ -122,11 +122,22 @@ class TemporalIRF(ABC):
         else:
             return self.tmp_tirf
 
-    def simulate_peak_power(self, peak_power=None, num_measures=1, n_mc_samples=1, add_noise=True):
+    def simulate_peak_power(self, peak_power, pAveSource=None,  num_measures=1, n_mc_samples=1, dt=1, tau=1, add_noise=True):
         self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_peak_power(self.tirf[self.nonzero_signal_mask],
-                                                                           peak_power, ambient=self.ambient,
+                                                                           peak_power, pAveSource, ambient=self.ambient,
                                                                            num_measures=num_measures, sbr=self.sbr,
-                                                                           mean_beta=self.mean_beta, axis=-1)
+                                                                           mean_beta=self.mean_beta, dt=dt, tau=tau, axis=-1)
+        self.tmp_tirf[self.nosignal_mask] = 0
+
+        if add_noise is False:
+            return self.tmp_tirf
+        return tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
+
+    def simulate_avg_power(self, pAveSource,  n_mc_samples=1, dt=1, tau=1, add_noise=True):
+        self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_avg_power(self.tirf[self.nonzero_signal_mask],
+                                                                           pAveSource, ambient=self.ambient,
+                                                                           sbr=self.sbr, mean_beta=self.mean_beta,
+                                                                           dt=dt, tau=tau, axis=-1)
         self.tmp_tirf[self.nosignal_mask] = 0
 
         if add_noise is False:

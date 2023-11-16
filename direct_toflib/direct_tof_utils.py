@@ -111,7 +111,7 @@ def set_signal_n_photons(v, n_photons=None, sbr=None, axis=-1, inplace=False):
     v_out = set_sbr(v_out, sbr=sbr, axis=axis, inplace=True)
     return v_out
 
-def set_peak_power(v, peak_power, num_measures=1, ambient=None, sbr=None, mean_beta=1, axis=-1, inplace=False):
+def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None, sbr=None, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
     '''
         If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
         If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -124,22 +124,85 @@ def set_peak_power(v, peak_power, num_measures=1, ambient=None, sbr=None, mean_b
     if (not (peak_power is None)):
         simulated_pp = peak_power * num_measures
         v_out = (v_out / v_out.max(axis=axis, keepdims=True)) * simulated_pp
+
     # Add constant offset = n_photons / sbr
     assert sbr==None or ambient==None, "sbr or ambient light must be none"
 
     #print("num photons before amb", v_out.sum(axis=axis)*mean_beta)
-    v_out = set_ambient_light(v_out, ambient=ambient, axis=axis, inplace=True)
+
+    if ambient is not None:
+        v_out = set_ambient_light(v_out, pAveAmbient=ambient, dt=dt, tau=tau, axis=axis, inplace=True)
+    elif sbr is not None:
+        v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
     v_out = v_out * mean_beta
     #print("num photons after amb", v_out.sum(axis=axis))
 
     return v_out
 
-def set_ambient_light(v, ambient=None, axis=-1, inplace=False):
+def set_avg_power(v, pAveSource, ambient=None, sbr=None, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
+    '''
+        If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
+        If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
+    '''
+    # Scale the signal according to n_photons if provided, otherwise use the signal in v
+    if (not inplace):
+        v_out = np.array(v)
+    else:
+        v_out = v
+
+    if (pAveSource is not None):
+        (depths_num, n_tbins) = v_out.shape
+        desired_area = pAveSource * tau
+        for i in range(0, depths_num):
+            oldArea = np.sum(v_out[i, :]) * dt
+            v_out[i, :] = v_out[i, :] * desired_area / oldArea
+
+    # Add constant offset = n_photons / sbr
+    assert sbr==None or ambient==None, "sbr or ambient light must be none"
+
+    #print("num photons before amb", v_out.sum(axis=axis)*mean_beta)
+
+    if ambient is not None:
+        v_out = set_ambient_light(v_out, pAveAmbient=ambient, dt=dt, tau=tau, axis=axis, inplace=True)
+    elif sbr is not None:
+        v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
+    v_out = v_out * mean_beta
+    #print("num photons after amb", v_out.sum(axis=axis))
+
+    return v_out
+def calculate_ambient(v, pAveAmbient, dt, tau):
+    eTotal = tau * pAveAmbient
+    base = np.ones(v.shape[-1])
+
+    oldArea = np.sum(base) * dt
+    amb = base * eTotal / oldArea
+    return amb
+
+def set_sbr_pAveSource(v, pAveSource=None, sbr=None, dt=1, tau=1, axis=-1, inplace=False):
     '''
         If inplace is False, return a copy of
     '''
-    if (not (ambient is None)):
+    assert pAveSource is not None, "if using sbr avg source must not be none"
+    if (not (sbr is None)):
         # Make sbr an np array if needed and add a dimension to match v
+        pAveAmbient = pAveSource / sbr
+        ambient = calculate_ambient(v, pAveAmbient, dt, tau)
+        if (inplace):
+            # do not create copy of vector
+            v += ambient
+            return v
+        else:
+            return v + ambient
+    return v
+
+
+def set_ambient_light(v, pAveAmbient=None, dt=1, tau=1, axis=-1, inplace=False):
+    '''
+        If inplace is False, return a copy of
+    '''
+    if (not (pAveAmbient is None)):
+        # Make sbr an np array if needed and add a dimension to match v
+        ambient = calculate_ambient(v, pAveAmbient, dt, tau)
         if (inplace):
             # do not create copy of vector
             v += ambient
