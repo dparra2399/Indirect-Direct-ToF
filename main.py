@@ -5,7 +5,7 @@ from IPython.core import debugger
 import time
 
 import simulate_tof_scene
-from run_montecarlo_exp import run_experiment
+from run_montecarlo_exp import run_experiment, run_both
 from direct_toflib import direct_tof_utils
 
 breakpoint = debugger.set_trace
@@ -23,26 +23,29 @@ if __name__ == '__main__':
     params['rep_tau'] = 1. / params['rep_freq']
     params['tau'] = 1./ params['fund_freq']
     params['dMax'] = direct_tof_utils.time2depth(params['rep_tau'])
-    params['depth_res'] = 1000
+    params['depth_res'] = 1000 ##Conver to MM
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
     params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
-    params['pw_factors'] = np.array([1])
+    params['pw_factors'] = np.array([30])
     params['peak_factor'] = 1
+    #params['time_res'] = 0.5 * 1e-9 #1 nanosecond
+    #params['time_res'] = 50 * 1e-12 #50 picoseconds
+    params['time_res'] = None
     params['rec_algo'] = 'linear'
-    params['trials'] = 3000
+    params['trials'] = 1
 
-    depths = np.array([3.42, 8.78, 12.22, 13.68, 1.34])
+    depths = np.array([3.42])
 
-    run_exp = 1
-    exp_num = 'tmp'
+    run_exp = 0
+    exp_num = 1
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
 
-    (min_power_exp, max_power_exp) = (4, 10)
+    (min_power_exp, max_power_exp) = (3, 6)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
     (min_amb_exp, max_amb_exp) = (2, 8)
 
@@ -53,36 +56,53 @@ if __name__ == '__main__':
     pAveAmbient_levels, _ = np.meshgrid(pAveAmbient_levels_list, pAveSource_levels_list)
 
     pAveSource = (10**4)
-    pAveAmbient = (10**8)
-    #pAveAmbient = None
-    sbr = None
+    # pAveAmbient = (10**5)
+    pAveAmbient = None
+    sbr = 10**-1
+
+    if params['time_res'] is not None:
+        params['n_tbins'] = int(np.round((params['rep_tau'] * np.squeeze(params['pw_factors'])) / params['time_res']))
+        print("Optimized number of time bins:, ", params['n_tbins'])
+
 
     if run_exp:
         tic = time.perf_counter()
-        results = run_experiment(params, depths, None, pAveAmbient_levels, pAveSource_levels)
+        results = run_experiment(params, depths, sbr_levels, None, pAveSource_levels)
 
         toc = time.perf_counter()
         print(f"Completed in {toc - tic:0.4f} seconds")
 
         FileUtils.WriteErrorsToFile(
             params=params, results=results, exp_num=exp_num, depths=depths,
-            sbr_levels=sbr_levels, pAveAmbient_levels= pAveAmbient_levels, pAveSource_levels=pAveSource_levels)
+            sbr_levels=sbr_levels, pAveAmbient_levels=None, pAveSource_levels=pAveSource_levels)
 
 
     else:
         tic = time.perf_counter()
-        results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource)
-
-        results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, pAveAmbient, pAveSource)
+        (results_indirect, results_direct) = run_both(params, depths, sbr, pAveAmbient, pAveSource)
 
         toc = time.perf_counter()
 
         print(f"MAE IDTOF: {results_indirect['mae_idtof']: .3f},")
         print(f"MAE ITOF: {results_indirect['mae_itof']: .3f},")
-        print(f"MAE DTOF (Argmax): {results_direct['mae_dtof_argmax']: .3f}")
-        print(f"MAE DTOF (Maxgauss): {results_direct['mae_dtof_maxgauss']: .3f}")
-        print(f"MAE Pulsed IDTOF: {results_direct['mae_pulsed_idtof']: .3f},")
-
+        print()
+        print(f"MAE DTOF (Argmax) Peak Power: {results_direct['mae_dtof_argmax_pp']: .3f}")
+        print(f"MAE DTOF (Maxgauss) Peak Power: {results_direct['mae_dtof_maxgauss_pp']: .3f}")
+        # print(f"MAE Pulsed IDTOF Peak Power: {results_direct['mae_pulsed_idtof_pp']: .3f},")
+        print()
+        print(f"MAE DTOF (Argmax) Average Power: {results_direct['mae_dtof_argmax_ave']: .3f}")
+        print(f"MAE DTOF (Maxgauss) Average Power: {results_direct['mae_dtof_maxgauss_ave']: .3f}")
+        # print(f"MAE Pulsed IDTOF Average Power: {results_direct['mae_pulsed_idtof_ave']: .3f},")
+        print()
         print(f"Completed in {toc - tic:0.4f} seconds")
 
-print('hello world')
+print('Complete')
+
+
+#Integral of poisson distruction ==> matlab
+#computer prob with 10 bins if we draw 1000 samples with lambda = 10 what is prob that
+#we get samples larger than 7
+
+#Test peak power and power average
+
+#Larger width and smaller bin size ==> keep pulse nanosecond length

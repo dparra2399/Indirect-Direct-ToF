@@ -11,10 +11,9 @@ import os.path
 def WriteErrorsToFile(params, results, exp_num, depths, sbr_levels, pAveAmbient_levels, pAveSource_levels):
     n_tbins = params['n_tbins']
     trials = params['trials']
-    lvls = results['mae_itof'].shape[0]
+    pw = params['pw_factors'][0]
 
-
-    filename = 'ntbins_{}_monte_{}_lvls_{}_exp_{}.npz'.format(n_tbins, trials, lvls, exp_num)
+    filename = 'ntbins_{}_monte_{}_pw_{}_exp_{}.npz'.format(n_tbins, trials, pw, exp_num)
     outfile = './data/results/' + filename
 
     np.savez(outfile, params=params, results=results, exp_num=exp_num, depths=depths,
