@@ -39,7 +39,7 @@ class TemporalIRF(ABC):
 		The tirf data is considered a probability distribution from which we simulate
 	'''
 
-    def __init__(self, tirf_data, t_domain=None, sbr=None, ambient=None, mean_beta=1):
+    def __init__(self, tirf_data, t_domain=None, sbr=None, ambient=None, T=0.1, mean_beta=1):
         self.tirf = tirf_data.astype(np.float32)
         self.n_tbins = self.tirf.shape[-1]
         self.n_tirfs = int(self.tirf.size / self.n_tbins)
@@ -49,6 +49,7 @@ class TemporalIRF(ABC):
         self.set_sbr(sbr)
         self.set_ambient(ambient)
         self.set_mean_beta(mean_beta)
+        self.set_integration_time(T)
         # Find tirf pixels with no signal
         self.nosignal_mask = np.mean(self.tirf, axis=-1) < EPSILON
         self.nonzero_signal_mask = np.logical_not(self.nosignal_mask)
@@ -72,6 +73,12 @@ class TemporalIRF(ABC):
         self.sbr = np_utils.to_nparray(input_sbr)
         assert ((self.sbr.size == 1) or (self.sbr.shape == self.tirf.shape[
                                                            0:-1])), "input sbr should be a number OR should be an array that matches the first N-1 dims of self.tirf"
+
+    def set_integration_time(self, input_t):
+        if (input_t is None):
+            self.t = None
+            return
+        self.t = input_t
 
     def set_ambient(self, input_amb, tau=1):
         if (input_amb is None):
@@ -126,7 +133,7 @@ class TemporalIRF(ABC):
         self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_peak_power(self.tirf[self.nonzero_signal_mask],
                                                                            peak_power, pAveSource, ambient=self.ambient,
                                                                            num_measures=num_measures, sbr=self.sbr,
-                                                                           mean_beta=self.mean_beta, dt=dt, tau=tau, axis=-1)
+                                                                           T=self.t, mean_beta=self.mean_beta, dt=dt, tau=tau, axis=-1)
         self.tmp_tirf[self.nosignal_mask] = 0
 
         if add_noise is False:
@@ -137,7 +144,7 @@ class TemporalIRF(ABC):
         self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_avg_power(self.tirf[self.nonzero_signal_mask],
                                                                            pAveSource, ambient=self.ambient,
                                                                            sbr=self.sbr, mean_beta=self.mean_beta,
-                                                                           dt=dt, tau=tau, axis=-1)
+                                                                           T=self.t, dt=dt, tau=tau, axis=-1)
         self.tmp_tirf[self.nosignal_mask] = 0
 
         if add_noise is False:

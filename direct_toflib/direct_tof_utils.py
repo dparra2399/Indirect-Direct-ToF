@@ -111,7 +111,8 @@ def set_signal_n_photons(v, n_photons=None, sbr=None, axis=-1, inplace=False):
     v_out = set_sbr(v_out, sbr=sbr, axis=axis, inplace=True)
     return v_out
 
-def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None, sbr=None, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
+def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None, sbr=None, T=0.1,
+                   mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
     '''
         If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
         If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -134,12 +135,12 @@ def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None,
         v_out = set_ambient_light(v_out, pAveAmbient=ambient, dt=dt, tau=tau, axis=axis, inplace=True)
     elif sbr is not None:
         v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
-    v_out = v_out * mean_beta
+    v_out = v_out * mean_beta * T
     #print("num photons after amb", v_out.sum(axis=axis))
 
     return v_out
 
-def set_avg_power(v, pAveSource, ambient=None, sbr=None, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
+def set_avg_power(v, pAveSource, ambient=None, sbr=None, T=0.1, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
     '''
         If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
         If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -166,7 +167,7 @@ def set_avg_power(v, pAveSource, ambient=None, sbr=None, mean_beta=1, dt=1, tau=
         v_out = set_ambient_light(v_out, pAveAmbient=ambient, dt=dt, tau=tau, axis=axis, inplace=True)
     elif sbr is not None:
         v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
-    v_out = v_out * mean_beta
+    v_out = v_out * mean_beta * T
     #print("num photons after amb", v_out.sum(axis=axis))
 
     return v_out

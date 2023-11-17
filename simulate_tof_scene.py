@@ -28,11 +28,16 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource):
     trials = params['trials']
     peak_factor = params['peak_factor']
     depth_res = params['depth_res']
+    T = params['T']
+
+    tbin_depth_res = direct_tof_utils.time2depth(params['rep_tau'] / n_tbins)
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
     ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
-    Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, meanBeta=meanBeta, sbr=sbr,
+    Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, T=T, meanBeta=meanBeta, sbr=sbr,
                                               pAveAmbient=pAveAmbient, dt=dt, tau=tau)
+
+    source_incident = indirect_tof_utils.GetIncident(ModFs, T=T, meanBeta=meanBeta)
 
     Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
 
@@ -42,7 +47,7 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource):
     gt_depths = depths
     depths = np.round((depths / dMax) * n_tbins)
     ###DEPTH ESTIMATIONS
-    measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials)
+    measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, tbin_depth_res=tbin_depth_res, src_incident=source_incident)
     measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials)
 
     if (shared_constants.debug):
@@ -85,6 +90,7 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     depth_res = params['depth_res']
     dMax = params['dMax']
     dt = params['dt']
+    T = params['T']
     gt_depths = depths
     depths = np.round((gt_depths / dMax) * n_tbins)
 
@@ -133,6 +139,11 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     pulses_ave.set_mean_beta(meanBeta)
     clean_pulse_pp.set_mean_beta(meanBeta)
     clean_pulse_ave.set_mean_beta(meanBeta)
+    #Set Integration time
+    pulses_pp.set_integration_time(T)
+    (pulses_ave.set_integration_time(T))
+    clean_pulse_pp.set_integration_time(T)
+    clean_pulse_ave.set_integration_time(T)
 
     #PEAK POWER PULSES
     simulated_pulses_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
@@ -144,9 +155,9 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     clean_sim_pulses_ave = clean_pulse_ave.simulate_avg_power(pAveSource, n_mc_samples=trials,
                                                               dt=dt, tau=tau, add_noise=False)
     #COMBINED CASE WITH PULSES
-    Incident_pulses_pp = indirect_tof_utils.GetIncident(clean_sim_pulses_pp, pAveSource, meanBeta=meanBeta,
+    Incident_pulses_pp = indirect_tof_utils.GetIncident(clean_sim_pulses_pp, pAveSource, T=T, meanBeta=meanBeta,
                                                         sbr=sbr, pAveAmbient=pAveAmbient, dt=dt, tau=tau)
-    Incident_pulses_ave = indirect_tof_utils.GetIncident(clean_sim_pulses_ave, pAveSource, meanBeta=meanBeta,
+    Incident_pulses_ave = indirect_tof_utils.GetIncident(clean_sim_pulses_ave, pAveSource, T=T, meanBeta=meanBeta,
                                                         sbr=sbr, pAveAmbient=pAveAmbient, dt=dt, tau=tau)
 
 
@@ -196,7 +207,7 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     results['mae_pulsed_idtof_ave'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pulsed_idtof_ave) * depth_res
 
     if (shared_constants.debug):
-        debug_utils.debug_direct(params, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
+        debug_utils.debug_direct(params, clean_sim_pulses_pp, clean_sim_pulses_ave, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
                  decoded_depths_dtof_maxguass_ave, c_vals_ave, pulses_ave, depths, t_domain, sigma,
                  peak_power, K, sbr, pAveAmbient, pAveSource)
 

@@ -10,7 +10,7 @@ from matplotlib import cm
 breakpoint = debugger.set_trace
 
 #this one is peak_power with with 30
-file = np.load('data/results/ntbins_100_monte_5000_pw_1_exp_0.npz', allow_pickle=True)
+file = np.load('data/results/ntbins_1024_monte_4000_pw_30_exp_2.npz', allow_pickle=True)
 #file = np.load('data/results/ntbins_2000_monte_5000_pw_1_exp_0.npz', allow_pickle=True)
 #file = np.load('data/results/ntbins_2000_monte_5000_pw_1_exp_1.npz', allow_pickle=True)
 
