@@ -40,12 +40,12 @@ if __name__ == '__main__':
     depths = np.array([3.42])
 
     run_exp = 0
-    exp_num = 1
+    exp_num = 2
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
 
-    (min_power_exp, max_power_exp) = (3, 6)
+    (min_power_exp, max_power_exp) = (4, 7)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
     (min_amb_exp, max_amb_exp) = (2, 8)
 

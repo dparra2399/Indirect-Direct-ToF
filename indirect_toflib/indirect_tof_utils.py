@@ -10,7 +10,7 @@ breakpoint = debugger.set_trace
 
 
 
-def GetIncident(ModFs, pAveSource, peak_factor=1, meanBeta=1, sbr=None, pAveAmbient=None, dt=1, tau=1):
+def GetIncident(ModFs, pAveSource=None, peak_factor=1, T=0.1, meanBeta=1, sbr=None, pAveAmbient=None, dt=1, tau=1):
 
     assert sbr==None or pAveAmbient==None, "sbr or ambient light must be none"
     (n_tbins, K) = ModFs.shape
@@ -24,8 +24,9 @@ def GetIncident(ModFs, pAveSource, peak_factor=1, meanBeta=1, sbr=None, pAveAmbi
     else:
         ambient = 0
 
+    ModFs = ModFs * peak_factor
     for i in range(0, K):
-        Incident[:, i] = peak_factor * meanBeta * (ModFs[:, i] + ambient)
+        Incident[:, i] = T * meanBeta * (ModFs[:, i] + ambient)
     return Incident
 
 
