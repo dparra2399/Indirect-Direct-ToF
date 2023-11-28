@@ -14,16 +14,14 @@ import simulate_tof_scene
 def run_experiment(params, depths, sbr_levels, pAveAmbient_levels, pAveSource_levels):
 
     (n_noise_lvls,n_photon_lvls) = pAveSource_levels.shape
-
+    coding_schemes = params['coding_schemes']
     results = {}
     results['mae_idtof'] = np.zeros(pAveSource_levels.shape)
     results['mae_itof'] = np.zeros(pAveSource_levels.shape)
-    results['mae_dtof_argmax_pp'] = np.zeros(pAveSource_levels.shape)
-    results['mae_dtof_maxgauss_pp'] = np.zeros(pAveSource_levels.shape)
-    results['mae_pulsed_idtof_pp'] = np.zeros(pAveSource_levels.shape)
-    results['mae_dtof_argmax_ave'] = np.zeros(pAveSource_levels.shape)
-    results['mae_dtof_maxgauss_ave'] = np.zeros(pAveSource_levels.shape)
-    results['mae_pulsed_idtof_ave'] = np.zeros(pAveSource_levels.shape)
+
+    for k in range(len(coding_schemes)):
+        results[coding_schemes[k] + '_PP'] = np.zeros(pAveSource_levels.shape)
+        results[coding_schemes[k] + '_AVE'] = np.zeros(pAveSource_levels.shape)
 
     assert sbr_levels is None or pAveAmbient_levels is None, "sbr or ambient lists must be none"
     for x in range(0, n_noise_lvls):
@@ -44,12 +42,10 @@ def run_experiment(params, depths, sbr_levels, pAveAmbient_levels, pAveSource_le
 
             results['mae_idtof'][x, y] = results_indirect['mae_idtof']
             results['mae_itof'][x, y] = results_indirect['mae_itof']
-            results['mae_dtof_argmax_pp'][x, y] = results_direct['mae_dtof_argmax_pp']
-            results['mae_dtof_maxgauss_pp'][x,y] = results_direct['mae_dtof_maxgauss_pp']
-            results['mae_pulsed_idtof_pp'][x, y] = results_direct['mae_pulsed_idtof_pp']
-            results['mae_dtof_argmax_ave'][x, y] = results_direct['mae_dtof_argmax_ave']
-            results['mae_dtof_maxgauss_ave'][x, y] = results_direct['mae_dtof_maxgauss_ave']
-            results['mae_pulsed_idtof_ave'][x, y] = results_direct['mae_pulsed_idtof_ave']
+
+            for k in range(len(coding_schemes)):
+                results[coding_schemes[k] + '_PP'][x, y] = results_direct[coding_schemes[k] + '_PP']
+                results[coding_schemes[k] + '_AVE'][x, y] = results_direct[coding_schemes[k] + '_AVE']
 
 
     return results
@@ -59,7 +55,5 @@ def run_both(params, depths, sbr, pAveAmbient, pAveSource):
     results_indirect = simulate_tof_scene.combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource)
     results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, pAveAmbient, pAveSource)
 
-    if (shared_constants.debug):
-        plt.show()
 
     return (results_indirect, results_direct)

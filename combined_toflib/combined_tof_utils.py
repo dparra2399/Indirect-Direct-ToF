@@ -43,7 +43,7 @@ def IDTOF(Incident, DemodFs, depths, trials, dt=1, tbin_depth_res=None, src_inci
                         axis[count].plot(np.transpose(cc_full), label='Sinosoid hist')
                         axis[count].plot(np.transpose(np.roll(Incident[:, j], p)), label='Ground truth')
                         axis[count].axvline(x=p, color='red', label='depth')
-                        axis[count].set_title('Sinosoid Historgram with depth: ' + str(p*tbin_depth_res) + ' / photon_count  : ' + str(photon_count))
+                        axis[count].set_title('Sinosoid Historgram with depth: ' + str(np.round(p*tbin_depth_res, decimals=2)) + ' / photon_count  : ' + str(np.round(photon_count, decimals=2)))
                         axis[count].legend()
                         count += 1
                     else:
@@ -51,7 +51,7 @@ def IDTOF(Incident, DemodFs, depths, trials, dt=1, tbin_depth_res=None, src_inci
                         axis.plot(np.transpose(cc_full), label='Sinosoid hist')
                         axis.plot(np.transpose(np.roll(Incident[:, j], p)), label='Ground truth')
                         axis.axvline(x=p, color='red', label='depth')
-                        axis.set_title('Sinosoid Historgram with depth: ' + str(p*tbin_depth_res) + ' / photon_count  : ' + str(photon_count))
+                        axis.set_title('Sinosoid Historgram with depth: ' + str(np.round(p*tbin_depth_res, decimals=2)) + ' / photon_count  : ' + str(np.round(photon_count, decimals=2)))
                         axis.legend()
 
 
@@ -64,30 +64,3 @@ def IDTOF(Incident, DemodFs, depths, trials, dt=1, tbin_depth_res=None, src_inci
     measures = measures * dt
     return measures
 
-
-def pulses_idtof(pulses, DemodFs, depths, trials, dt=1):
-    (n_tbins, K) = DemodFs.shape
-    measures = np.zeros((depths.shape[0], K, trials))
-
-    depths = depths.astype(int)
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, depths.shape[0]):
-            pulse = AddPoissonNoiseArr(pulses[:, depths[l]], trials)
-            measures[l, j, :] = np.inner(pulse, demod)
-
-    measures = measures * dt
-    return measures
-
-def GetPulseMeasurements(Clean_pulse, DemodFs, dt=1):
-    (n_tbins, K) = DemodFs.shape
-    measures = np.zeros((n_tbins, K))
-
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, n_tbins):
-            pulse = Clean_pulse[:, l]
-            measures[l, j] = np.inner(pulse, demod)
-
-    measures = measures * dt
-    return measures

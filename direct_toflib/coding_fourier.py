@@ -16,8 +16,8 @@ from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from toflib.tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
-from toflib import tirf
+from direct_tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
+import tirf
 from research_utils.np_utils import to_nparray
 from research_utils.shared_constants import *
 from research_utils import signalproc_ops, np_utils, py_utils

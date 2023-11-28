@@ -2,24 +2,15 @@
 	Base class for temporal coding schemes based on ECC coding
 '''
 ## Standard Library Imports
-from abc import ABC, abstractmethod
-import math 
-import os
 
 ## Library Imports
-import numpy as np
-import scipy
-from scipy import signal, interpolate
-from scipy.special import softmax
+from scipy import interpolate
 from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from toflib.coding import Coding
-from research_utils.np_utils import to_nparray
+from direct_toflib.coding import Coding
 from research_utils.shared_constants import *
-from research_utils import signalproc_ops, np_utils, py_utils
-
 
 
 # function decimalToVector
