@@ -2,7 +2,6 @@
 # Library imports
 import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 from IPython.core import debugger
 breakpoint = debugger.set_trace
 mpl.use('qt5agg')
@@ -10,11 +9,9 @@ from indirect_toflib import indirect_tof_utils, CodingFunctions
 from combined_toflib import combined_tof_utils
 from direct_toflib import tirf
 from direct_toflib import direct_tof_utils
-from direct_toflib.direct_tof_utils import time2depth
-from research_utils import shared_constants
+from research_utils import shared_constants, np_utils
 import debug_utils
-import math
-from toflib.coding import IdentityCoding
+from indirect_toflib.coding import IdentityCoding, KTapSinusoidCoding
 
 plot = 0
 def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource):
@@ -86,17 +83,24 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     trials = params['trials']
     pw_factors = params['pw_factors']
     peak_factor = params['peak_factor']
-    rec_algo = params['rec_algo']
+    rec_algos = params['rec_algos']
     depth_res = params['depth_res']
+    coding_schemes = params['coding_schemes']
+    n_coding_schemes = len(coding_schemes)
     dMax = params['dMax']
     dt = params['dt']
     T = params['T']
+    freq_idx = [1]
     gt_depths = depths
     depths = np.round((gt_depths / dMax) * n_tbins)
 
     (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
     ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
     peak_power = np.max(ModFs)
+
+    if (len(rec_algos) == 1): rec_algos = [rec_algos[0]] * n_coding_schemes
+    # If only one pulse width is given, use that same pulse width for all coding
+    if (len(pw_factors) == 1): pw_factors = np_utils.to_nparray([pw_factors[0]] * n_coding_schemes)
 
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (direct_tof_utils.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
@@ -114,103 +118,66 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     sigma = pw_factors * tbin_res
     pulses_list_pp = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
     pulses_list_ave = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
-    pulses_pp = pulses_list_pp[0] #Peak power pulse
-    pulses_ave = pulses_list_ave[0] #Ave Power pulse
 
-    all_depths = np.linspace(0, params['dMax'], n_tbins)
-    all_tshifts = direct_tof_utils.depth2time(all_depths)
-    clean_pulse_list_pp = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=all_tshifts, t_domain=t_domain)
-    clean_pulse_list_ave = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=all_tshifts, t_domain=t_domain)
-    clean_pulse_pp = clean_pulse_list_pp[0]
-    clean_pulse_ave = clean_pulse_list_ave[0]
-
-    #Set pulse sbr
-    pulses_pp.set_sbr(sbr)
-    pulses_ave.set_sbr(sbr)
-    clean_pulse_pp.set_sbr(None)
-    clean_pulse_ave.set_sbr(None)
-    #Set pulse ambient light
-    pulses_pp.set_ambient(pAveAmbient)
-    pulses_ave.set_ambient(pAveAmbient)
-    clean_pulse_pp.set_ambient(None)
-    clean_pulse_ave.set_ambient(None)
-    #Set pulse reflivity
-    pulses_pp.set_mean_beta(meanBeta)
-    pulses_ave.set_mean_beta(meanBeta)
-    clean_pulse_pp.set_mean_beta(meanBeta)
-    clean_pulse_ave.set_mean_beta(meanBeta)
-    #Set Integration time
-    pulses_pp.set_integration_time(T)
-    (pulses_ave.set_integration_time(T))
-    clean_pulse_pp.set_integration_time(T)
-    clean_pulse_ave.set_integration_time(T)
-
-    #PEAK POWER PULSES
-    simulated_pulses_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
-                                                        dt=dt, tau=tau, num_measures=K, n_mc_samples=trials)
-    clean_sim_pulses_pp = clean_pulse_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
-                                                            dt=dt, tau=tau, num_measures=K, n_mc_samples=trials, add_noise=False)
-    #AVERAGE POWER PULSES
-    simulated_pulses_ave = pulses_ave.simulate_avg_power(pAveSource, n_mc_samples=trials, dt=dt, tau=tau)
-    clean_sim_pulses_ave = clean_pulse_ave.simulate_avg_power(pAveSource, n_mc_samples=trials,
-                                                              dt=dt, tau=tau, add_noise=False)
-    #COMBINED CASE WITH PULSES
-    Incident_pulses_pp = indirect_tof_utils.GetIncident(clean_sim_pulses_pp, pAveSource, T=T, meanBeta=meanBeta,
-                                                        sbr=sbr, pAveAmbient=pAveAmbient, dt=dt, tau=tau)
-    Incident_pulses_ave = indirect_tof_utils.GetIncident(clean_sim_pulses_ave, pAveSource, T=T, meanBeta=meanBeta,
-                                                        sbr=sbr, pAveAmbient=pAveAmbient, dt=dt, tau=tau)
-
-
-    coding_obj = IdentityCoding(n_maxres=n_tbins, account_irf=False, h_irf=None)
-    c_vals_pp = coding_obj.encode(simulated_pulses_pp)
-    c_vals_ave = coding_obj.encode(simulated_pulses_ave)
-
-    #DECODE PEAK POWER DEPTHS
-    decoded_depths_dtof_maxguass_pp = coding_obj.maxgauss_peak_decoding(c_vals_pp, gauss_sigma=pw_factors[0],rec_algo_id=rec_algo) * tbin_depth_res
-    decoded_depths_dtof_argmax_pp = coding_obj.max_peak_decoding(c_vals_pp, rec_algo_id=rec_algo) * tbin_depth_res
-
-    #DECODE AVERAGE POWER DEPTHS
-    decoded_depths_dtof_maxguass_ave = coding_obj.maxgauss_peak_decoding(c_vals_ave, gauss_sigma=pw_factors[0], rec_algo_id=rec_algo) * tbin_depth_res
-    decoded_depths_dtof_argmax_ave = coding_obj.max_peak_decoding(c_vals_ave, rec_algo_id=rec_algo) * tbin_depth_res
-
-    #CLEAN MEASURES FOR PEAK POWER PULSES
-    Measures_pp = combined_tof_utils.GetPulseMeasurements(clean_sim_pulses_pp, DemodFs)
-    NormMeasures_pp = (Measures_pp.transpose() - np.mean(Measures_pp, axis=1)) / np.std(Measures_pp, axis=1)
-    NormMeasures_pp = NormMeasures_pp.transpose()
-
-    #CLEAN MEASURES FOR AVERGAE POWER PULSES
-    Measures_ave = combined_tof_utils.GetPulseMeasurements(clean_sim_pulses_ave, DemodFs)
-    NormMeasures_ave = (Measures_ave.transpose() - np.mean(Measures_ave, axis=1)) / np.std(Measures_ave, axis=1)
-    NormMeasures_ave = NormMeasures_ave.transpose()
-
-    #ACTUAL MEASURES FOR PEAK POWER AND AVERAGE POWER
-    measurements_pulsed_idtof_pp = combined_tof_utils.pulses_idtof(Incident_pulses_pp,DemodFs, depths, trials)
-    norm_measurements_idtof_pp = indirect_tof_utils.NormalizeMeasureVals(measurements_pulsed_idtof_pp, axis=1)
-
-    measurements_pulsed_idtof_ave = combined_tof_utils.pulses_idtof(Incident_pulses_ave, DemodFs, depths, trials)
-    norm_measurements_idtof_ave = indirect_tof_utils.NormalizeMeasureVals(measurements_pulsed_idtof_ave, axis=1)
-
-    #DECODED DEAPTHS FOR COMBINED CASE
-    decoded_depths_pulsed_idtof_pp = np.argmax(np.dot(NormMeasures_pp, norm_measurements_idtof_pp.transpose()), axis=0)
-    decoded_depths_pulsed_idtof_pp = decoded_depths_pulsed_idtof_pp * dMax / n_tbins
-
-    decoded_depths_pulsed_idtof_ave = np.argmax(np.dot(NormMeasures_ave, norm_measurements_idtof_ave.transpose()), axis=0)
-    decoded_depths_pulsed_idtof_ave = decoded_depths_pulsed_idtof_ave * dMax / n_tbins
+    coding_list = []
+    ind_coding = IdentityCoding(n_maxres=n_tbins, account_irf=False, h_irf=None)
+    coding_list.append(ind_coding)
+    sin_coding = KTapSinusoidCoding(n_maxres=n_tbins, freq_idx=freq_idx, k=K,account_irf=False, h_irf=None)
+    coding_list.append(sin_coding)
 
     results = {}
-    results['mae_dtof_maxgauss_pp'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_maxguass_pp) * depth_res
-    results['mae_dtof_argmax_pp'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_argmax_pp) * depth_res
-    results['mae_pulsed_idtof_pp'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pulsed_idtof_pp) * depth_res
 
-    results['mae_dtof_maxgauss_ave'] = indirect_tof_utils.ComputeMetrics(gt_depths,decoded_depths_dtof_maxguass_ave) * depth_res
-    results['mae_dtof_argmax_ave'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_dtof_argmax_ave) * depth_res
-    results['mae_pulsed_idtof_ave'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pulsed_idtof_ave) * depth_res
+
+    for k in range(n_coding_schemes):
+        coding_obj = coding_list[k]
+        rec_algo = rec_algos[k]
+        pulses_pp = pulses_list_pp[k] #Peak power pulse
+        pulses_ave = pulses_list_ave[k] #Ave Power pulse
+
+        #Set pulse sbr
+        pulses_pp.set_sbr(sbr)
+        pulses_ave.set_sbr(sbr)
+        #Set pulse ambient light
+        pulses_pp.set_ambient(pAveAmbient)
+        pulses_ave.set_ambient(pAveAmbient)
+
+        #Set pulse reflivity
+        pulses_pp.set_mean_beta(meanBeta)
+        pulses_ave.set_mean_beta(meanBeta)
+        #Set Integration time
+        pulses_pp.set_integration_time(T)
+        pulses_ave.set_integration_time(T)
+
+        #PEAK POWER PULSES
+        num_m = K
+        if coding_schemes[k] == 'KTapSinusoid':
+            num_m = 1
+        simulated_pulses_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
+                                                            dt=dt, tau=tau, num_measures=num_m, n_mc_samples=trials)
+        #AVERAGE POWER PULSES
+        simulated_pulses_ave = pulses_ave.simulate_avg_power(pAveSource, n_mc_samples=trials, dt=dt, tau=tau)
+
+        c_vals_pp = coding_obj.encode(simulated_pulses_pp)
+        c_vals_ave = coding_obj.encode(simulated_pulses_ave)
+
+        if coding_schemes[k] == 'Identity':
+            decoded_depths_pp = coding_obj.maxgauss_peak_decoding(c_vals_pp, gauss_sigma=pw_factors[0],
+                                                                                rec_algo_id=rec_algo) * tbin_depth_res
+            decoded_depths_ave = coding_obj.maxgauss_peak_decoding(c_vals_ave, gauss_sigma=pw_factors[0],
+                                                                                 rec_algo_id=rec_algo) * tbin_depth_res
+        else:
+            decoded_depths_pp = coding_obj.max_peak_decoding(c_vals_pp, rec_algo_id=rec_algo) * tbin_depth_res
+            decoded_depths_ave = coding_obj.max_peak_decoding(c_vals_ave, rec_algo_id=rec_algo) * tbin_depth_res
+
+        results[coding_schemes[k] + '_PP'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_pp) * depth_res
+        results[coding_schemes[k] + '_AVE'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_ave) * depth_res
+
 
     if (shared_constants.debug):
-        debug_utils.debug_direct(params, clean_sim_pulses_pp, clean_sim_pulses_ave, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
-                 decoded_depths_dtof_maxguass_ave, c_vals_ave, pulses_ave, depths, t_domain, sigma,
-                 peak_power, K, sbr, pAveAmbient, pAveSource)
-
+        #debug_utils.debug_direct(params, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
+        #         decoded_depths_dtof_maxguass_ave, c_vals_ave, pulses_ave, depths, t_domain, sigma,
+        #         peak_power, K, sbr, pAveAmbient, pAveSource)
+        pass
     return results
 
 

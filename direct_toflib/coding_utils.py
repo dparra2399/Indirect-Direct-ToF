@@ -4,14 +4,12 @@
 ## Standard Library Imports
 
 ## Library Imports
-import numpy as np
 from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from research_utils.shared_constants import *
-from toflib.coding import *
-from toflib.coding_ecc import *
+from direct_toflib.coding import *
+from coding_ecc import *
 
 
 def init_coding_list(coding_ids, n_tbins, args, pulses_list=None):

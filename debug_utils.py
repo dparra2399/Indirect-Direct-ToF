@@ -5,6 +5,9 @@ from scipy import stats
 from IPython.core import debugger
 import matplotlib.pyplot as plt
 
+import scipy.stats as stats
+import math
+
 from indirect_toflib.indirect_tof_utils import AddPoissonNoiseLam
 from combined_toflib.combined_tof_utils import AddPoissonNoiseArr
 from direct_toflib import direct_tof_utils, tirf
@@ -29,14 +32,14 @@ def debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof,  n
             axis[0, j].axvline(x=depths[j], label='depth')
             axis[0, j].axvline(x=np.argmax(id), color='pink', label='comb measures')
             axis[0, j].axvline(x=np.argmax(ind), color='red', label='indirect measures')
-            axis[0, j].set_title('Ground truth measures vs true measures at depth : ' + str(depths[j]*tbin_depth_res))
+            axis[0, j].set_title('Ground truth measures vs true measures at depth : ' + str(np.round(depths[j]*tbin_depth_res, decimals=2)))
             axis[0, j].legend()
         else:
             axis[0].plot(NormMeasures)
             axis[0].axvline(x=depths[j], label='depth')
             axis[0].axvline(x=np.argmax(id), color='pink', label='comb measures')
             axis[0].axvline(x=np.argmax(ind), color='red', label='indirect measures')
-            axis[0].set_title('Ground truth measures vs true measures at depth : ' + str(depths[j]*tbin_depth_res))
+            axis[0].set_title('Ground truth measures vs true measures at depth : ' + str(np.round(depths[j]*tbin_depth_res, decimals=2)))
             axis[0].legend()
 
         for i in range(0, norm_measurements_idtof.shape[1]):
@@ -77,8 +80,7 @@ def debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof,  n
             axis[1].legend()
 
 
-def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
-                 c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
+def debug_direct(params, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
                  decoded_depths_dtof_maxguass_ave, c_vals_ave, pulses_ave, depths, t_domain, sigma,
                  peak_power, K, sbr, pAveAmbient, pAveSource):
 
@@ -86,9 +88,32 @@ def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
     dt = params['dt']
     tau = params['rep_tau']
     n_tbins = params['n_tbins']
+    pw_factors = params['pw_factors']
+    trials = params['trials']
+    tbin_res = tau / n_tbins
     T = params['T']
     tbin_depth_res = direct_tof_utils.time2depth(params['rep_tau'] / params['n_tbins'])
 
+    all_depths = np.linspace(0, params['dMax'], n_tbins)
+    all_tshifts = direct_tof_utils.depth2time(all_depths)
+    clean_pulse_list_pp = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=all_tshifts, t_domain=t_domain)
+    clean_pulse_list_ave = tirf.init_gauss_pulse_list(n_tbins, pw_factors * tbin_res, mu=all_tshifts, t_domain=t_domain)
+    clean_pulse_pp = clean_pulse_list_pp[0]
+    clean_pulse_ave = clean_pulse_list_ave[0]
+    clean_pulse_pp.set_sbr(None)
+    clean_pulse_ave.set_sbr(None)
+    clean_pulse_pp.set_ambient(None)
+    clean_pulse_ave.set_ambient(None)
+    clean_pulse_pp.set_mean_beta(meanBeta)
+    clean_pulse_ave.set_mean_beta(meanBeta)
+    clean_pulse_pp.set_integration_time(T)
+    clean_pulse_ave.set_integration_time(T)
+
+    clean_sim_pulses_pp = clean_pulse_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
+                                                            dt=dt, tau=tau, num_measures=K, n_mc_samples=trials, add_noise=False)
+
+    clean_sim_pulses_ave = clean_pulse_ave.simulate_avg_power(pAveSource, n_mc_samples=trials,
+                                                              dt=dt, tau=tau, add_noise=False)
     ## PLOT DIRECT PEAK POWER
     figure, axis = plt.subplots(2, depths.shape[0])
     depths = depths.astype(int)
@@ -111,6 +136,7 @@ def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
 
         clean_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource, num_measures=K,
                                                  n_mc_samples=1, dt=dt, tau=tau, add_noise=False)
+
         if depths.shape[0] > 1:
             clean_pp = np.transpose(np.squeeze(clean_pp[i, :]))
             axis[0, i].plot(clean_pp, label='true depth')
@@ -119,6 +145,7 @@ def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
             clean_pp = np.transpose(np.squeeze(clean_pp))
             axis[0].plot(clean_pp, label='true depth')
             est_tshifts_pp = direct_tof_utils.depth2time(decoded_depths_dtof_maxguass_pp[i])
+
 
         est_pulses_list_pp = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=est_tshifts_pp, t_domain=t_domain)
         est_pulse_pp = est_pulses_list_pp[0]
@@ -132,11 +159,11 @@ def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
 
         if depths.shape[0] > 1:
             axis[0, i].plot(np.transpose(np.squeeze(est_pp)), color='yellow', label='estimated depth')
-            axis[0, i].set_title('Direct Peak Power with depth : ' + str(depths[i]*tbin_depth_res) + ' / photon count : ' + str(photon_count_pp))
+            axis[0, i].set_title('Direct Peak Power with depth : ' + str(np.round(depths[i]*tbin_depth_res, decimals=2)) + ' / photon count : ' + str(np.round(photon_count_pp, decimals=2)))
             axis[0, i].legend()
         else:
             axis[0].plot(np.transpose(np.squeeze(est_pp)), color='yellow', label='estimated depth')
-            axis[0].set_title('Direct Peak Power with depth : ' + str(depths[i]*tbin_depth_res) + ' / photon count : ' + str(photon_count_pp))
+            axis[0].set_title('Direct Peak Power with depth : ' + str(np.round(depths[i]*tbin_depth_res, decimals=2)) + ' / photon count : ' + str(np.round(photon_count_pp, decimals=2)))
             axis[0].legend()
 
         ## PLOT DIRECT AVERAGE POWER
@@ -174,9 +201,26 @@ def debug_direct(params,  clean_sim_pulses_pp, clean_sim_pulses_ave,
 
         if depths.shape[0] > 1:
             axis[1, i].plot(np.transpose(np.squeeze(est_ave)), color='yellow', label='estimated depth')
-            axis[1, i].set_title('Direct Average Power with depth : ' + str(depths[i]*tbin_depth_res) + ' / photon count : ' + str(photon_count_ave))
+            axis[1, i].set_title('Direct Average Power with depth : ' + str(np.round(depths[i]*tbin_depth_res, decimals=2)) + ' / photon count : ' + str(np.round(photon_count_ave, decimals=2)))
             axis[1, i].legend()
         else:
             axis[1].plot(np.transpose(np.squeeze(est_ave)), color='yellow', label='estimated depth')
-            axis[1].set_title('Direct Average Power with depth : ' + str(depths[i]*tbin_depth_res) + ' / photon count : ' + str(photon_count_ave))
+            axis[1].set_title('Direct Average Power with depth : ' + str(np.round(depths[i]*tbin_depth_res, decimals=2)) + ' / photon count : ' + str(np.round(photon_count_ave, decimals=2)))
             axis[1].legend()
+
+        prob_greater_than(np.min(clean_pp), np.max(clean_pp), np.count_nonzero(clean_pp == np.min(clean_pp)), 'Peak')
+        prob_greater_than(np.min(clean_ave), np.max(clean_ave), np.count_nonzero(clean_ave == np.min(clean_ave)), 'Average')
+
+def prob_greater_than(lmbda, k, num_samples, type):
+    poisson_prob = 1 - stats.poisson.cdf(k, lmbda)
+    expected_samples = num_samples * poisson_prob
+    none_exceeds_prob = (1 - poisson_prob) ** num_samples
+    at_least_one_exceeds_prob = 1 - none_exceeds_prob
+
+    print(f"P({lmbda} > {k:.4f}) using Poisson distribution for {type} Power: {poisson_prob:.4f}")
+    print(f"Expected number of samples > {k} in {num_samples} samples for {type} Power: {expected_samples:.2f}")
+    print(f"Probability that at least one sample exceeds {k} for {type} Power: {at_least_one_exceeds_prob:.4f}")
+    print()
+
+
+

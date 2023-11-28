@@ -7,6 +7,8 @@ import time
 import simulate_tof_scene
 from run_montecarlo_exp import run_experiment, run_both
 from direct_toflib import direct_tof_utils
+from research_utils import shared_constants
+import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
@@ -34,13 +36,14 @@ if __name__ == '__main__':
     #params['time_res'] = 0.5 * 1e-9 #1 nanosecond
     #params['time_res'] = 50 * 1e-12 #50 picoseconds
     params['time_res'] = None
-    params['rec_algo'] = 'linear'
-    params['trials'] = 1
+    params['rec_algos'] = ['matchfilt', 'zncc']
+    params['coding_schemes'] = ['Identity', 'KTapSinusoid']
+    params['trials'] = 2000
 
-    depths = np.array([3.42])
+    depths = np.array([11.4])
 
-    run_exp = 0
-    exp_num = 2
+    run_exp = 1
+    exp_num = 0
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
@@ -85,24 +88,17 @@ if __name__ == '__main__':
 
         print(f"MAE IDTOF: {results_indirect['mae_idtof']: .3f},")
         print(f"MAE ITOF: {results_indirect['mae_itof']: .3f},")
-        print()
-        print(f"MAE DTOF (Argmax) Peak Power: {results_direct['mae_dtof_argmax_pp']: .3f}")
-        print(f"MAE DTOF (Maxgauss) Peak Power: {results_direct['mae_dtof_maxgauss_pp']: .3f}")
-        # print(f"MAE Pulsed IDTOF Peak Power: {results_direct['mae_pulsed_idtof_pp']: .3f},")
-        print()
-        print(f"MAE DTOF (Argmax) Average Power: {results_direct['mae_dtof_argmax_ave']: .3f}")
-        print(f"MAE DTOF (Maxgauss) Average Power: {results_direct['mae_dtof_maxgauss_ave']: .3f}")
-        # print(f"MAE Pulsed IDTOF Average Power: {results_direct['mae_pulsed_idtof_ave']: .3f},")
-        print()
+
+        coding_schemes = params['coding_schemes']
+        for k in range(len(coding_schemes)):
+            print()
+            print(f"MAE DTOF {coding_schemes[k]} Peak Power: {results_direct[coding_schemes[k] + '_PP']: .3f}")
+            print(f"MAE DTOF {coding_schemes[k]} Average Power: {results_direct[coding_schemes[k] + '_AVE']: .3f}")
+
         print(f"Completed in {toc - tic:0.4f} seconds")
 
+
+if (shared_constants.debug):
+    plt.show()
 print('Complete')
 
-
-#Integral of poisson distruction ==> matlab
-#computer prob with 10 bins if we draw 1000 samples with lambda = 10 what is prob that
-#we get samples larger than 7
-
-#Test peak power and power average
-
-#Larger width and smaller bin size ==> keep pulse nanosecond length
