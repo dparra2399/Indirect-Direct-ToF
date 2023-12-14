@@ -5,76 +5,84 @@ import matplotlib as mpl
 from IPython.core import debugger
 breakpoint = debugger.set_trace
 mpl.use('qt5agg')
+import matplotlib.pyplot as plt
 from indirect_toflib import indirect_tof_utils, CodingFunctions
 from combined_toflib import combined_tof_utils
 from direct_toflib import tirf
 from direct_toflib import direct_tof_utils
 from research_utils import shared_constants, np_utils
 import debug_utils
-from indirect_toflib.coding import IdentityCoding, KTapSinusoidCoding
+from direct_toflib.coding import IdentityCoding, KTapSinusoidCoding
+from direct_toflib.coding_utils import init_coding_list
+from indirect_toflib.CodingFunctions_utils import init_coding_functions_list
 
 plot = 0
-def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource):
+def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None):
 
     n_tbins = params['n_tbins']
     tau = params['tau']
-    K = params['K']
     meanBeta = params['meanBeta']
     dMax = params['dMax']
     dt = params['dt']
     trials = params['trials']
     peak_factor = params['peak_factor']
+    peak_power = peak_factor * pAveSource
     depth_res = params['depth_res']
     T = params['T']
-
+    coding_functions = params['coding_functions']
+    n_coding_functions = len(coding_functions)
     tbin_depth_res = direct_tof_utils.time2depth(params['rep_tau'] / n_tbins)
-    (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
 
-    ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
-    Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, T=T, meanBeta=meanBeta, sbr=sbr,
-                                              pAveAmbient=pAveAmbient, dt=dt, tau=tau)
-
-    source_incident = indirect_tof_utils.GetIncident(ModFs, T=T, meanBeta=meanBeta)
-
-    Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
-
-    NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)
-    NormMeasures = NormMeasures.transpose()
-
+    if (coding_list is None): coding_list = init_coding_functions_list(coding_functions, n_tbins, params)
+    results = {}
     gt_depths = depths
     depths = np.round((depths / dMax) * n_tbins)
-    ###DEPTH ESTIMATIONS
-    measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, tbin_depth_res=tbin_depth_res, src_incident=source_incident)
-    measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials)
+    for i in range(n_coding_functions):
+        (ModFs, DemodFs) = coding_list[i]
+        ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+        # for k in range(0, ModFs.shape[-1]):
+        #     ModFs[:, k] =  (ModFs[:, k] / ModFs[:, k].max()) * peak_power
+        Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, T=T, meanBeta=meanBeta, sbr=sbr,
+                                                  pAveAmbient=pAveAmbient, dt=dt, tau=tau)
+
+        source_incident = indirect_tof_utils.GetIncident(ModFs, T=T, meanBeta=meanBeta)
+
+        Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
+
+        NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)
+        NormMeasures = NormMeasures.transpose()
+
+        ###DEPTH ESTIMATIONS
+        measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, tbin_depth_res=tbin_depth_res, src_incident=source_incident)
+        measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials)
+
+        if (shared_constants.debug):
+            new_measures_idtof = measures_idtof[depths.astype(int), :]
+            new_measures_itof = measures_itof[depths.astype(int), :]
+        else:
+            new_measures_idtof = measures_idtof
+            new_measures_itof = measures_itof
+
+        norm_measurements_idtof = indirect_tof_utils.NormalizeMeasureVals(new_measures_idtof, axis=1)
+        norm_measurements_itof = indirect_tof_utils.NormalizeMeasureVals(new_measures_itof, axis=1)
+
+        decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
+        decoded_depths_itof = np.argmax(np.dot(NormMeasures, norm_measurements_itof.transpose()), axis=0)
+
+        decoded_depths_itof = decoded_depths_itof * dMax / n_tbins
+        decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
+
+        results[coding_functions[i] + '_IDTOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof) * depth_res
+        results[coding_functions[i] + '_ITOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof) * depth_res
 
     if (shared_constants.debug):
-        new_measures_idtof = measures_idtof[depths.astype(int), :]
-        new_measures_itof = measures_itof[depths.astype(int), :]
-    else:
-        new_measures_idtof = measures_idtof
-        new_measures_itof = measures_itof
-
-    norm_measurements_idtof = indirect_tof_utils.NormalizeMeasureVals(new_measures_idtof, axis=1)
-    norm_measurements_itof = indirect_tof_utils.NormalizeMeasureVals(new_measures_itof, axis=1)
-
-    decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
-    decoded_depths_itof = np.argmax(np.dot(NormMeasures, norm_measurements_itof.transpose()), axis=0)
-
-    decoded_depths_itof = decoded_depths_itof * dMax / n_tbins
-    decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
-
-    results={}
-    results['mae_idtof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof) * depth_res
-    results['mae_itof'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof) * depth_res
-
-    if (shared_constants.debug):
-        debug_utils.debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof, norm_measurements_itof,
-                  depths, sbr, pAveAmbient, pAveSource)
-
+        #debug_utils.debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof, norm_measurements_itof,
+                  #depths, sbr, pAveAmbient, pAveSource)
+        plt.show()
     return results
 
 
-def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
+def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, pulses_list_pp=None, pulses_list_ave=None):
 
     n_tbins = params['n_tbins']
     tau = params['rep_tau']
@@ -86,17 +94,15 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
     rec_algos = params['rec_algos']
     depth_res = params['depth_res']
     coding_schemes = params['coding_schemes']
+    peak_factor = params['peak_factor']
     n_coding_schemes = len(coding_schemes)
     dMax = params['dMax']
     dt = params['dt']
     T = params['T']
-    freq_idx = [1]
     gt_depths = depths
     depths = np.round((gt_depths / dMax) * n_tbins)
 
-    (ModFs, DemodFs) = CodingFunctions.GetCosCos(N=n_tbins, K=K)
-    ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
-    peak_power = np.max(ModFs)
+    peak_power = pAveSource * peak_factor
 
     if (len(rec_algos) == 1): rec_algos = [rec_algos[0]] * n_coding_schemes
     # If only one pulse width is given, use that same pulse width for all coding
@@ -116,15 +122,10 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
 
     # Create GT gaussian pulses for each coding. Different coding may use different pulse widths
     sigma = pw_factors * tbin_res
-    pulses_list_pp = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
-    pulses_list_ave = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
+    if (pulses_list_pp is None): pulses_list_pp = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
+    if (pulses_list_ave is None): pulses_list_ave = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
 
-    coding_list = []
-    ind_coding = IdentityCoding(n_maxres=n_tbins, account_irf=False, h_irf=None)
-    coding_list.append(ind_coding)
-    sin_coding = KTapSinusoidCoding(n_maxres=n_tbins, freq_idx=freq_idx, k=K,account_irf=False, h_irf=None)
-    coding_list.append(sin_coding)
-
+    if (coding_list is None): coding_list = init_coding_list(coding_schemes, n_tbins, params)
     results = {}
 
 
@@ -149,9 +150,9 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource):
         pulses_ave.set_integration_time(T)
 
         #PEAK POWER PULSES
-        num_m = K
-        if coding_schemes[k] == 'KTapSinusoid':
-            num_m = 1
+        num_m = 1
+        if coding_schemes[k] == 'Identity':
+            num_m = K
         simulated_pulses_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
                                                             dt=dt, tau=tau, num_measures=num_m, n_mc_samples=trials)
         #AVERAGE POWER PULSES

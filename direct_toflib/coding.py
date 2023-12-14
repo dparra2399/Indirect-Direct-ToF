@@ -16,8 +16,8 @@ from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from direct_tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
-import tirf
+from direct_toflib.direct_tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
+import direct_toflib.tirf as tirf
 from research_utils.np_utils import to_nparray
 from research_utils.shared_constants import *
 from research_utils import signalproc_ops, np_utils, py_utils
@@ -1204,8 +1204,8 @@ class KTapSinusoidCoding(FourierCoding):
 		for i in range(self.n_freqs):
 			start_idx = i*self.k
 			for j in range(self.k):
-				# self.C[:, start_idx+j] = (0.5*np.cos(self.freq_idx[i]*domain - self.phase_shifts[j])) + 0.5 
-				self.C[:, start_idx+j] = np.cos(self.freq_idx[i]*domain - self.phase_shifts[j])
+				self.C[:, start_idx+j] = (0.5*np.cos(self.freq_idx[i]*domain - self.phase_shifts[j])) + 0.5
+				#self.C[:, start_idx+j] = np.cos(self.freq_idx[i]*domain - self.phase_shifts[j])
 			# self.C[:, cos_idx+2] = np.cos(self.freq_idx[i]*domain - PI)
 			# self.C[:, sin_idx+2] = np.sin(self.freq_idx[i]*domain - PI)
 		return self.C

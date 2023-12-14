@@ -24,7 +24,6 @@ def GetIncident(ModFs, pAveSource=None, peak_factor=1, T=0.1, meanBeta=1, sbr=No
     else:
         ambient = 0
 
-    ModFs = ModFs * peak_factor
     for i in range(0, K):
         Incident[:, i] = T * meanBeta * (ModFs[:, i] + ambient)
     return Incident
