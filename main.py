@@ -27,28 +27,30 @@ if __name__ == '__main__':
     params['dMax'] = direct_tof_utils.time2depth(params['rep_tau'])
     params['depth_res'] = 1000 ##Conver to MM
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
+    params['coding_functions'] = ['KTapSinusoid', 'HamiltonianK4']
     params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
     params['pw_factors'] = np.array([30])
-    params['peak_factor'] = 1
+    params['peak_factor'] = 2
+    params['freq_idx'] = [1]
     #params['time_res'] = 0.5 * 1e-9 #1 nanosecond
     #params['time_res'] = 50 * 1e-12 #50 picoseconds
     params['time_res'] = None
-    params['rec_algos'] = ['matchfilt', 'zncc']
-    params['coding_schemes'] = ['Identity', 'KTapSinusoid']
-    params['trials'] = 2000
+    params['rec_algos'] = ['matchfilt', 'zncc', 'zncc']
+    params['coding_schemes'] = ['Identity', 'KTapSinusoid', 'HamiltonianK4']
+    params['trials'] = 1
 
     depths = np.array([11.4])
 
-    run_exp = 1
+    run_exp = 0
     exp_num = 0
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
 
-    (min_power_exp, max_power_exp) = (4, 7)
+    (min_power_exp, max_power_exp) = (4, 8)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
     (min_amb_exp, max_amb_exp) = (2, 8)
 
@@ -85,9 +87,11 @@ if __name__ == '__main__':
         (results_indirect, results_direct) = run_both(params, depths, sbr, pAveAmbient, pAveSource)
 
         toc = time.perf_counter()
-
-        print(f"MAE IDTOF: {results_indirect['mae_idtof']: .3f},")
-        print(f"MAE ITOF: {results_indirect['mae_itof']: .3f},")
+        coding_functions = params['coding_functions']
+        for k in range(len(coding_functions)):
+            print()
+            print(f"MAE {coding_functions[k]} IDTOF: {results_indirect[coding_functions[k] + '_IDTOF']: .3f},")
+            print(f"MAE {coding_functions[k]} ITOF: {results_indirect[coding_functions[k] + '_ITOF']: .3f},")
 
         coding_schemes = params['coding_schemes']
         for k in range(len(coding_schemes)):

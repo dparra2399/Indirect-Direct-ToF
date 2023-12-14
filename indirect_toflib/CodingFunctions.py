@@ -80,7 +80,7 @@ def GetSqSq(N=1000, K=4):
 	#### Return coding scheme
 	return (modFs, demodFs)
 
-def GetHamK3(N=1000):
+def GetHamK3(N=1000, PeakFactor=6.):
 	"""GetHamK3: Get modulation and demodulation functions for the coding scheme
 		HamK3 - Sq16Sq50.	
 	Args:
@@ -91,7 +91,7 @@ def GetHamK3(N=1000):
 	"""
 	#### Set some parameters
 	K = 3
-	maxInstantPowerFactor = 6.
+	maxInstantPowerFactor = PeakFactor
 	dt = float(TauDefault) / float(N)
 	#### Allocate modulation and demodulation vectors
 	modFs = np.zeros((N,K))
@@ -112,7 +112,7 @@ def GetHamK3(N=1000):
 	return (modFs, demodFs)
 
 
-def GetHamK4(N=1000):
+def GetHamK4(N=1000, PeakFactor=12.):
 	"""GetHamK4: Get modulation and demodulation functions for the coding scheme HamK4	
 	Args:
 		N (int): N
@@ -122,7 +122,7 @@ def GetHamK4(N=1000):
 	"""
 	#### Set some parameters
 	K = 4
-	maxInstantPowerFactor=12.
+	maxInstantPowerFactor=PeakFactor
 	dt = float(TauDefault) / float(N)
 	#### Allocate modulation and demodulation vectors
 	modFs = np.zeros((N,K))
@@ -156,7 +156,7 @@ def GetHamK4(N=1000):
 	return (modFs, demodFs)
 
 
-def GetHamK5(N=1000):
+def GetHamK5(N=1000, PeakFactor=30.):
 	"""GetHamK5: Get modulation and demodulation functions for the coding scheme HamK5.	
 	Args:
 		N (int): N
