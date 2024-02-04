@@ -140,7 +140,8 @@ def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None,
 
     return v_out
 
-def set_avg_power(v, pAveSource, ambient=None, sbr=None, T=0.1, mean_beta=1, dt=1, tau=1, axis=-1, inplace=False):
+def set_avg_power(v, pAveSource, num_measurements=1, ambient=None, sbr=None, T=0.1, mean_beta=1, dt=1, tau=1,
+                  axis=-1, inplace=False):
     '''
         If inplace is False, return a copy of v scaled and vertically shifted according to n_photons and sbr
         If inplace is True, return v scaled and vertically shifted according to n_photons and sbr
@@ -157,6 +158,8 @@ def set_avg_power(v, pAveSource, ambient=None, sbr=None, T=0.1, mean_beta=1, dt=
         for i in range(0, depths_num):
             oldArea = np.sum(v_out[i, :]) * dt
             v_out[i, :] = v_out[i, :] * desired_area / oldArea
+
+    v_out *= num_measurements
 
     # Add constant offset = n_photons / sbr
     assert sbr==None or ambient==None, "sbr or ambient light must be none"

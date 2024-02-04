@@ -11,103 +11,134 @@ from matplotlib import cm
 breakpoint = debugger.set_trace
 
 #this one is peak_power with with 30
-file = np.load('data/results/ntbins_1024_monte_2000_pw_30_exp_0.npz', allow_pickle=True)
+file = np.load('data/results/ntbins_1000_monte_1000_pw_30_exp_0.npz', allow_pickle=True)
 
-#mae_pp = np.load('./data/results/ntbins_1024_monte_10_exp_AddPeak.npz')
 
 mae = file['results'].item()
 params = file['params'].item()
 tbin_res = params['rep_tau'] / params['n_tbins']
 tbin_depth_res = direct_tof_utils.time2depth(tbin_res)
 
+ham_d = 0
+sin_id = 0
+sin_d = 0
+ave = 1
+gating = 1
+ham_id = 1
+identity = 0
+
 sbr_levels = file['sbr_levels']
 ambient_levels = file['pAveAmbient_levels']
 photons_levels = file['pAveSource_levels']
 
-mae_sinosoid_idtof = mae['KTapSinusoid_IDTOF']
-mae_sinosoid_itof = mae['KTapSinusoid_ITOF']
-mae_hamk4_idtof = mae['HamiltonianK4_IDTOF']
-mae_hamk4_itof = mae['HamiltonianK4_ITOF']
+if identity:
+    mae_identity_pp = mae['Identity_PP']
+    mae_identity_ave = mae['Identity_AVE']
 
-mae_identity_pp = mae['Identity_PP']
-mae_identity_ave = mae['Identity_AVE']
-mae_sinosoiud_pp = mae['KTapSinusoid_PP']
-mae_sinosoiud_ave = mae['KTapSinusoid_AVE']
-mae_hamk4_pp = mae['HamiltonianK4_PP']
-mae_hamk4_ave = mae['HamiltonianK4_AVE']
+if gating:
+    mae_identity_gating_pp = mae['IntegratedGated_PP']
+    mae_identity_gating_ave = mae['IntegratedGated_AVE']
 
-diff_direct_pp = mae_identity_pp - mae_sinosoid_idtof
-diff_sin_pp = mae_sinosoiud_pp - mae_sinosoid_idtof
-diff_hamk4_pp = mae_sinosoiud_pp - mae_hamk4_idtof
+if sin_id:
+    mae_sinosoid_idtof = mae['KTapSinusoid_IDTOF']
+    mae_sinosoid_itof = mae['KTapSinusoid_ITOF']
+    diff_comb_sin = mae_sinosoid_idtof - mae_sinosoid_itof
 
-diff_comb_hamk4 = mae_hamk4_idtof - mae_hamk4_itof
-diff_comb_sin = mae_sinosoid_idtof - mae_sinosoid_itof
+if sin_d:
+    mae_sinosoiud_pp = mae['KTapSinusoid_PP']
+    mae_sinosoiud_ave = mae['KTapSinusoid_AVE']
+
+if ham_id:
+    mae_hamk4_idtof = mae['HamiltonianK3_IDTOF']
+    mae_hamk4_itof = mae['HamiltonianK3_ITOF']
+    diff_comb_hamk4 = mae_hamk4_idtof - mae_hamk4_itof
+
+
+if ham_d:
+    mae_hamk4_pp = mae['HamiltonianK4_PP']
+    mae_hamk4_ave = mae['HamiltonianK4_AVE']
+
+
+
 
 fig = plt.figure()
 ax = plt.axes(projection='3d')
-ham = 1
-sin = 0
-ave = 0
 
 noise_levels = sbr_levels
 
-if sin:
-    surf1 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoid_idtof, color='yellow',
+if sin_id:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoid_idtof, color='yellow',
                            antialiased=True, label='Sin ID-ToF')
-    surf1._edgecolors2d = surf1._edgecolor3d
-    surf1._facecolors2d = surf1._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
-    surf2 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoid_itof, color='blue',
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoid_itof, color='blue',
                             antialiased=True, label='Sin I-ToF')
-    surf2._edgecolors2d = surf2._edgecolor3d
-    surf2._facecolors2d = surf2._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
-if ham:
-    surf3 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_idtof, color='red',
+if ham_id:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_idtof, color='red',
                            antialiased=True, label='HamK4 ID-ToF')
-    surf3._edgecolors2d = surf3._edgecolor3d
-    surf3._facecolors2d = surf3._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
-    surf4 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_itof, color='black',
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_itof, color='thistle',
                             antialiased=True, label='HamK4 I-ToF')
-    surf4._edgecolors2d = surf4._edgecolor3d
-    surf4._facecolors2d = surf4._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
 
-surf5 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_pp, color='green',
-                        antialiased=True, label='FRH Peak Power')
-surf5._edgecolors2d = surf5._edgecolor3d
-surf5._facecolors2d = surf5._facecolor3d
+if identity:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_pp, color='green',
+                            antialiased=True, label='FRH Peak Power')
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
-if ave:
-    surf6 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_ave, color='pink',
-                            antialiased=True, label='FRH Avg Power')
-    surf6._edgecolors2d = surf6._edgecolor3d
-    surf6._facecolors2d = surf6._facecolor3d
+    if ave:
+        surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_ave, color='pink',
+                               antialiased=True, label='FRH Avg Power')
+        surf._edgecolors2d = surf._edgecolor3d
+        surf._facecolors2d = surf._facecolor3d
 
-if sin:
-    surf7 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoiud_pp, color='orange',
+if gating:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_gating_pp, color='hotpink',
+                           antialiased=True, label='FRH GATING Peak Power')
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
+
+    if ave:
+        surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_identity_gating_ave, color='ivory',
+                               antialiased=True, label='FRH GATING Avg Power')
+        surf._edgecolors2d = surf._edgecolor3d
+        surf._facecolors2d = surf._facecolor3d
+
+
+
+if sin_d:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoiud_pp, color='orange',
                             antialiased=True, label='KTap Sin Peak Power')
-    surf7._edgecolors2d = surf7._edgecolor3d
-    surf7._facecolors2d = surf7._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
     if ave:
-        surf8 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoiud_ave, color='gray',
+        surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_sinosoiud_ave, color='gray',
                                 antialiased=True, label='KTap Sin Avg Power')
-        surf8._edgecolors2d = surf8._edgecolor3d
-        surf8._facecolors2d = surf8._facecolor3d
+        surf._edgecolors2d = surf._edgecolor3d
+        surf._facecolors2d = surf._facecolor3d
 
-if ham:
-    surf9 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_pp, color='darkred',
+if ham_d:
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_pp, color='darkred',
                             antialiased=True, label='HamK4 Sin Peak Power')
-    surf9._edgecolors2d = surf9._edgecolor3d
-    surf9._facecolors2d = surf9._facecolor3d
+    surf._edgecolors2d = surf._edgecolor3d
+    surf._facecolors2d = surf._facecolor3d
 
     if ave:
-        surf10 = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_ave, color='peru',
+        surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_ave, color='peru',
                                 antialiased=True, label='HamK4 Sin Avg Power')
-        surf10._edgecolors2d = surf10._edgecolor3d
-        surf10._facecolors2d = surf10._facecolor3d
+
+        surf._edgecolors2d = surf._edgecolor3d
+        surf._facecolors2d = surf._facecolor3d
 
 
 
@@ -120,22 +151,24 @@ ax.set_zlabel('mean absolute error in (mm)')
 ax.legend()
 
 
-fig2 = plt.figure()
-ax2 = plt.axes(projection='3d')
+if identity and sin_id:
+    diff_direct_pp = mae_identity_pp - mae_sinosoid_idtof
+    fig2 = plt.figure()
+    ax2 = plt.axes(projection='3d')
 
 
-surfdiff_direct_pp = ax2.plot_surface(np.log10(noise_levels), np.log10(photons_levels), diff_direct_pp, color='orange',linewidth=0, antialiased=False)
+    surfdiff_direct_pp = ax2.plot_surface(np.log10(noise_levels), np.log10(photons_levels), diff_direct_pp, color='orange',linewidth=0, antialiased=False)
 
-ax2.set_title('difference between (DIRECT FRH - COMBINED SIN) peak power')
-ax2.set_xlabel('log10 sbr levels')
-ax2.set_ylabel('log10 pAve photon levels')
-ax2.set_zlabel('mae difference in (mm)')
-surfdiff_direct_pp._edgecolors2d = surfdiff_direct_pp._edgecolor3d
-surfdiff_direct_pp._facecolors2d = surfdiff_direct_pp._facecolor3d
-ax2.legend()
+    ax2.set_title('difference between (DIRECT FRH - COMBINED SIN) peak power')
+    ax2.set_xlabel('log10 sbr levels')
+    ax2.set_ylabel('log10 pAve photon levels')
+    ax2.set_zlabel('mae difference in (mm)')
+    surfdiff_direct_pp._edgecolors2d = surfdiff_direct_pp._edgecolor3d
+    surfdiff_direct_pp._facecolors2d = surfdiff_direct_pp._facecolor3d
+    ax2.legend()
 
-
-if ham:
+if ham_d and ham_id:
+    diff_hamk4_pp = mae_hamk4_pp - mae_hamk4_idtof
     fig3 = plt.figure()
     ax3 = plt.axes(projection='3d')
 
@@ -149,7 +182,7 @@ if ham:
     surfdiff_direct_ave._facecolors2d = surfdiff_direct_ave._facecolor3d
     ax3.legend()
 
-if sin:
+if sin_id:
     fig4 = plt.figure()
     ax4 = plt.axes(projection='3d')
 
@@ -163,7 +196,7 @@ if sin:
     surfdiff2._facecolors2d = surfdiff2._facecolor3d
     ax4.legend()
 
-if ham:
+if ham_id:
     fig6 = plt.figure()
     ax6 = plt.axes(projection='3d')
 
@@ -177,7 +210,9 @@ if ham:
     surfdiff3._facecolors2d = surfdiff3._facecolor3d
     ax6.legend()
 
-if sin:
+if sin_id and sin_d:
+    diff_sin_pp = mae_sinosoiud_pp - mae_sinosoid_idtof
+
     fig5 = plt.figure()
     ax5 = plt.axes(projection='3d')
 
@@ -191,14 +226,59 @@ if sin:
     surfdiff3._facecolors2d = surfdiff3._facecolor3d
     ax5.legend()
 
+if gating and ham_id:
+        diff_gating_hamk4_pp = mae_identity_gating_pp - mae_hamk4_idtof
+
+        fig7 = plt.figure()
+        ax7 = plt.axes(projection='3d')
+
+        surfdiff_gating_ham_pp = ax7.plot_surface(np.log10(noise_levels), np.log10(photons_levels), diff_gating_hamk4_pp, color='teal',
+                                     linewidth=0, antialiased=False)
+
+        ax7.set_title('difference between (DIRECT FRH GATING - COMBINED SIN) peak power')
+        ax7.set_xlabel('log10 sbr levels')
+        ax7.set_ylabel('log10 pAve photon levels')
+        ax7.set_zlabel('mae difference in (mm)')
+        surfdiff_gating_ham_pp._edgecolors2d = surfdiff_gating_ham_pp._edgecolor3d
+        surfdiff_gating_ham_pp._facecolors2d = surfdiff_gating_ham_pp._facecolor3d
+        ax7.legend()
+
+if gating and ham_id and ave:
+        diff_gating_hamk4_ave = mae_identity_gating_ave - mae_hamk4_idtof
+
+        fig8 = plt.figure()
+        ax8 = plt.axes(projection='3d')
+
+        surfdiff_gating_ham_ave = ax8.plot_surface(np.log10(noise_levels), np.log10(photons_levels), diff_gating_hamk4_ave, color='lightcyan',
+                                     linewidth=0, antialiased=False)
+
+        ax8.set_title('difference between (DIRECT FRH GATING - COMBINED SIN) average power')
+        ax8.set_xlabel('log10 sbr levels')
+        ax8.set_ylabel('log10 pAve photon levels')
+        ax8.set_zlabel('mae difference in (mm)')
+        surfdiff_gating_ham_ave._edgecolors2d = surfdiff_gating_ham_ave._edgecolor3d
+        surfdiff_gating_ham_ave._facecolors2d = surfdiff_gating_ham_ave._facecolor3d
+        ax8.legend()
 plt.show()
 print('helloworld')
 
 
-#Try on mutiple bin sizes ==> Make direct as close to combined as possible
-#Complete other combined case
-#Try ham. codes
+# Write-up for gating cases
+  # SPAD Measurements
+  # Plot and figures
+  # Argue hyrbid method
+  # bullet points
+# Prepare slides (summerize argument)
+  # Understand and agree
+# Study different codes, better than ham?
+  # How to do that?
+# Implement experiment in hardware
+# Ask Alex - several cameras that use this gating (SwissSPAD)
+# Ask Felipe - cameras that do ham codes
 
-#Next steps showming mathmatically that the ham. codes perform the same with indirect and direct
-#Pyimaging --> Gating
-#Are there other better coding functions that we can use
+# PMD - Wikipedia
+# Photonic mixer device
+
+# Gating - reduce data usage
+# Can only read binary data
+# https://www.photonics.com/Articles/PMD_Camera_Enhances_3-D_Imaging/a56859

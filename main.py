@@ -5,9 +5,10 @@ from IPython.core import debugger
 import time
 
 import simulate_tof_scene
-from run_montecarlo_exp import run_experiment, run_both
+from run_montecarlo_exp import *
 from direct_toflib import direct_tof_utils
 from research_utils import shared_constants
+from indirect_toflib import CodingFunctions
 import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
@@ -16,33 +17,39 @@ import FileUtils
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+
+    #(modfs, demodfs) =
     params = {}
-    params['n_tbins'] = 1024
-    params['K'] = 4
+    params['n_tbins'] = 10
+    params['rep_freq'] = 1 * 1e+8
+    params['n_gates'] = params['n_tbins']
+    params['gate_size'] = 9 * ((1./params['rep_freq'])/ params['n_tbins'])
+    params['gate_shift'] = 40 * 1e-12
+    params['K'] = 3
     params['T'] = 0.1  # Integration time. Exposure time in seconds
-    params['rep_freq'] = 1e+7
     params['fund_freq'] = params['rep_freq']
     params['rep_tau'] = 1. / params['rep_freq']
     params['tau'] = 1./ params['fund_freq']
     params['dMax'] = direct_tof_utils.time2depth(params['rep_tau'])
+    print('max depth:', params['dMax'])
     params['depth_res'] = 1000 ##Conver to MM
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
-    params['coding_functions'] = ['KTapSinusoid', 'HamiltonianK4']
+    params['coding_functions'] = ['HamiltonianK3']
     params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
-    params['pw_factors'] = np.array([30])
+    params['pw_factors'] = np.array([1])
     params['peak_factor'] = 2
     params['freq_idx'] = [1]
     #params['time_res'] = 0.5 * 1e-9 #1 nanosecond
     #params['time_res'] = 50 * 1e-12 #50 picoseconds
     params['time_res'] = None
-    params['rec_algos'] = ['matchfilt', 'zncc', 'zncc']
-    params['coding_schemes'] = ['Identity', 'KTapSinusoid', 'HamiltonianK4']
-    params['trials'] = 1
+    params['rec_algos'] = ['zncc']
+    params['coding_schemes'] = ['IntegratedGated']
+    params['trials'] = 10000
 
-    depths = np.array([11.4])
+    depths = np.array([0.34])
 
     run_exp = 0
     exp_num = 0
@@ -60,15 +67,12 @@ if __name__ == '__main__':
     sbr_levels, pAveSource_levels = np.meshgrid(sbr_levels_list, pAveSource_levels_list)
     pAveAmbient_levels, _ = np.meshgrid(pAveAmbient_levels_list, pAveSource_levels_list)
 
-    pAveSource = (10**4)
+    pAveSource = (10**5)
     # pAveAmbient = (10**5)
     pAveAmbient = None
-    sbr = 10**-1
+    sbr = 10**0.5
 
-    if params['time_res'] is not None:
-        params['n_tbins'] = int(np.round((params['rep_tau'] * np.squeeze(params['pw_factors'])) / params['time_res']))
-        print("Optimized number of time bins:, ", params['n_tbins'])
-
+    # gate_size_exp(params, depths, pAveSource, sbr)
 
     if run_exp:
         tic = time.perf_counter()

@@ -89,3 +89,45 @@ def run_both(params, depths, sbr, pAveAmbient, pAveSource, indirect_coding_list=
 
 
     return (results_indirect, results_direct)
+
+
+def gate_size_exp(params, depths, source_photons, sbr):
+    min_len = 5.75 * 1e-9
+    max_len = 10 * 1e-6 ## typical is 10 * 1e-6
+
+    pw_factors = params['pw_factors']
+    n_tbins = params['n_tbins']
+    (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
+        (direct_tof_utils.calc_tof_domain_params(n_tbins, rep_tau=params['rep_tau']))
+    gt_tshifts = direct_tof_utils.depth2time(depths)
+
+    gate_sizes = np.linspace(min_len, 10*1e-9, num=1000)
+    gate_sizes = np.arange(1, n_tbins)
+
+    coding_schemes = params['coding_schemes']
+    if (len(pw_factors) == 1): pw_factors = np_utils.to_nparray([pw_factors[0]] * len(params['coding_schemes']))
+
+    sigma = pw_factors * tbin_res
+    pulses_list_pp = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
+    pulses_list_ave = tirf.init_gauss_pulse_list(n_tbins, sigma, mu=gt_tshifts, t_domain=t_domain)
+
+
+    error = []
+    gates = []
+    for i in range(gate_sizes.shape[0]):
+        gate_size = gate_sizes[i]
+        params['gate_size'] = gate_size * tbin_res
+        if (5.75 * 1e-9) <= params['gate_size'] <= (10 * 1e-6):
+            direct_coding_list = init_coding_list(coding_schemes, n_tbins, params)
+            results_direct = simulate_tof_scene.direct_mae(params, depths, sbr, None, source_photons,
+                                                           coding_list=direct_coding_list,
+                                                           pulses_list_pp=pulses_list_pp,
+                                                           pulses_list_ave=pulses_list_ave)
+            error.append(results_direct['IntegratedGated_PP'])
+            gates.append(gate_size)
+
+    plt.scatter(gates, error)
+    #plt.plot(gates[np.argmin(error)], np.min(error), 'ro', color='red')
+    plt.show()
+    print('hello world')
+

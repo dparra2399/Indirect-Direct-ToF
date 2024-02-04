@@ -5,7 +5,7 @@ import numpy as np
 
 ## Local Imports
 
-debug = 1
+debug = 0
 HALFPI = 0.5*np.pi
 PI = np.pi
 TWOPI = 2*np.pi

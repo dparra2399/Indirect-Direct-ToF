@@ -17,11 +17,21 @@ breakpoint = debugger.set_trace
 
 ## Local Imports
 from direct_toflib.direct_tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
+from combined_toflib.combined_tof_utils import AddPoissonNoiseArr
 import direct_toflib.tirf as tirf
+from indirect_toflib.indirect_tof_utils import ScaleAreaUnderCurve
 from research_utils.np_utils import to_nparray
 from research_utils.shared_constants import *
 from research_utils import signalproc_ops, np_utils, py_utils
+from direct_toflib import direct_tof_utils as tof_utils
 
+import matplotlib as mpl
+mpl.use('qt5agg')
+import matplotlib.pyplot as plt
+
+TotalEnergyDefault = 1.
+TauDefault = 1.
+AveragePowerDefault = TotalEnergyDefault / TauDefault
 
 class Coding(ABC):
 	'''
@@ -265,22 +275,6 @@ class Coding(ABC):
 		return '{}_ncodes-{}'.format(coding_id,self.C.shape[-1])
 
 
-class DataCoding(Coding):
-	'''
-		Class for coding class based on input data
-	'''
-	def __init__(self, C, n_maxres=None, **kwargs):
-		# interpolate or extrapolate C if needed (assume we have oversampled C already)
-		if(n_maxres is None): n_maxres = C.shape[0]
-		resampled_C = signal.resample(C, n_maxres, axis=0)
-		# Set the coding matrix
-		self.set_coding_mat(resampled_C)
-		super().__init__(**kwargs)
-
-	def set_coding_mat(self, C):
-		self.C = C
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-
 
 class GatedCoding(Coding):
 	'''
@@ -315,16 +309,7 @@ class GatedCoding(Coding):
 			c_vals += transient_img[..., start_idx::self.gate_len]
 		return c_vals
 
-	def linear_reconstruction(self, c_vals):
-		if(self.n_gates == self.n_maxres): return c_vals
-		if(self.account_irf):
-			print("Warning: Linear Reconstruction in Gated does not account for IRF, so unless the IRF spreads across time bins, this will produce quantized depths")
-		x_fullres = np.arange(0, self.n_maxres)
-		# Create a circular x axis by concatenating the first element to the end and the last element to the begining
-		circular_x_lres = np.arange((0.5*self.gate_len)-0.5-self.gate_len, self.n_maxres + self.gate_len, self.gate_len)
-		circular_c_vals = np.concatenate((c_vals[..., -1][...,np.newaxis], c_vals, c_vals[..., 0][...,np.newaxis]), axis=-1)
-		f = interpolate.interp1d(circular_x_lres, circular_c_vals, axis=-1, kind='linear')
-		return f(x_fullres)
+
 	
 	def matchfilt_reconstruction(self, c_vals):
 		template = self.h_irf
@@ -340,405 +325,23 @@ class GatedCoding(Coding):
 		c_vals = c_vals.reshape(c_vals_shape)
 		return h_rec.reshape(c_vals_shape)
 
+	def linear_reconstruction(self, c_vals):
+		if(self.n_gates == self.n_maxres): return c_vals
+		if(self.account_irf):
+			print("Warning: Linear Reconstruction in Gated does not account for IRF, so unless the IRF spreads across time bins, this will produce quantized depths")
+		x_fullres = np.arange(0, self.n_maxres)
+		# Create a circular x axis by concatenating the first element to the end and the last element to the begining
+		circular_x_lres = np.arange((0.5*self.gate_len)-0.5-self.gate_len, self.n_maxres + self.gate_len, self.gate_len)
+		circular_c_vals = np.concatenate((c_vals[..., -1][...,np.newaxis], c_vals, c_vals[..., 0][...,np.newaxis]), axis=-1)
+		f = interpolate.interp1d(circular_x_lres, circular_c_vals, axis=-1, kind='linear')
+		return f(x_fullres)
+
 class IdentityCoding(GatedCoding):
 	'''
 		Identity coding class. GatedCoding in the extreme case where n_maxres == n_gates
 	'''
 	def __init__(self, n_maxres, **kwargs):
 		super().__init__(n_maxres=n_maxres, **kwargs)
-class TimestampCoding(IdentityCoding):
-	'''
-		Timestamp coding class. 
-		Same as IdentityCoding but when simulating we only record up to n_timestamps.
-	'''
-	def __init__(self, n_maxres, n_timestamps, **kwargs):
-		super().__init__(n_maxres=n_maxres, **kwargs)
-		self.n_timestamps=n_timestamps
-
-	def encode(self, transient_img):
-		'''
-			Take full histogram, get all timestamps, randomly select n_timestamps, construct new timestamp limited histogram.
-		'''
-		# get timestamps from histogram
-		(timestamps, n_timestamps_per_elem) = hist2timestamps(transient_img, max_n_timestamps=self.n_timestamps)
-		# return histogram with limited number of timestamps
-		return timestamps2hist(timestamps, n_timestamps_per_elem, self.n_maxres)
-
-class GrayCoding(Coding):
-	'''
-		Gray coding class. 
-	'''
-	def __init__(self, n_maxres, n_bits, **kwargs):
-		self.max_n_bits = int(np.floor(np.log2(n_maxres)))
-		self.n_maxres = n_maxres
-		self.n_bits = np.min((n_bits, self.max_n_bits)) 
-		if(n_bits > self.max_n_bits):
-			print("not using n_bits={}, using n_bits={} which is the max_n_bits for {} bins".format(n_bits, self.max_n_bits, n_maxres))
-		self.set_coding_mat(self.n_maxres, self.n_bits)
-		super().__init__(**kwargs)
-
-	def np_gray_code(self, n_bits):
-		return signalproc_ops.generate_gray_code(n_bits)
-
-	def set_coding_mat(self, n_maxres, n_bits):
-		self.C = np.zeros((n_maxres, n_bits))
-		self.gray_codes = self.np_gray_code(n_bits)
-		self.min_gray_code_length = self.gray_codes.shape[0]
-		# assert(n_maxres >= self.min_gray_code_length), "n_maxres is not large enough to encode the gray code"
-		if((n_maxres % self.min_gray_code_length) != 0):
-			print("WARNING: Gray codes where the n_maxres is not a multiple of the gray code length, may have some small ambiguous regions")
-		self.x_fullres = np.arange(0, n_maxres) * (1. / n_maxres)
-		self.x_lowres = np.arange(0, self.min_gray_code_length) * (1. / self.min_gray_code_length)
-		ext_x_lowres = np.arange(-1, self.min_gray_code_length+1) * (1. / self.min_gray_code_length)
-		ext_gray_codes = np.concatenate((self.gray_codes[-1,:][np.newaxis, :], self.gray_codes, self.gray_codes[0,:][np.newaxis,:]), axis=0)
-		f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
-		self.C = f(self.x_fullres)
-		self.C = (self.C*2)-1
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-
-class DecomposedGrayCoding(Coding):
-	'''
-		Decomposed Gray coding class. 
-	'''
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.max_n_bits = int(np.floor(np.log2(n_maxres)))
-		self.n_maxres = n_maxres
-		self.n_bits = np.min((n_codes, self.max_n_bits))
-		self.n_codes = n_codes
-		if(self.n_bits > self.max_n_bits):
-			print("not using n_bits={}, using n_bits={} which is the max_n_bits for {} bins".format(self.n_bits, self.max_n_bits, n_maxres))
-		self.set_coding_mat(self.n_maxres, self.n_bits, self.n_codes)
-		super().__init__(**kwargs)
-
-	def np_gray_code(self, n_bits):
-		return signalproc_ops.generate_gray_code(n_bits)
-
-	def decompose_gray_code(self, gray_code, curr_bit):
-		n_codes_in_gray_code = 2**curr_bit
-		decomposed_code = np.zeros((gray_code.shape[0], n_codes_in_gray_code))
-		decomposed_code_len = int(np.floor(gray_code.shape[0] / n_codes_in_gray_code)) 
-		for i in range(n_codes_in_gray_code):
-			start_idx = i*decomposed_code_len
-			end_idx = start_idx+decomposed_code_len
-			decomposed_code[start_idx:end_idx,i] = gray_code[start_idx:end_idx]
-		return decomposed_code
-	
-	def binary_codes(self, n_maxres, level):
-		n_codes = 2**(level-1)
-		bin_codes = np.zeros((n_maxres, n_codes))
-		code_len = int(np.round(n_maxres / n_codes))
-		half_code_len = code_len // 2
-		for i in range(n_codes):
-			start_idx = i*code_len
-			end_idx1 = start_idx + half_code_len
-			end_idx2 = np.min([start_idx + code_len, n_maxres])
-			bin_codes[start_idx:end_idx1, i] = 1
-			bin_codes[end_idx1:end_idx2, i] = -1
-		return bin_codes
-
-	def set_coding_mat(self, n_maxres, n_bits, n_codes):
-		self.C = np.zeros((n_maxres, n_codes))
-		self.gray_codes = self.np_gray_code(n_bits)
-		self.min_gray_code_length = self.gray_codes.shape[0]
-		# assert(n_maxres >= self.min_gray_code_length), "n_maxres is not large enough to encode the gray code"
-		if((n_maxres % self.min_gray_code_length) != 0):
-			print("WARNING: Gray codes where the n_maxres is not a multiple of the gray code length, may have some small ambiguous regions")
-		self.x_fullres = np.arange(0, n_maxres) * (1. / n_maxres)
-		self.x_lowres = np.arange(0, self.min_gray_code_length) * (1. / self.min_gray_code_length)
-		ext_x_lowres = np.arange(-1, self.min_gray_code_length+1) * (1. / self.min_gray_code_length)
-		ext_gray_codes = np.concatenate((self.gray_codes[-1,:][np.newaxis, :], self.gray_codes, self.gray_codes[0,:][np.newaxis,:]), axis=0)
-		f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
-		## Set first n_bits codes to traditional gray codes
-		self.C[:, 0:self.n_bits] = f(self.x_fullres)
-		self.C = (self.C*2)-1
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-		## Haar codes
-		self.n_decomposed_codes = self.n_codes - self.n_bits
-		if(self.n_decomposed_codes >= 1):
-			curr_level = 2
-			curr_start_code = self.n_bits
-			n_remaining_codes = self.n_decomposed_codes
-			while(n_remaining_codes > 0):
-				curr_bin_codes = self.binary_codes(self.n_maxres, curr_level)
-				if(curr_bin_codes.shape[-1] > n_remaining_codes):
-					curr_end_code = curr_start_code+n_remaining_codes
-					self.C[:, curr_start_code:curr_end_code] = curr_bin_codes[:,0:n_remaining_codes]
-				else:
-					curr_end_code = curr_start_code+curr_bin_codes.shape[-1]
-					self.C[:, curr_start_code:curr_end_code] = curr_bin_codes
-				n_remaining_codes -= curr_bin_codes.shape[-1]
-				curr_start_code = curr_end_code
-				curr_level += 1
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-		# ## Decompose gray codes
-		# self.n_decomposed_codes = self.n_codes - self.n_bits
-		# if(self.n_decomposed_codes >= 1):
-		# 	curr_bit=3
-		# 	curr_start_code=self.n_bits
-		# 	n_remaining_codes = self.n_decomposed_codes 
-		# 	while(n_remaining_codes > 0):
-		# 		curr_gray_code = self.C[:, curr_bit-1]
-		# 		decomposed_gray_codes = self.decompose_gray_code(curr_gray_code, curr_bit-2)
-		# 		if(decomposed_gray_codes.shape[-1] > n_remaining_codes):
-		# 			curr_end_code = curr_start_code+n_remaining_codes
-		# 			self.C[:, curr_start_code:curr_end_code] = decomposed_gray_codes[:,0:n_remaining_codes]
-		# 		else:
-		# 			curr_end_code = curr_start_code+decomposed_gray_codes.shape[-1]
-		# 			self.C[:, curr_start_code:curr_end_code] = decomposed_gray_codes
-		# 		n_remaining_codes -= decomposed_gray_codes.shape[-1]
-		# 		curr_start_code = curr_end_code
-		# 		curr_bit += 1
-		# self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-
-class WalshHadamardCoding(Coding):
-	'''
-		WalshHadamard coding class. 
-		This is the one used in the paper. The binayr version has many ambiguities at low K. 
-		We avoid ambiguities here by interpolating 
-	'''
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		# check n_
-		assert(np.ceil(np.log2(n_codes)) == np.floor(np.log2(n_codes))), "n_codes needs to be power of 2"
-		# self.n_hadamard_codes = 2**np.ceil(np.log2(n_codes+1))
-		self.n_codes = n_codes
-		self.n_maxres = n_maxres
-		self.set_coding_mat(self.n_maxres, self.n_codes)
-		super().__init__(**kwargs)
-
-	def wh_mat(self, n_codes):
-		assert(n_codes >= 1), "invalid n_codes"
-		from scipy.linalg import hadamard
-		return hadamard(n_codes)
-
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.C = np.zeros((n_maxres, n_codes))
-		self.hadamard_mat = self.wh_mat(n_codes)
-		self.min_hadamard_code_length = self.hadamard_mat.shape[0]
-		if((n_maxres % self.min_hadamard_code_length) != 0):
-			print("WARNING: Hadamard codes where the n_maxres is not a multiple of the hadamard code length, may have some small ambiguous regions")
-		self.x_fullres = np.arange(0, n_maxres) * (1. / n_maxres)
-		self.x_lowres = np.arange(0, self.min_hadamard_code_length) * (1. / self.min_hadamard_code_length)
-		ext_x_lowres = np.arange(-1, self.min_hadamard_code_length+1) * (1. / self.min_hadamard_code_length)
-		ext_hadamard_mat = np.concatenate((self.hadamard_mat[-1,:][np.newaxis, :], self.hadamard_mat, self.hadamard_mat[0,:][np.newaxis,:]), axis=0)
-		f = interpolate.interp1d(ext_x_lowres, ext_hadamard_mat, axis=0, kind='linear')
-		self.C = f(self.x_fullres)
-		self.C = (self.C*2)-1
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-
-class WalshHadamardBinaryCoding(Coding):
-	'''
-		WalshHadamardBinary coding class. 
-	'''
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		# check n_
-		self.n_codes = n_codes
-		self.n_maxres = n_maxres
-		self.n_bits = int(np.ceil(np.log2(self.n_maxres)))
-		self.set_coding_mat(self.n_maxres, self.n_codes)
-		super().__init__(**kwargs)
-
-	def sequency_wh_mat(self, n_bits):
-		assert(n_bits >= 1), "invalid n_codes"
-		from scipy.linalg import hadamard
-		hmat = hadamard(2**n_bits)
-		gc = signalproc_ops.generate_gray_code(n_bits)
-		two_pwrs = 2**np.arange(0, n_bits)
-		gc_order_indeces = gc.dot(two_pwrs).astype(int)
-		return hmat[gc_order_indeces, :]
-
-	def set_coding_mat(self, n_maxres, n_codes):
-		hres_hadamard_mat = self.sequency_wh_mat(self.n_bits)
-		n_hres = hres_hadamard_mat.shape[-1]
-		x_lres = np.arange(0, n_maxres) * (1. / n_maxres)
-		ext_x_hres = np.arange(-1, n_hres+1) * (1. / n_hres)
-		ext_hadamard_mat = np.concatenate((hres_hadamard_mat[-1,:][np.newaxis, :], hres_hadamard_mat, hres_hadamard_mat[0,:][np.newaxis,:]), axis=0)
-		f = interpolate.interp1d(ext_x_hres, ext_hadamard_mat, axis=0, kind='linear')
-		self.hadamard_mat = f(x_lres) 
-		self.C = self.hadamard_mat[:, 1:n_codes+1]
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
-
-class ReflectedGrayCoding(GrayCoding):
-	def __init__(self, n_maxres, n_bits, **kwargs):
-		super().__init__( n_maxres, n_bits, **kwargs )
-	
-	def set_coding_mat(self, n_maxres, n_bits):
-		super().set_coding_mat(n_maxres, n_bits)
-		reflected_C = -1*self.C
-		self.C = np.concatenate((self.C, reflected_C), axis=-1)
-
-class ComplementaryGrayCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		super().__init__( **kwargs )
-	
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.gray_coding_obj = GrayCoding(n_maxres, n_codes)
-		self.gray_C = np.array(self.gray_coding_obj.C)
-		n_gray_codes = self.gray_C.shape[-1] 
-		## If we have codes left add them
-		if(n_codes > n_gray_codes):
-			## Get orthogonal binary codes for all codes
-			self.orth_gray_C = np.zeros_like(self.gray_C)
-			for i in range(n_gray_codes):
-				self.orth_gray_C[:,i] = signalproc_ops.get_orthogonal_binary_code(self.gray_C[:,i])
-			## Drop the first two because the already had orthogonal codes
-			self.orth_gray_C = self.orth_gray_C[:,2:]
-			## Generate C using both matrices
-			n_remaining_codes = n_codes - n_gray_codes
-			if(n_remaining_codes <= self.orth_gray_C.shape[-1]):
-				self.C = np.concatenate((self.gray_C, self.orth_gray_C[:,0:n_remaining_codes]), axis=-1)
-			else:
-				print("Max number of compl. gray codes is = {}. Truncating to this number".format((2*n_gray_codes) - 2))
-				self.C = np.concatenate((self.gray_C, self.orth_gray_C), axis=-1)
-		else:
-			self.C = self.gray_C
-		return self.C
-
-class PSeriesGrayCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		super().__init__( **kwargs )
-	
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.gray_coding_obj = ComplementaryGrayCoding(n_maxres, n_codes)
-		self.gray_C = np.array(self.gray_coding_obj.C)
-		n_gray_codes = self.gray_C.shape[-1] 
-		## If we have codes left start adding binary codes
-		if(n_codes > n_gray_codes):
-			all_freqs = np.arange(1, n_maxres // 2)
-			dominant_freqs = signalproc_ops.get_dominant_freqs(self.gray_C, axis=0)
-			n_remaining_codes = n_codes - n_gray_codes
-			self.binary_C = np.zeros((n_maxres, n_remaining_codes))
-			i = 0
-			t = np.arange(0, n_maxres) / n_maxres
-			while(n_remaining_codes > 0):
-				curr_freq = all_freqs[i]
-				# skip if we have already used it
-				if(curr_freq in dominant_freqs): 
-					i+=1
-					continue
-				# add binary code
-				binary_code = scipy.signal.square(2*np.pi*curr_freq*t)
-				self.binary_C[:,n_remaining_codes-1] = binary_code
-				n_remaining_codes-=1
-				# add the orthogonal binary code if we can
-				if(n_remaining_codes == 0): break
-				orth_binary_code = signalproc_ops.get_orthogonal_binary_code(binary_code)
-				self.binary_C[:,n_remaining_codes-1] = orth_binary_code
-				n_remaining_codes-=1
-				i+=1
-			self.binary_C = np.fliplr(self.binary_C)
-			self.C = np.concatenate((self.gray_C, self.binary_C), axis=-1)
-		else:
-			self.C = self.gray_C
-		return self.C
-
-class GrayTruncatedFourierCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		# Create Gray coding obj
-		self.gray_coding_obj = GrayCoding(n_maxres, n_codes)
-		self.n_gray_codes = self.gray_coding_obj.n_codes
-		# Create Fourier Coding obj with remaining codes we want to use
-		self.n_fourier_codes = n_codes - self.n_gray_codes 
-		self.n_freqs = int(np.ceil(float(self.n_fourier_codes)/2.))
-		if(self.n_freqs >= 1): 
-			self.truncfourier_coding_obj = TruncatedFourierCoding(n_maxres, n_freqs=self.n_freqs, include_zeroth_harmonic=False)
-		else: self.truncfourier_coding_obj = None
-		# Set coding mat by concat the matrices
-		self.set_coding_mat()
-		super().__init__(**kwargs)
-	
-	def set_coding_mat(self):
-		gray_C = self.gray_coding_obj.C
-		if(self.n_fourier_codes >= 1):
-			truncfourier_C = self.truncfourier_coding_obj.C[:, 0:self.n_fourier_codes]
-			self.C = np.concatenate((gray_C, truncfourier_C), axis=-1)
-		else:
-			self.C = gray_C
-
-class GrayTruncatedFourierV2Coding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		# Start with the first 16 freqs
-		self.n_fourier_codes = np.min([16, n_codes]) 
-		self.n_freqs = int(np.ceil(float(self.n_fourier_codes)/2.))
-		self.truncfourier_coding_obj = TruncatedFourierCoding(n_maxres, n_freqs=self.n_freqs, include_zeroth_harmonic=False)
-		# if there is codes left create gray coding
-		self.n_codes_avail = n_codes - self.n_fourier_codes
-		self.n_gray_codes = np.min([self.n_codes_avail, 8])
-		if(self.n_gray_codes >= 1 ):
-			self.gray_coding_obj = GrayCoding(n_maxres, self.n_gray_codes)
-		else: self.gray_coding_obj = None
-		# assign rest of freqs randomly
-		self.n_codes_avail = n_codes - self.n_fourier_codes - self.n_gray_codes
-		self.n_rand_freqs = int(np.ceil(float(self.n_codes_avail)/2.))
-		if(self.n_rand_freqs >= 1 ):
-			self.randfourier_coding_obj = RandomFourierCoding(n_maxres, n_rand_freqs=self.n_rand_freqs, include_first_harmonic=False)
-		else: self.randfourier_coding_obj = None
-		# Set coding mat by concat the matrices
-		self.set_coding_mat()
-		super().__init__(**kwargs)
-	
-	def set_coding_mat(self):
-		truncfourier_C = self.truncfourier_coding_obj.C
-		if((self.n_gray_codes >= 1) and (self.n_rand_freqs >= 1)):
-			gray_C = self.gray_coding_obj.C
-			randfourier_C = self.randfourier_coding_obj.C
-			self.C = np.concatenate((truncfourier_C, gray_C, randfourier_C), axis=-1)
-		elif(self.n_gray_codes >= 1):
-			gray_C = self.gray_coding_obj.C
-			self.C = np.concatenate((truncfourier_C, gray_C), axis=-1)
-		else:
-			self.C = truncfourier_C
-
-class GrayEquispaced3FourierCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		# Create Gray coding obj
-		self.gray_coding_obj = GrayCoding(n_maxres, n_codes)
-		self.n_gray_codes = self.gray_coding_obj.n_codes
-		# Create Fourier Coding obj with remaining codes we want to use
-		self.n_fourier_codes = n_codes - self.n_gray_codes 
-		self.n_freqs = int(np.ceil(float(self.n_fourier_codes)/2.))
-		self.freq_spacing = 3
-		self.freqs = np.arange(1, self.n_freqs+1)*self.freq_spacing
-		if(self.n_freqs >= 1): 
-			assert(np.max(self.freqs) <= (n_maxres//2)), 'Exceeded max possible freq'
-			self.fourier_coding_obj = FourierCoding(n_maxres, freq_idx=self.freqs)
-		else: self.fourier_coding_obj = None
-		# Set coding mat by concat the matrices
-		self.set_coding_mat()
-		super().__init__(**kwargs)
-	
-	def set_coding_mat(self):
-		gray_C = self.gray_coding_obj.C
-		if(self.n_fourier_codes >= 1):
-			fourier_C = self.fourier_coding_obj.C[:, 0:self.n_fourier_codes]
-			self.C = np.concatenate((gray_C, fourier_C), axis=-1)
-		else:
-			self.C = gray_C
-
-class HaarCoding(Coding):
-	'''
-		Haar coding class. 
-	'''
-	def __init__(self, n_maxres, n_lvls, **kwargs):
-		self.n_lvls = n_lvls
-		self.set_coding_mat(n_maxres, n_lvls)
-		super().__init__(**kwargs)
-
-	def set_coding_mat(self, n_maxres, n_lvls):
-		self.C = signalproc_ops.haar_matrix(n_maxres, n_lvls)
-
-class RandomCoding(Coding):
-	'''
-		Random coding class. 
-	'''
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		super().__init__(**kwargs)
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.C = np.random.rand(n_maxres,n_codes)
-		self.C = (signalproc_ops.standardize_signal(self.C, axis=0)*2) - 1
-		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
 
 class HamiltonianCoding(Coding):
 	'''
@@ -756,6 +359,86 @@ class HamiltonianCoding(Coding):
 		self.C = signalproc_ops.circular_corr(modfs, demodfs, axis=0)
 		self.C = (signalproc_ops.standardize_signal(self.C, axis=0)*2) - 1
 		self.C = self.C - self.C.mean(axis=-2, keepdims=True)
+
+
+class IntegratedGatedCoding(GatedCoding):
+	def __init__(self, n_maxres, n_gates, tbin_res, gate_size, **kwargs):
+		self.tbin_res = tbin_res
+		self.gate_size = gate_size
+		self.gate_len = int(gate_size // tbin_res)
+		self.set_coding_mat(n_maxres, n_gates)
+		super().__init__(n_maxres=n_maxres, n_gates=n_gates, **kwargs)
+
+
+	def set_coding_mat(self, n_maxres, n_gates):
+		self.C = np.zeros((n_maxres, n_gates))
+
+		self.C[0:self.gate_len, :] = 1
+
+		shifts = np.arange(0, n_gates) * (float(n_maxres) / float(n_gates))
+		self.C = ApplyKPhaseShifts(self.C, shifts)
+
+	def encode(self, transient_img, trials):
+		(n_tbins, n_gates) = self.C.shape
+
+		measures = np.zeros((n_gates))
+
+		for g in range(n_gates):
+			gate = self.C[g]
+			measures[g] = np.inner(transient_img, gate)
+
+		return tof_utils.add_poisson_noise(measures, n_mc_samples=trials)
+
+	def plot_gates(self):
+		(n_tbins, n_gates) = self.C.shape
+		fig, ax = plt.subplots()
+		plt.xlim(-1, n_tbins+1+self.gate_len)
+		plt.ylim(0, 1.5)
+		currentAxis = plt.gca()
+		for i in range(n_gates):
+			rect1 = mpl.patches.Rectangle((i, 0), self.gate_len, 1, fill=False, alpha=1)
+			if i == 10:
+				rect1 = mpl.patches.Rectangle((i, 0), self.gate_len, 1, color='red', alpha=1)
+			currentAxis.add_patch(rect1)
+
+		plt.xlabel("Gate length")
+		plt.ylabel("Calorie Burnage")
+		plt.show()
+
+
+def GetSqSq(N=1000, K=4):
+	"""GetSqSq: Get modulation and demodulation functions for square coding scheme. The shift
+	between each demod function is 2*pi/k where k can be [3,4,5...].
+
+	Args:
+	    N (int): Number of discrete points in the scheme
+	    k (int): Number of mod/demod function pairs
+	    0.5
+
+	Returns:
+	    np.array: modFs
+	    np.array: demodFs
+	"""
+	#### Allocate modulation and demodulation vectors
+	modFs = np.zeros((N, K))
+	demodFs = np.zeros((N, K))
+	t = np.linspace(0, 2 * np.pi, N)
+	dt = float(TauDefault) / float(N)
+	#### Declare base sin function
+	sqF = (0.5 * signal.square(t, duty=0.5)) + 0.5
+	#### Set each mod/demod pair to its base function and scale modulations
+	for i in range(0, K):
+		## No need to apply phase shift to modF
+		modFs[:, i] = sqF
+		## Scale  modF so that area matches the total energy
+		modFs[:, i] = ScaleAreaUnderCurve(modFs[:, i], dx=dt, desiredArea=TotalEnergyDefault)
+		## Apply phase shift to demodF
+		demodFs[:, i] = sqF
+	#### Apply phase shifts to demodF
+	shifts = np.arange(0, K) * (float(N) / float(K))
+	demodFs = ApplyKPhaseShifts(demodFs, shifts)
+	#### Return coding scheme
+	return (modFs, demodFs)
 
 def GetHamK3(N=1000):
 	"""GetHamK3: Get modulation and demodulation functions for the coding scheme
@@ -937,41 +620,6 @@ class KTapTriangleCoding(Coding):
 		diff = (self.freq_idx[1:] - self.freq_idx[0:-1])
 		return np.sum(diff-1) == 0
 
-class TruncatedKTapTriangleCoding(KTapTriangleCoding):
-	'''
-	'''
-	def __init__(self, n_maxres, n_freqs=1, include_zeroth_harmonic=True, k=3, **kwargs):
-		freq_idx = np.arange(0, n_freqs+1)
-		# Remove zeroth harmonic if needed.
-		if(not include_zeroth_harmonic): freq_idx = freq_idx[1:]
-		self.include_zeroth_harmonic = include_zeroth_harmonic
-		super().__init__(n_maxres, freq_idx=freq_idx, k=k, **kwargs)
-
-class GatedFourierCoding(Coding):
-	'''
-		class for GatedFourier coding
-	'''
-	def __init__(self, n_maxres, freq_idx=[0, 1], n_gates=None, **kwargs):
-		self.gated_coding = GatedCoding(n_maxres, n_gates)
-		self.gate_len = self.gated_coding.gate_len
-		self.n_gates = self.gated_coding.n_gates
-		self.fourier_coding = FourierCoding(self.gate_len, freq_idx)
-		self.n_freqs = self.fourier_coding.n_freqs
-		self.set_coding_mat(n_maxres)
-		super().__init__(**kwargs)
-
-	def set_coding_mat(self, n_maxres):
-		'''
-		Initialize all frequencies
-		'''
-		self.C = np.zeros((n_maxres, self.gated_coding.n_codes*self.fourier_coding.n_codes), dtype=self.fourier_coding.C.dtype)
-		for i in range(self.n_gates):
-			start_gate_idx = i*self.gate_len
-			end_gate_idx = start_gate_idx + self.gate_len
-			start_code_idx = i*self.fourier_coding.n_codes
-			end_code_idx = start_code_idx + self.fourier_coding.n_codes
-			self.C[start_gate_idx:end_gate_idx, start_code_idx:end_code_idx] = self.fourier_coding.C
-		return self.C
 
 class FourierCoding(Coding):
 	'''
@@ -1238,297 +886,3 @@ class KTapSinusoidCoding(FourierCoding):
 			# phi = np.arctan2(x[..., 2] / x[..., 1])
 		# Return to the original shape
 		return cmpx_c_vec.reshape(c_vec_orig_shape[0:-1] + (self.n_freqs,))
-
-class TruncatedFourierCoding(FourierCoding):
-	'''
-		Abstract class for linear coding
-	'''
-	def __init__(self, n_maxres, n_freqs=1, n_codes=None, include_zeroth_harmonic=True, **kwargs):
-		if(not (n_codes is None) and (n_codes > 1)): n_freqs = np.ceil(n_codes / 2)
-		freq_idx = np.arange(0, n_freqs+1)
-		# Remove zeroth harmonic if needed.
-		if(not include_zeroth_harmonic): freq_idx = freq_idx[1:]
-		self.include_zeroth_harmonic = include_zeroth_harmonic
-		super().__init__(n_maxres, freq_idx=freq_idx, n_codes=n_codes, **kwargs)
-
-	def ifft_reconstruction(self, c_vec):
-		'''
-		Use ifft to reconstruction transient.
-		Here since we know that we only have the first K harmonics we can simply apply ifft directly to the phasors
-		This rec method is more efficient than the one implemented in FourierCoding
-		'''
-		self.verify_input_c_vec(c_vec)
-		phasors = self.construct_phasor(c_vec)
-		# if not available append zeroth harmonic
-		if(not self.include_zeroth_harmonic):
-			phasors = np.concatenate((np.zeros(phasors.shape[0:-1] + (1,),dtype=phasors.dtype), phasors), axis=-1)
-		# Finally return the IFT
-		return np.fft.irfft(phasors, axis=-1, n=self.get_n_maxres())
-
-class HighFreqFourierCoding(FourierCoding):
-	'''
-		Abstract class for High frequency Fourier coding
-		This is the type of strategy used in the Micro Phase Shifting paper by Gupta et al., 2015 ACM ToG
-	'''
-	def __init__(self, n_maxres, n_high_freqs=1, start_high_freq=40, **kwargs):
-		freq_idx = np.arange(start_high_freq, start_high_freq+n_high_freqs)
-		super().__init__(n_maxres, freq_idx=freq_idx, **kwargs)
-
-class PSeriesFourierCoding(FourierCoding):
-	'''
-		Abstract class for linear coding
-	'''
-	def __init__(self, n_maxres, n_freqs=1, include_zeroth_harmonic=False, **kwargs):
-		n_power_freqs = int(np.floor(np.log2(n_maxres // 2)))
-		power_freq_idx = 2**np.arange(0,n_power_freqs)
-		freq_idx = -1*np.ones((n_freqs,))
-		freq_idx_candidates = np.arange(0, n_freqs+1)
-		# Remove zeroth harmonic if needed.
-		self.include_zeroth_harmonic = include_zeroth_harmonic
-		if(not include_zeroth_harmonic): freq_idx_candidates = freq_idx_candidates[1:]
-		# Add extra frequencies if the power freqs was not enough
-		if(n_freqs <= n_power_freqs):
-			freq_idx = power_freq_idx[0:n_freqs]
-		else:
-			freq_idx[0:n_power_freqs] = power_freq_idx
-			i = 0
-			j = n_power_freqs
-			while(j < n_freqs):
-				curr_freq_candidate = freq_idx_candidates[i]
-				if(not (curr_freq_candidate in freq_idx)):
-					freq_idx[j] = curr_freq_candidate
-					j+=1
-				i+=1
-		super().__init__(n_maxres, freq_idx=freq_idx, **kwargs)
-
-class PSeriesBinaryFourierCoding(Coding):
-	'''
-		class for PSeriesBinaryFourierCoding coding
-	'''
-	def __init__(self, n_maxres, n_codes=2, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		n_power_freqs = int(np.floor(np.log2(n_maxres // 2)))
-		if(n_codes <= 2*n_power_freqs):
-			print("PSeriesBinary may have ambiguities if there is not enough codes")
-		super().__init__(**kwargs)
-
-	def set_coding_mat(self, n_maxres, n_codes):
-		'''
-		Initialize all frequencies
-		'''
-		n_freqs = (n_codes // 2) + 1
-		self.pseries_fourier_coding = PSeriesFourierCoding(n_maxres, n_freqs=n_freqs)
-		## Set C to the same as PSeries
-		self.C = np.array(self.pseries_fourier_coding.C[:,0:n_codes])
-		## binarize the matrix
-		self.C[self.C < 0] = -1 
-		self.C[self.C >= 0] = 1 
-		return self.C
-
-class RandomFourierCoding(FourierCoding):
-	'''
-		Abstract class for linear coding
-	'''
-	def __init__(self, n_maxres, n_rand_freqs=1, include_first_harmonic=True, **kwargs):
-		self.include_first_harmonic = include_first_harmonic
-		max_freq_idx = n_maxres//2.
-		if(include_first_harmonic):
-			possible_freq_idx = np.arange(2, max_freq_idx)
-			freq_idx = np.random.choice(possible_freq_idx, size=n_rand_freqs-1, replace=False)
-			# Always include the first harmonic
-			freq_idx = np.append(freq_idx, 1)
-		else:
-			possible_freq_idx = np.arange(2, max_freq_idx)
-			freq_idx = np.random.choice(possible_freq_idx, size=n_rand_freqs, replace=False)
-		# sort for better visualization
-		freq_idx.sort()
-		super().__init__(n_maxres, freq_idx=freq_idx, **kwargs)
-
-class SingleFourierCoding(TruncatedFourierCoding):
-	'''
-		Fourier coding with only the first harmonic
-	'''
-	def __init__(self, n_maxres, **kwargs):
-		super().__init__(n_maxres=n_maxres, n_freqs=1, include_zeroth_harmonic=False, **kwargs)
-
-class TruncatedKTapSinusoidCoding(KTapSinusoidCoding):
-	'''
-		Abstract class for linear coding
-	'''
-	def __init__(self, n_maxres, n_freqs=1, include_zeroth_harmonic=True, k=4, **kwargs):
-		freq_idx = np.arange(0, n_freqs+1)
-		# Remove zeroth harmonic if needed.
-		if(not include_zeroth_harmonic): freq_idx = freq_idx[1:]
-		self.include_zeroth_harmonic = include_zeroth_harmonic
-		super().__init__(n_maxres, freq_idx=freq_idx, k=k, **kwargs)
-
-	def ifft_reconstruction(self, c_vec):
-		'''
-		Use ifft to reconstruction transient.
-		Here since we know that we only have the first K harmonics we can simply apply ifft directly to the phasors
-		This rec method is more efficient than the one implemented in FourierCoding
-		'''
-		self.verify_input_c_vec(c_vec)
-		phasors = self.construct_phasor(c_vec)
-		# if not available append zeroth harmonic
-		if(not self.include_zeroth_harmonic):
-			phasors = np.concatenate(np.zeros(phasors.shape[0:-1],dtype=phasors.dtype), phasors, axis=-1)
-		# Finally return the IFT
-		return np.fft.irfft(phasors, axis=-1, n=self.get_n_maxres())
-
-class PSeriesGrayBasedFourierCoding(FourierCoding):
-	'''
-		Gray based fourier coding
-		Sample Fourier frequencies in the following way
-		- 1, 2, 4, 8, 16 ...
-		- 3, 6, 12, 24, 48, ... == 3 * (1, 2, 4, 8, 16, ...)
-		- 5, 10, 20, 40, 80, ... == 5 * (1, 2, 4, 8, 16, ...)
-		- 7, 14, 28, 56, 112,... == 7 * (1, 2, 4, 8, 16, ...)
-		- 9, 18, 36, 72, 144, ... == 9 * (1, 2, 4, 8, 16, ...)
-		- 11, 22, 44, 88
-		- 13, 26, 52, ...
-		- 17, 34, 51
-		- 19, 38, 76,
-		- 23, 46, 92
-	'''
-	def __init__(self, n_maxres, n_codes=1, include_zeroth_harmonic=False, filter_freqs=True, valid_freq_thresh=0.1, h_irf=None, account_irf=False):
-		n_freqs = (n_codes // 2) + 1
-		self.abs_max_freq_idx = n_maxres // 2
-		## If we know the IRF we can make sure to only include frequencies with sufficient magnitude
-		if(filter_freqs and (not (h_irf is None))):
-			(self.low_confidence_freq_idx, self.low_confidence_freqs) = signalproc_ops.get_low_confidence_freqs(h_irf, valid_freq_thresh=valid_freq_thresh)
-		else:
-			self.low_confidence_freqs = np.zeros((self.abs_max_freq_idx+1,)).astype(bool)
-			self.low_confidence_freq_idx = [] 	
-		self.n_power_freqs = int(np.floor(np.log2(self.abs_max_freq_idx)))
-		self.two_power_freq_idx = 2**np.arange(0,self.n_power_freqs+1)
-		freq_idx = -1*np.ones((n_freqs,))
-		freq_idx[:] = np.nan
-		n_remaining_freqs = n_freqs 
-		curr_base_freq = 0
-		curr_idx = 0
-		if(include_zeroth_harmonic):
-			freq_idx[0] = 0
-			n_remaining_freqs -= 1
-		while(n_remaining_freqs > 0):
-			curr_base_freq += 1
-			if(curr_base_freq > self.abs_max_freq_idx):
-				print("Ran out of freqs.. Adding low confidence frequencies")
-				break;
-			# Continue to next if curr_base freq is already in
-			if(curr_base_freq in freq_idx):
-				# print("Skipping curr_base_freq = {} because it is already".format(curr_base_freq))
-				continue;
-			for i in range(np.min([len(self.two_power_freq_idx), n_remaining_freqs])):
-				curr_freq_idx = curr_base_freq*self.two_power_freq_idx[i]
-				if((not (curr_freq_idx in freq_idx)) and (curr_freq_idx <= self.abs_max_freq_idx)):
-					if(self.low_confidence_freqs[curr_freq_idx]):
-						# print("Skipping curr_freq_idx = {} because it is low confidence".format(curr_freq_idx))
-						continue;
-					else:
-						curr_idx = n_freqs - n_remaining_freqs 
-						freq_idx[curr_idx] = curr_freq_idx
-						n_remaining_freqs -= 1
-		## If we ran out of high confidence frequencies add the low confidence ones
-		print(n_remaining_freqs)
-		for i in range(n_remaining_freqs):
-			curr_idx = n_freqs - n_remaining_freqs + i
-			print(curr_idx)
-			freq_idx[curr_idx] = self.low_confidence_freq_idx[i]
-
-		super().__init__(n_maxres, freq_idx=freq_idx, n_codes=n_codes, h_irf=h_irf, account_irf=account_irf)
-
-class HybridGrayBasedFourierCoding(FourierCoding):
-	'''
-		Gray based fourier coding
-		Sample Fourier frequencies in the following way
-		- 1, 2, 4, 8, 16, 32, 64 ...
-		If we reach the maximum frequency, then sample the remaining frequencies from lowest to highest, i.e.,
-		- 3, 5, 6, 7, 9, 10, 11, 12, ....
-	'''
-	def __init__(self, n_maxres, n_codes=1, include_zeroth_harmonic=False, filter_freqs=True, valid_freq_thresh=0.1, h_irf=None, account_irf=False):
-		n_freqs = (n_codes // 2) + 1
-		self.abs_max_freq_idx = n_maxres // 2
-		## If we know the IRF we can make sure to only include frequencies with sufficient magnitude
-		if(filter_freqs and (not (h_irf is None))):
-			(self.low_confidence_freq_idx, self.low_confidence_freqs) = signalproc_ops.get_low_confidence_freqs(h_irf, valid_freq_thresh=valid_freq_thresh)
-		else:
-			self.low_confidence_freqs = np.zeros((self.abs_max_freq_idx+1,)).astype(bool)
-			self.low_confidence_freq_idx = [] 	
-		self.n_power_freqs = int(np.floor(np.log2(self.abs_max_freq_idx)))
-		self.two_power_freq_idx = 2**np.arange(0,self.n_power_freqs+1)
-		freq_idx = -1*np.ones((n_freqs,))
-		freq_idx[:] = np.nan
-		n_remaining_freqs = n_freqs 
-		curr_idx = 0
-		if(include_zeroth_harmonic):
-			freq_idx[0] = 0
-			n_remaining_freqs -= 1
-		## Add power of two freqs
-		for i in range(len(self.two_power_freq_idx)):
-			if(n_remaining_freqs == 0): break;
-			curr_freq_idx = self.two_power_freq_idx[i]
-			if(self.low_confidence_freqs[curr_freq_idx]):
-				# print("Skipping curr_freq_idx = {} because it is low confidence".format(curr_freq_idx))
-				continue;
-			else:
-				curr_idx = n_freqs - n_remaining_freqs 
-				freq_idx[curr_idx] = curr_freq_idx
-				n_remaining_freqs -= 1
-		## 
-		curr_freq_idx = 0
-		while(n_remaining_freqs > 0):
-			curr_freq_idx += 1 
-			if(curr_freq_idx > self.abs_max_freq_idx):
-				print("Ran out of freqs.. Adding low confidence frequencies")
-				break;
-			if((not self.low_confidence_freqs[curr_freq_idx]) and (not (curr_freq_idx in freq_idx))):
-				curr_idx = n_freqs - n_remaining_freqs 
-				freq_idx[curr_idx] = curr_freq_idx
-				n_remaining_freqs -= 1
-		## If we ran out of high confidence frequencies add the low confidence ones
-		print(n_remaining_freqs)
-		for i in range(n_remaining_freqs):
-			curr_idx = n_freqs - n_remaining_freqs + i
-			print(curr_idx)
-			freq_idx[curr_idx] = self.low_confidence_freq_idx[i]
-		
-		super().__init__(n_maxres, freq_idx=freq_idx, n_codes=n_codes, h_irf=h_irf, account_irf=account_irf)
-
-class HybridFourierBasedGrayCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		super().__init__( **kwargs )
-	
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.gray_coding_obj = ComplementaryGrayCoding(n_maxres, n_codes)
-		self.hybridgrayfourier_coding_obj = HybridGrayBasedFourierCoding(n_maxres, n_codes=n_codes, filter_freqs=False )
-		self.gray_C = np.array(self.gray_coding_obj.C)
-		n_gray_codes = self.gray_C.shape[-1] 
-		## If we have codes left start adding binary codes
-		if(n_codes > n_gray_codes):
-			self.C = np.array(self.hybridgrayfourier_coding_obj.C)
-			self.C[self.C >= 1e-7] = 1
-			self.C[self.C < -1e-7] = -1
-		else:
-			self.C = self.gray_C
-		return self.C
-
-class PSeriesFourierBasedGrayCoding(Coding):
-	def __init__(self, n_maxres, n_codes, **kwargs):
-		self.set_coding_mat(n_maxres, n_codes)
-		super().__init__( **kwargs )
-	
-	def set_coding_mat(self, n_maxres, n_codes):
-		self.gray_coding_obj = ComplementaryGrayCoding(n_maxres, n_codes)
-		self.psergrayfourier_coding_obj = PSeriesGrayBasedFourierCoding(n_maxres, n_codes=n_codes, filter_freqs=False )
-		self.gray_C = np.array(self.gray_coding_obj.C)
-		n_gray_codes = self.gray_C.shape[-1] 
-		## If we have codes left start adding binary codes
-		if(n_codes > n_gray_codes):
-			self.C = np.array(self.psergrayfourier_coding_obj.C)
-			self.C[self.C >= 1e-7] = 1
-			self.C[self.C < -1e-7] = -1
-		else:
-			self.C = self.gray_C
-		return self.C
