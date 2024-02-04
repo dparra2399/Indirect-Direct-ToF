@@ -76,8 +76,6 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource, codi
         results[coding_functions[i] + '_ITOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof) * depth_res
 
     if (shared_constants.debug):
-        #debug_utils.debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof, norm_measurements_itof,
-                  #depths, sbr, pAveAmbient, pAveSource)
         plt.show()
     return results
 
@@ -111,6 +109,8 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, p
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (direct_tof_utils.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
 
+    #print('Max Depth:', dMax)
+    #print('tbin_res:', tbin_res)
     #tbin_res is size of bin in time
     #tbin_depth is size of bin in depth
     #t_domain is time associated with each bin
@@ -128,6 +128,8 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, p
     if (coding_list is None): coding_list = init_coding_list(coding_schemes, n_tbins, params)
     results = {}
 
+    if (shared_constants.debug):
+        figure, axis = plt.subplots(n_coding_schemes)
 
     for k in range(n_coding_schemes):
         coding_obj = coding_list[k]
@@ -150,18 +152,31 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, p
         pulses_ave.set_integration_time(T)
 
         #PEAK POWER PULSES
+        scheme = coding_schemes[k]
         num_m = 1
-        if coding_schemes[k] == 'Identity':
+        noise = True
+        if scheme in ['Identity']:
             num_m = K
+        elif scheme in ['IntegratedGated', 'Gated']:
+            num_m = 1 / params['n_gates']
+            noise = False
+
+
         simulated_pulses_pp = pulses_pp.simulate_peak_power(peak_power, pAveSource=pAveSource,
-                                                            dt=dt, tau=tau, num_measures=num_m, n_mc_samples=trials)
+                                                            dt=dt, tau=tau, num_measures=num_m, n_mc_samples=trials,
+                                                            add_noise=noise)
         #AVERAGE POWER PULSES
-        simulated_pulses_ave = pulses_ave.simulate_avg_power(pAveSource, n_mc_samples=trials, dt=dt, tau=tau)
+        simulated_pulses_ave = pulses_ave.simulate_avg_power(pAveSource, num_measurements=num_m,
+                                                             n_mc_samples=trials, dt=dt,tau=tau, add_noise=noise)
 
-        c_vals_pp = coding_obj.encode(simulated_pulses_pp)
-        c_vals_ave = coding_obj.encode(simulated_pulses_ave)
+        if scheme == 'IntegratedGated':
+            c_vals_pp = coding_obj.encode(simulated_pulses_pp, trials)
+            c_vals_ave = coding_obj.encode(simulated_pulses_ave, trials)
+        else:
+            c_vals_pp = coding_obj.encode(simulated_pulses_pp)
+            c_vals_ave = coding_obj.encode(simulated_pulses_ave)
 
-        if coding_schemes[k] == 'Identity':
+        if rec_algo in ['linear', 'matchfilt']:
             decoded_depths_pp = coding_obj.maxgauss_peak_decoding(c_vals_pp, gauss_sigma=pw_factors[0],
                                                                                 rec_algo_id=rec_algo) * tbin_depth_res
             decoded_depths_ave = coding_obj.maxgauss_peak_decoding(c_vals_ave, gauss_sigma=pw_factors[0],
@@ -174,11 +189,11 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, p
         results[coding_schemes[k] + '_AVE'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_ave) * depth_res
 
 
+        if (shared_constants.debug):
+            axis[k].plot(c_vals_pp.transpose())
+
     if (shared_constants.debug):
-        #debug_utils.debug_direct(params, c_vals_pp, pulses_pp, decoded_depths_dtof_maxguass_pp,
-        #         decoded_depths_dtof_maxguass_ave, c_vals_ave, pulses_ave, depths, t_domain, sigma,
-        #         peak_power, K, sbr, pAveAmbient, pAveSource)
-        pass
+        plt.show()
     return results
 
 
