@@ -5,7 +5,9 @@ from scipy import stats
 from IPython.core import debugger
 import matplotlib.pyplot as plt
 from indirect_toflib import CodingFunctions
+from combined_toflib.combined_tof_utils import gatedHam, split_into_indices
 from research_utils import shared_constants
+import math
 breakpoint = debugger.set_trace
 
 
@@ -75,12 +77,14 @@ def GetMeasurements(Incident, DemodFs, dt=1):
             cc = np.roll(Incident[:, j], l)
             measures[l, j] = np.inner(cc, demod)
 
+
+
     measures = measures * dt
     return measures
 
 
 
-def ITOF(Incident, DemodFs, depths, trials, dt=1):
+def ITOF(Incident, DemodFs, depths, trials, gated=False, dt=1):
     (n_tbins, K) = Incident.shape
     measures = np.zeros((depths.shape[0], K, trials))
     depths = depths.astype(int)
@@ -92,16 +96,19 @@ def ITOF(Incident, DemodFs, depths, trials, dt=1):
 
     for j in range(0, K):
         demod = DemodFs[:, j]
-
-        if (shared_constants.debug):
-            for p in range(0, n_tbins):
-                cc_full = np.roll(Incident[:, j], p)
-                measures[p, j] = AddPoissonNoiseLam(np.inner(cc_full, demod), 1)
-
-        else:
-            for l in range(0, depths.shape[0]):
+        for l in range(0, depths.shape[0]):
+            convolve = 0
+            if gated == True:
+                splitted_gates = gatedHam(demod)
+                for q in range(0, splitted_gates.shape[-1]):
+                    gate = splitted_gates[:, q]
+                    cc = np.roll(Incident[:, j], depths[l])
+                    convolve += AddPoissonNoiseLam(np.inner(cc, gate), trials)
+            else:
                 cc = np.roll(Incident[:, j], depths[l])
-                measures[l, j, :] = AddPoissonNoiseLam(np.inner(cc, demod), trials)
+                convolve = AddPoissonNoiseLam(np.inner(cc, demod), trials)
+
+            measures[l, j, :] = convolve
 
     measures = measures * dt
     return measures

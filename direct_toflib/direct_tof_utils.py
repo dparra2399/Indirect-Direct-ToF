@@ -37,6 +37,10 @@ def time2depth(time):
 def freq2depth(freq):
     return (SPEED_OF_LIGHT * (1. / freq)) / 2.
 
+def depth2freq(depth):
+    return SPEED_OF_LIGHT / (2 * depth)
+
+
 
 def depth2time(depth):
     return (2 * depth / SPEED_OF_LIGHT)
