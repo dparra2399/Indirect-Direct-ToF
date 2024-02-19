@@ -39,22 +39,26 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource, codi
     depths = np.round((depths / dMax) * n_tbins)
     for i in range(n_coding_functions):
         (ModFs, DemodFs) = coding_list[i]
+
         ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
-        # for k in range(0, ModFs.shape[-1]):
-        #     ModFs[:, k] =  (ModFs[:, k] / ModFs[:, k].max()) * peak_power
+        for k in range(0, ModFs.shape[-1]):
+            ModFs[:, k] = ModFs[:, k] / params['num_measures'][i]
+
         Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, T=T, meanBeta=meanBeta, sbr=sbr,
                                                   pAveAmbient=pAveAmbient, dt=dt, tau=tau)
 
-        source_incident = indirect_tof_utils.GetIncident(ModFs, T=T, meanBeta=meanBeta)
-
         Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
+
+        gated = False
+        if coding_functions[i] in ['HamiltonianK3Gated', 'HamiltonianK4Gated', 'HamiltonianK5Gated']:
+            gated = True
 
         NormMeasures = (Measures.transpose() - np.mean(Measures, axis=1)) / np.std(Measures, axis=1)
         NormMeasures = NormMeasures.transpose()
 
         ###DEPTH ESTIMATIONS
-        measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, tbin_depth_res=tbin_depth_res, src_incident=source_incident)
-        measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials)
+        measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, gated=gated)
+        measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials, gated=gated)
 
         if (shared_constants.debug):
             new_measures_idtof = measures_idtof[depths.astype(int), :]

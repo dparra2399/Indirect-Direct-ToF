@@ -20,39 +20,41 @@ if __name__ == '__main__':
 
     #(modfs, demodfs) =
     params = {}
-    params['n_tbins'] = 10
-    params['rep_freq'] = 1 * 1e+8
+    params['n_tbins'] = 500
+    params['dMax'] = 5
+    params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['n_gates'] = params['n_tbins']
-    params['gate_size'] = 9 * ((1./params['rep_freq'])/ params['n_tbins'])
+    params['gate_size'] = 1 * ((1./params['rep_freq'])/ params['n_tbins'])
     params['gate_shift'] = 40 * 1e-12
     params['K'] = 3
     params['T'] = 0.1  # Integration time. Exposure time in seconds
     params['fund_freq'] = params['rep_freq']
     params['rep_tau'] = 1. / params['rep_freq']
     params['tau'] = 1./ params['fund_freq']
-    params['dMax'] = direct_tof_utils.time2depth(params['rep_tau'])
     print('max depth:', params['dMax'])
+    print('rep freq:', params['rep_freq'])
     params['depth_res'] = 1000 ##Conver to MM
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
-    params['coding_functions'] = ['HamiltonianK3']
+    params['coding_functions'] = ['HamiltonianK3Gated', 'HamiltonianK3', 'HamiltonianK4Gated','HamiltonianK4',
+                                  'HamiltonianK5Gated', 'HamiltonianK5']
     params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
     ##DIRECT
     params['pw_factors'] = np.array([1])
-    params['peak_factor'] = 2
+    params['peak_factor'] = 5
     params['freq_idx'] = [1]
-    #params['time_res'] = 0.5 * 1e-9 #1 nanosecond
-    #params['time_res'] = 50 * 1e-12 #50 picoseconds
     params['time_res'] = None
-    params['rec_algos'] = ['zncc']
+    params['rec_algos'] = ['linear']
     params['coding_schemes'] = ['IntegratedGated']
-    params['trials'] = 10000
+    params['trials'] = 1000
 
-    depths = np.array([0.34])
+    dSample = 1
+    depths = np.arange(0, params['dMax'], dSample)
 
     run_exp = 0
-    exp_num = 0
+    exp_num = 1
+    gate_exp = 0
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
@@ -67,12 +69,12 @@ if __name__ == '__main__':
     sbr_levels, pAveSource_levels = np.meshgrid(sbr_levels_list, pAveSource_levels_list)
     pAveAmbient_levels, _ = np.meshgrid(pAveAmbient_levels_list, pAveSource_levels_list)
 
-    pAveSource = (10**5)
+    pAveSource = (10**4)
     # pAveAmbient = (10**5)
     pAveAmbient = None
-    sbr = 10**0.5
+    sbr = 1/10
 
-    # gate_size_exp(params, depths, pAveSource, sbr)
+
 
     if run_exp:
         tic = time.perf_counter()
@@ -85,7 +87,15 @@ if __name__ == '__main__':
             params=params, results=results, exp_num=exp_num, depths=depths,
             sbr_levels=sbr_levels, pAveAmbient_levels=None, pAveSource_levels=pAveSource_levels)
 
+    elif gate_exp:
+        gate_size_exp(params, depths, pAveSource, sbr)
+        # params['pw_factors'] = np.array([5])
+        # gate_size_exp(params, depths, pAveSource, sbr)
 
+        plt.ylabel('MAE error in mm')
+        plt.xlabel('Gate_length')
+        plt.legend()
+        plt.show()
     else:
         tic = time.perf_counter()
         (results_indirect, results_direct) = run_both(params, depths, sbr, pAveAmbient, pAveSource)

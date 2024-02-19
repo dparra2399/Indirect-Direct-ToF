@@ -126,8 +126,8 @@ def gate_size_exp(params, depths, source_photons, sbr):
             error.append(results_direct['IntegratedGated_PP'])
             gates.append(gate_size)
 
-    plt.scatter(gates, error)
-    #plt.plot(gates[np.argmin(error)], np.min(error), 'ro', color='red')
-    plt.show()
+    pulse_width = 'pulse width: ' + str(params['pw_factors'][0])
+    plt.scatter(gates, error, label=pulse_width)
+    plt.plot(gates[np.argmin(error)], np.min(error), 'ro', color='red')
     print('hello world')
 

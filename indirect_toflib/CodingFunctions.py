@@ -115,6 +115,7 @@ def GetHamK3(N=1000, PeakFactor=6.):
 	return (modFs, demodFs)
 
 
+
 def GetHamK4(N=1000, PeakFactor=12.):
 	"""GetHamK4: Get modulation and demodulation functions for the coding scheme HamK4	
 	Args:

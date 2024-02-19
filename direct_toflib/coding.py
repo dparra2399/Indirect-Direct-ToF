@@ -283,7 +283,7 @@ class GatedCoding(Coding):
 	'''
 	def __init__(self, n_maxres, n_gates=None, **kwargs):
 		if(n_gates is None): n_gates = n_maxres
-		assert((n_maxres % n_gates) == 0), "Right now GatedCoding required n_maxres to be divisible by n_gates"
+		#assert((n_maxres % n_gates) == 0), "Right now GatedCoding required n_maxres to be divisible by n_gates"
 		assert((n_maxres >= n_gates)), "n_gates should always be smaller than n_maxres"
 		self.n_gates = n_gates
 		self.set_coding_mat(n_maxres, n_gates)
@@ -376,28 +376,30 @@ class IntegratedGatedCoding(GatedCoding):
 		self.C[0:self.gate_len, :] = 1
 
 		shifts = np.arange(0, n_gates) * (float(n_maxres) / float(n_gates))
-		self.C = ApplyKPhaseShifts(self.C, shifts)
+		for i in range(0, n_gates):
+			self.C[:, i] = np.roll(np.pad(self.C[:, i], (0, n_maxres)), int(round(shifts[i])))[0:n_maxres]
 
 	def encode(self, transient_img, trials):
 		(n_tbins, n_gates) = self.C.shape
 
-		measures = np.zeros((n_gates))
+		measures = np.zeros((transient_img.shape[0], n_gates))
 
 		for g in range(n_gates):
 			gate = self.C[g]
-			measures[g] = np.inner(transient_img, gate)
+			measures[:, g] = np.inner(transient_img, gate)
 
-		return tof_utils.add_poisson_noise(measures, n_mc_samples=trials)
+		ret = tof_utils.add_poisson_noise(measures, n_mc_samples=trials)
+		return ret
 
 	def plot_gates(self):
 		(n_tbins, n_gates) = self.C.shape
 		fig, ax = plt.subplots()
-		plt.xlim(-1, n_tbins+1+self.gate_len)
+		plt.xlim(-1, n_tbins+1)
 		plt.ylim(0, 1.5)
 		currentAxis = plt.gca()
 		for i in range(n_gates):
 			rect1 = mpl.patches.Rectangle((i, 0), self.gate_len, 1, fill=False, alpha=1)
-			if i == 10:
+			if i == 4:
 				rect1 = mpl.patches.Rectangle((i, 0), self.gate_len, 1, color='red', alpha=1)
 			currentAxis.add_patch(rect1)
 
@@ -575,8 +577,9 @@ def ApplyKPhaseShifts(x, shifts):
 	if(type(shifts) == np.ndarray): K = shifts.size
 	elif(type(shifts) == list): K = len(shifts) 
 	else: K = 1
+	(N, K) = x.shape
 	for i in range(0,K):
-		x[:,i] = np.roll(x[:,i], int(round(shifts[i])))
+		x[:,i] = np.roll(x[:, i], int(round(shifts[i])))
 	return x
 
 class KTapTriangleCoding(Coding):
