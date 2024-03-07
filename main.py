@@ -21,11 +21,12 @@ if __name__ == '__main__':
     #(modfs, demodfs) =
     params = {}
     params['n_tbins'] = 500
-    params['dMax'] = 5
-    params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
+    #params['dMax'] = 5
+    #params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
+    params['rep_freq'] = 5 * 1e6
+    params['dMax'] = direct_tof_utils.freq2depth(params['rep_freq'])
     params['n_gates'] = params['n_tbins']
     params['gate_size'] = 1 * ((1./params['rep_freq'])/ params['n_tbins'])
-    params['gate_shift'] = 40 * 1e-12
     params['K'] = 3
     params['T'] = 0.1  # Integration time. Exposure time in seconds
     params['fund_freq'] = params['rep_freq']
@@ -35,8 +36,7 @@ if __name__ == '__main__':
     print('rep freq:', params['rep_freq'])
     params['depth_res'] = 1000 ##Conver to MM
     params['dt'] = params['rep_tau'] / float(params['n_tbins'])
-    params['coding_functions'] = ['HamiltonianK3Gated', 'HamiltonianK3', 'HamiltonianK4Gated','HamiltonianK4',
-                                  'HamiltonianK5Gated', 'HamiltonianK5']
+    params['coding_functions'] = ['KTapSinusoid', 'HamiltonianK3Gated', 'HamiltonianK4Gated', 'HamiltonianK5Gated']
     params['meanBeta'] = 1e-4
     # Avg fraction of photons reflected from a scene points back to the detector
 
@@ -45,21 +45,22 @@ if __name__ == '__main__':
     params['peak_factor'] = 5
     params['freq_idx'] = [1]
     params['time_res'] = None
-    params['rec_algos'] = ['linear']
+    params['rec_algos'] = ['matchfilt']
     params['coding_schemes'] = ['IntegratedGated']
-    params['trials'] = 1000
+    params['trials'] = 5000
 
-    dSample = 1
+    dSample = 0.5
     depths = np.arange(0, params['dMax'], dSample)
+    depths = np.array([1.8])
 
-    run_exp = 0
-    exp_num = 1
+    run_exp = 1
+    exp_num = 350
     gate_exp = 0
 
     n_signal_lvls = 20
     n_sbr_lvls = 20
 
-    (min_power_exp, max_power_exp) = (4, 8)
+    (min_power_exp, max_power_exp) = (4, 10)
     (min_sbr_exp, max_sbr_exp) = (-1, 1)
     (min_amb_exp, max_amb_exp) = (2, 8)
 
@@ -69,10 +70,10 @@ if __name__ == '__main__':
     sbr_levels, pAveSource_levels = np.meshgrid(sbr_levels_list, pAveSource_levels_list)
     pAveAmbient_levels, _ = np.meshgrid(pAveAmbient_levels_list, pAveSource_levels_list)
 
-    pAveSource = (10**4)
+    pAveSource = (10**5)
     # pAveAmbient = (10**5)
     pAveAmbient = None
-    sbr = 1/10
+    sbr = 1
 
 
 
@@ -103,8 +104,8 @@ if __name__ == '__main__':
         toc = time.perf_counter()
         coding_functions = params['coding_functions']
         for k in range(len(coding_functions)):
-            print()
-            print(f"MAE {coding_functions[k]} IDTOF: {results_indirect[coding_functions[k] + '_IDTOF']: .3f},")
+            #print()
+            #print(f"MAE {coding_functions[k]} IDTOF: {results_indirect[coding_functions[k] + '_IDTOF']: .3f},")
             print(f"MAE {coding_functions[k]} ITOF: {results_indirect[coding_functions[k] + '_ITOF']: .3f},")
 
         coding_schemes = params['coding_schemes']

@@ -16,7 +16,11 @@ breakpoint = debugger.set_trace
 
 def debbug_cw(params, ModFs, Incident, NormMeasures, norm_measurements_idtof,  norm_measurements_itof,
                 depths, sbr, pAveAmbient, pAveSource):
-
+    # for i in range(0, norm_measurements_itof.shape[1]):
+    #     x = np.argmax(np.squeeze(np.dot(NormMeasures, norm_measurements_itof.transpose())))
+    #     y = np.squeeze(norm_measurements_itof)[i]
+    #     plt.scatter(x, y, color='red', marker='o', label='Point')
+    #     plt.scatter(x, y, color='red', marker='o', label='Point')
 
     tbin_depth_res = direct_tof_utils.time2depth(params['rep_tau'] / params['n_tbins'])
     figure, axis = plt.subplots(2, depths.shape[0])
