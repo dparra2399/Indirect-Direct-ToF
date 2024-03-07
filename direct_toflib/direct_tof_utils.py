@@ -127,11 +127,11 @@ def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None,
     else:
         v_out = v
     if (not (peak_power is None)):
-        simulated_pp = peak_power * num_measures
-        v_out = (v_out / v_out.max(axis=axis, keepdims=True)) * simulated_pp
-
+        v_out = (v_out / v_out.max(axis=axis, keepdims=True)) * peak_power
     # Add constant offset = n_photons / sbr
     assert sbr==None or ambient==None, "sbr or ambient light must be none"
+
+    v_out *= num_measures
 
     #print("num photons before amb", v_out.sum(axis=axis)*mean_beta)
 
@@ -140,8 +140,8 @@ def set_peak_power(v, peak_power, pAveSource=None, num_measures=1, ambient=None,
     elif sbr is not None:
         v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
     v_out = v_out * mean_beta * T
-    #print("num photons after amb", v_out.sum(axis=axis))
 
+    # v_out *= num_measures
     return v_out
 
 def set_avg_power(v, pAveSource, num_measurements=1, ambient=None, sbr=None, T=0.1, mean_beta=1, dt=1, tau=1,
@@ -164,7 +164,6 @@ def set_avg_power(v, pAveSource, num_measurements=1, ambient=None, sbr=None, T=0
             v_out[i, :] = v_out[i, :] * desired_area / oldArea
 
     v_out *= num_measurements
-
     # Add constant offset = n_photons / sbr
     assert sbr==None or ambient==None, "sbr or ambient light must be none"
 
@@ -175,8 +174,8 @@ def set_avg_power(v, pAveSource, num_measurements=1, ambient=None, sbr=None, T=0
     elif sbr is not None:
         v_out = set_sbr_pAveSource(v_out, pAveSource=pAveSource, sbr=sbr, dt=dt, tau=tau, inplace=True)
     v_out = v_out * mean_beta * T
-    #print("num photons after amb", v_out.sum(axis=axis))
 
+    # v_out *= num_measurements
     return v_out
 def calculate_ambient(v, pAveAmbient, dt, tau):
     eTotal = tau * pAveAmbient

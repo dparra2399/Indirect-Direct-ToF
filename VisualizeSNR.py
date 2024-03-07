@@ -11,7 +11,7 @@ from matplotlib import cm
 breakpoint = debugger.set_trace
 
 #this one is peak_power with with 30
-file = np.load('data/results/ntbins_500_monte_1000_pw_1_exp_1.npz', allow_pickle=True)
+file = np.load('data/results/ntbins_100_monte_5000_pw_1_exp_200.npz', allow_pickle=True)
 
 
 mae = file['results'].item()
@@ -25,7 +25,7 @@ sin_d = 0
 ave = 0
 gating = 1
 hamk3_gated = 1
-hamk4_gated = 0
+hamk4_gated = 1
 hamk5_gated = 0
 hamk3_id = 0
 hamk4_id = 0
@@ -78,7 +78,7 @@ if hamk4_gated:
     mae_hamk4_gated = mae['HamiltonianK4Gated_ITOF']
 
 if hamk5_gated:
-    mae_hamk5_gated = mae['HamiltonianK4Gated_ITOF']
+    mae_hamk5_gated = mae['HamiltonianK5Gated_ITOF']
 
 if ham_d:
     mae_hamk4_pp = mae['HamiltonianK3_PP']
@@ -138,12 +138,12 @@ if hamk5_id:
 
 if hamk3_gated:
     surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk3_gated, color='red',
-                           antialiased=True, label='HamK3 SIWSSPAD2')
+                           antialiased=False, label='HamK3 SIWSSPAD2')
     surf._edgecolors2d = surf._edgecolor3d
     surf._facecolors2d = surf._facecolor3d
 
 if hamk4_gated:
-    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_gated, color='green',
+    surf = ax.plot_surface(np.log10(noise_levels), np.log10(photons_levels), mae_hamk4_gated, color='lightgreen',
                            antialiased=True, label='HamK4 SIWSSPAD2')
     surf._edgecolors2d = surf._edgecolor3d
     surf._facecolors2d = surf._facecolor3d

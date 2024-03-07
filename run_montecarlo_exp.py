@@ -32,7 +32,7 @@ def run_experiment(params, depths, sbr_levels, pAveAmbient_levels, pAveSource_le
     results = {}
 
     for k in range(len(coding_functions)):
-        results[coding_functions[k] + '_IDTOF'] = np.zeros(pAveSource_levels.shape)
+        #results[coding_functions[k] + '_IDTOF'] = np.zeros(pAveSource_levels.shape)
         results[coding_functions[k] + '_ITOF'] = np.zeros(pAveSource_levels.shape)
 
     for k in range(len(coding_schemes)):
@@ -68,7 +68,7 @@ def run_experiment(params, depths, sbr_levels, pAveAmbient_levels, pAveSource_le
                                                           pulses_list_ave=pulses_list_ave)
 
             for k in range(len(coding_functions)):
-                results[coding_functions[k] + '_IDTOF'][x, y] = results_indirect[coding_functions[k] + '_IDTOF']
+                #results[coding_functions[k] + '_IDTOF'][x, y] = results_indirect[coding_functions[k] + '_IDTOF']
                 results[coding_functions[k] + '_ITOF'][x, y] = results_indirect[coding_functions[k] + '_ITOF']
 
             for k in range(len(coding_schemes)):

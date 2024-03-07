@@ -40,12 +40,17 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource, codi
     for i in range(n_coding_functions):
         (ModFs, DemodFs) = coding_list[i]
 
-        ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
         for k in range(0, ModFs.shape[-1]):
             ModFs[:, k] = ModFs[:, k] / params['num_measures'][i]
 
+        ModFs = indirect_tof_utils.ScaleMod(ModFs, tau=tau, pAveSource=pAveSource)
+
         Incident = indirect_tof_utils.GetIncident(ModFs, pAveSource, T=T, meanBeta=meanBeta, sbr=sbr,
                                                   pAveAmbient=pAveAmbient, dt=dt, tau=tau)
+
+        # for k in range(0, Incident.shape[-1]):
+        #     Incident[:, k] = Incident[:, k] / params['num_measures'][i]
+
 
         Measures = indirect_tof_utils.GetMeasurements(ModFs, DemodFs)
 
@@ -57,26 +62,20 @@ def combined_and_indirect_mae(params, depths, sbr, pAveAmbient, pAveSource, codi
         NormMeasures = NormMeasures.transpose()
 
         ###DEPTH ESTIMATIONS
-        measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, gated=gated)
+        #measures_idtof = combined_tof_utils.IDTOF(Incident, DemodFs, depths, trials, gated=gated)
         measures_itof = indirect_tof_utils.ITOF(Incident, DemodFs, depths, trials, gated=gated)
 
-        if (shared_constants.debug):
-            new_measures_idtof = measures_idtof[depths.astype(int), :]
-            new_measures_itof = measures_itof[depths.astype(int), :]
-        else:
-            new_measures_idtof = measures_idtof
-            new_measures_itof = measures_itof
 
-        norm_measurements_idtof = indirect_tof_utils.NormalizeMeasureVals(new_measures_idtof, axis=1)
-        norm_measurements_itof = indirect_tof_utils.NormalizeMeasureVals(new_measures_itof, axis=1)
+        #norm_measurements_idtof = indirect_tof_utils.NormalizeMeasureVals(measures_idtof, axis=1)
+        norm_measurements_itof = indirect_tof_utils.NormalizeMeasureVals(measures_itof, axis=1)
 
-        decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
+        #decoded_depths_idtof = np.argmax(np.dot(NormMeasures, norm_measurements_idtof.transpose()), axis=0)
         decoded_depths_itof = np.argmax(np.dot(NormMeasures, norm_measurements_itof.transpose()), axis=0)
 
         decoded_depths_itof = decoded_depths_itof * dMax / n_tbins
-        decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
+        #decoded_depths_idtof = decoded_depths_idtof * dMax / n_tbins
 
-        results[coding_functions[i] + '_IDTOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof) * depth_res
+        #results[coding_functions[i] + '_IDTOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_idtof) * depth_res
         results[coding_functions[i] + '_ITOF'] = indirect_tof_utils.ComputeMetrics(gt_depths, decoded_depths_itof) * depth_res
 
     if (shared_constants.debug):
@@ -161,7 +160,7 @@ def direct_mae(params, depths, sbr, pAveAmbient, pAveSource, coding_list=None, p
         noise = True
         if scheme in ['Identity']:
             num_m = K
-        elif scheme in ['IntegratedGated', 'Gated']:
+        elif scheme in ['IntegratedGated']:
             num_m = 1 / params['n_gates']
             noise = False
 

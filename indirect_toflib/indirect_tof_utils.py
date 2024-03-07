@@ -87,6 +87,8 @@ def GetMeasurements(Incident, DemodFs, dt=1):
 def ITOF(Incident, DemodFs, depths, trials, gated=False, dt=1):
     (n_tbins, K) = Incident.shape
     measures = np.zeros((depths.shape[0], K, trials))
+    #measures = np.zeros((n_tbins, K, trials))
+
     depths = depths.astype(int)
 
     if (shared_constants.debug):
@@ -97,6 +99,7 @@ def ITOF(Incident, DemodFs, depths, trials, gated=False, dt=1):
     for j in range(0, K):
         demod = DemodFs[:, j]
         for l in range(0, depths.shape[0]):
+            #for l in range(0, n_tbins):
             convolve = 0
             if gated == True:
                 splitted_gates = gatedHam(demod)
