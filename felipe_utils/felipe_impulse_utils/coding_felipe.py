@@ -3,27 +3,23 @@
 '''
 ## Standard Library Imports
 from abc import ABC, abstractmethod
-import math 
-import os
+import math
 import warnings
 
 ## Library Imports
-import numpy as np
-import scipy
 from scipy import signal, interpolate
 from scipy.special import softmax
 from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from direct_toflib.direct_tof_utils import norm_t, zero_norm_t, linearize_phase, hist2timestamps, timestamps2hist
-from combined_toflib.combined_tof_utils import AddPoissonNoiseArr
-import direct_toflib.tirf as tirf
-from indirect_toflib.indirect_tof_utils import ScaleAreaUnderCurve
-from research_utils.np_utils import to_nparray
-from research_utils.shared_constants import *
-from research_utils import signalproc_ops, np_utils, py_utils
-from direct_toflib import direct_tof_utils as tof_utils
+from felipe_utils.felipe_impulse_utils.tof_utils_felipe import norm_t, zero_norm_t, linearize_phase
+import felipe_utils.felipe_impulse_utils.tirf_felipe as tirf
+from felipe_utils.felipe_cw_utils.CodingFunctionUtilsFelipe import ScaleAreaUnderCurve
+from felipe_utils.research_utils.np_utils import to_nparray
+from felipe_utils.research_utils.shared_constants import *
+from felipe_utils.research_utils import signalproc_ops, np_utils, py_utils
+from felipe_utils.felipe_impulse_utils import tof_utils_felipe as tof_utils
 
 import matplotlib as mpl
 mpl.use('qt5agg')

@@ -1,67 +1,52 @@
 ### Python imports
 #### Library imports
 import numpy as np
-from scipy import stats
 from IPython.core import debugger
 
-from indirect_toflib import indirect_tof_utils
-from research_utils import shared_constants
-import matplotlib.pyplot as plt
+breakpoint = debugger.set_trace
 
 
-def AddPoissonNoiseArr(Signal, trials=1000):
+def gaussian_irf(x, mu, sigma):
+    return np.exp(-(x - mu)**2 / (2 * sigma**2)) / (sigma * np.sqrt(2 * np.pi))
+
+def calculate_ambient(n_tbins, ave_ambient, dt, tau):
+    eTotal = tau * ave_ambient
+    base = np.ones(n_tbins)
+
+    oldArea = np.sum(base) * dt
+    amb = base * eTotal / oldArea
+    return amb
+
+
+def normalize_measure_vals(b_vals, axis=-1):
+    norm_bvals = (b_vals - np.mean(b_vals, axis=axis, keepdims=True)) / np.std(b_vals, axis=axis, keepdims=True)
+    return norm_bvals
+
+
+def poisson_noise_array(Signal, trials=1000):
     new_size = (trials,) + Signal.shape
     rng = np.random.default_rng()
     return rng.poisson(lam=Signal, size=new_size).astype(Signal.dtype)
 
 
-def IDTOF(Incident, DemodFs, depths, trials, gated=False, dt=1, tbin_depth_res=None, src_incident=None):
-    (n_tbins, K) = Incident.shape
+def compute_metrics(depths, decoded_depths):
+    errors = np.abs(decoded_depths - depths[np.newaxis, :])
+    mae = np.mean(np.mean(errors, axis=0))
+    return mae
 
-    measures = np.zeros((depths.shape[0], K, trials))
 
-    depths = depths.astype(int)
-    for j in range(0, K):
-        demod = DemodFs[:, j]
-        for l in range(0, depths.shape[0]):
-            #for l in range(0, n_tbins):
-            convolve = 0
-            if gated == True:
-                splitted_gates = gatedHam(demod)
-                for q in range(0, splitted_gates.shape[-1]):
-                    gate = splitted_gates[:, q]
-                    cc = np.roll(AddPoissonNoiseArr(Incident[:, j], trials), depths[l])
-                    convolve += np.inner(cc, gate)
-            else:
-                cc = np.roll(AddPoissonNoiseArr(Incident[:, j], trials), depths[l])
-                convolve = np.inner(cc, demod)
-
-            measures[l, j, :] = convolve
-
-    measures = measures * dt
-    return measures
-
-# tmp = np.zeros((n_tbins, 1))
-# for i in range(0, K):
-#     demod = DemodFs[:, i]
-#     splitted_gates = gatedHam(demod)
-#     tmp = np.concatenate((tmp, splitted_gates), axis=-1)
-
-def gatedHam(demod):
+def gated_ham(demod):
     n_tbins = demod.shape[0]
     gates = np.zeros((n_tbins, 1))
     squares = split_into_indices(demod)
     for j in range(len(squares)):
         pair = squares[j]
         single_square = np.zeros((n_tbins, 1))
-        single_square[pair[0]:pair[1]+1, :] = 1
+        single_square[pair[0]:pair[1] + 1, :] = 1
         gates = np.concatenate((gates, single_square), axis=-1)
 
     gates = gates[:, 1:]
     return gates
-
-
-
 
 
 def split_into_indices(square_array):
