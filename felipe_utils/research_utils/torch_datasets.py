@@ -12,7 +12,7 @@ from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from research_utils.io_ops import get_multi_folder_paired_fnames
+from felipe_utils.research_utils.io_ops import get_multi_folder_paired_fnames
 
 class MultiFolderPairedNumpyData(torch.utils.data.Dataset):
 	'''

@@ -3,26 +3,20 @@
 '''
 ## Standard Library Imports
 from abc import ABC, abstractmethod
-import os
 
 ## Library Imports
-import numpy as np
-import matplotlib.pyplot as plt
 from IPython.core import debugger
 
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from research_utils.shared_constants import *
-from research_utils.timer import Timer
-from research_utils.signalproc_ops import circular_conv, gaussian_pulse, expgaussian_pulse_conv
-from research_utils import np_utils
-from direct_toflib import direct_tof_utils as tof_utils
+from felipe_utils.research_utils.shared_constants import *
+from felipe_utils.research_utils.signalproc_ops import circular_conv, gaussian_pulse, expgaussian_pulse_conv
+from felipe_utils.research_utils import np_utils
+from felipe_utils.felipe_impulse_utils import tof_utils_felipe as tof_utils
 import matplotlib as mpl
+
 mpl.use('qt5agg')
-import matplotlib.pyplot as plt
-
-
 
 
 def init_gauss_pulse_list(n_tbins, pulse_widths, mu=0, t_domain=None):
@@ -91,14 +85,14 @@ class TemporalIRF(ABC):
             return
         self.ambient = np_utils.to_nparray(input_amb) * tau
         assert ((self.ambient.size == 1) or (self.ambient.shape == self.tirf.shape[
-                                                           0:-1])), "input ambient light should be a number OR should be an array that matches the first N-1 dims of self.tirf"
-
+                                                                   0:-1])), "input ambient light should be a number OR should be an array that matches the first N-1 dims of self.tirf"
 
     def set_mean_beta(self, input_beta):
         if (input_beta is None):
             self.mean_beta = 1
             return
         self.mean_beta = input_beta
+
     def simulate_exactly_n_photons(self, n_photons, n_mc_samples=1):
         '''
 			Simulate exactly N photons. Regardless of sbr or signal shape the output signal here will always contain n_photons
@@ -134,7 +128,7 @@ class TemporalIRF(ABC):
         else:
             return self.tmp_tirf
 
-    def simulate_peak_power(self, peak_power, pAveSource=None,  num_measures=1, n_mc_samples=1, dt=1, tau=1,
+    def simulate_peak_power(self, peak_power, pAveSource=None, num_measures=1, n_mc_samples=1, dt=1, tau=1,
                             add_noise=True):
         self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_peak_power(self.tirf[self.nonzero_signal_mask],
                                                                            peak_power, pAveSource, ambient=self.ambient,
@@ -150,12 +144,12 @@ class TemporalIRF(ABC):
 
         return ret
 
-    def simulate_avg_power(self, pAveSource,  num_measurements=1, n_mc_samples=1, dt=1, tau=1, add_noise=True):
+    def simulate_avg_power(self, pAveSource, num_measurements=1, n_mc_samples=1, dt=1, tau=1, add_noise=True):
         self.tmp_tirf[self.nonzero_signal_mask] = tof_utils.set_avg_power(self.tirf[self.nonzero_signal_mask],
-                                                                           pAveSource, num_measurements=num_measurements,
+                                                                          pAveSource, num_measurements=num_measurements,
                                                                           ambient=self.ambient,
-                                                                           sbr=self.sbr, mean_beta=self.mean_beta,
-                                                                           T=self.t, dt=dt, tau=tau, axis=-1)
+                                                                          sbr=self.sbr, mean_beta=self.mean_beta,
+                                                                          T=self.t, dt=dt, tau=tau, axis=-1)
         self.tmp_tirf[self.nosignal_mask] = 0
 
         ret = self.tmp_tirf
@@ -181,7 +175,6 @@ class TemporalIRF(ABC):
                 axis=-1)
         self.tmp_tirf[self.nosignal_mask] = 0
         return tof_utils.add_poisson_noise(self.tmp_tirf, n_mc_samples=n_mc_samples)
-
 
 
 class DepthImgTIRF(TemporalIRF):
