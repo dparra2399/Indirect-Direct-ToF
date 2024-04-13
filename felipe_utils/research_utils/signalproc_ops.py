@@ -9,6 +9,7 @@ breakpoint = debugger.set_trace
 ## Local Imports
 from .np_utils import vectorize_tensor, unvectorize_tensor, to_nparray, get_extended_domain, extend_tensor_circularly
 from .shared_constants import *
+import scipy
 
 # Smoothing windows that are available to band-limit a signal
 SMOOTHING_WINDOWS = ['flat', 'impulse', 'hanning', 'hamming', 'bartlett', 'blackman']  
@@ -132,8 +133,8 @@ def smooth_codes( modfs, demodfs, window_duty=0.15 ):
 	smoothed_demodfs = np.zeros( (N,K) )
 	#### Smooth functions. No smoothing is applied by default
 	for i in range(0,K):
-		smoothed_modfs[:,i] = Smooth( modfs[:,i], window_len = N*window_duty, window='hanning' ) 
-		smoothed_demodfs[:,i] = Smooth( demodfs[:,i], window_len = N*window_duty, window='hanning' )
+		smoothed_modfs[:,i] = smooth( modfs[:,i], window_len = N*window_duty, window='hanning' )
+		smoothed_demodfs[:,i] = smooth( demodfs[:,i], window_len = N*window_duty, window='hanning' )
 	return (smoothed_modfs, smoothed_demodfs)
 
 def circulant(f, direction = 1):

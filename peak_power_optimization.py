@@ -2,6 +2,7 @@ import numpy as np
 
 from felipe_utils.felipe_cw_utils import CodingFunctionUtilsFelipe
 from spad_toflib.spad_tof_utils import gaussian_irf
+from scipy.fft import fft, fftshift
 import cvxpy as cp
 import matplotlib.pyplot as plt
 
@@ -11,7 +12,19 @@ N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
 dt = T / N  # Time step
-threshold = 0.5
+threshold = 5
+
+window_size = 0.15
+h_t = np.zeros(N)
+h_t[:int(N * window_size)] = np.hanning(N * window_size)
+shift = np.argmax(h_t)
+h_t = np.roll(h_t, shift=-1*shift)
+h_t = h_t / h_t.sum()
+# A = fft(h_t, 2048) / (len(h_t)/2.0)
+# freq = np.linspace(-0.5, 0.5, len(A))
+# response = np.abs(A / abs(A).max())
+# response = 20 * np.log10(np.maximum(response, 1e-10))
+
 
 dftmtx = np.fft.fft(np.eye(N))
 dftimtx = np.fft.ifft(np.eye(N))
@@ -19,7 +32,6 @@ dftimtx = np.fft.ifft(np.eye(N))
 correlation = np.zeros_like(modfs)
 for i in range(0, K):
     correlation[:, i] = np.dot(dftimtx, np.dot(dftmtx, modfs[:, i]).conj() * np.dot(dftmtx, demodfs[:, i])).real
-
 
 constrained_modfs = np.zeros_like(modfs)
 constrained_demodfs = np.zeros_like(demodfs)
@@ -29,12 +41,20 @@ for i in range(0, K):
     di = np.ones(N)
     di[:100] = 0
     np.random.shuffle(di)
+    di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
+    di_fft = np.dot(dftmtx, di)
     prev_optimal = 0
     while True:
         U = cp.Variable(N)
         objective = cp.Minimize(cp.norm(corri -
-                                cp.real(dftimtx @ cp.multiply(cp.conj(dftmtx @ U), dftmtx @ di)))
-                                + 0.5 * cp.tv(U))
+                                        cp.real(
+                                            dftimtx @ cp.multiply(
+                                                cp.conj(dftmtx @
+                                                        cp.real(dftimtx @ cp.multiply(dftmtx @ U, np.fft.fft(h_t)))
+                                                        * (1 / h_t.sum())),
+                                                di_fft)))
+                                + 0.5 * cp.tv(cp.real(dftimtx @ cp.multiply(dftmtx @ U, np.fft.fft(h_t)))
+                                              * (1 / h_t.sum())))
         constraints = [
             cp.sum(cp.multiply(U, dt)) <= 1,
             U >= 0,
@@ -44,12 +64,20 @@ for i in range(0, K):
         prob.solve(verbose=True, solver=cp.SCS)
 
         mi = np.round(U.value)
+        mi = np.real(np.fft.ifft(np.fft.fft(mi) * np.fft.fft(h_t))) / (h_t.sum())
+        mi_fft = np.dot(dftmtx, mi)
+
         optimal_mi = prob.value
 
         U = cp.Variable(N)
         objective = cp.Minimize(cp.norm(corri -
-                                cp.real(dftimtx @ cp.multiply(cp.conj(dftmtx @ mi), dftmtx @ U)))
-                                + 0.5 * cp.tv(U))
+                                        cp.real(
+                                            dftimtx @ cp.multiply(
+                                                cp.conj(mi_fft),
+                                                dftmtx @ cp.real(dftimtx @ cp.multiply(dftmtx @ U, np.fft.fft(h_t)))
+                                                * (1 / h_t.sum()))))
+                                + 0.5 * cp.tv(cp.real(dftimtx @ cp.multiply(dftmtx @ U, np.fft.fft(h_t)))
+                                              * (1 / h_t.sum())))
 
         constraints = [
             U >= 0,
@@ -58,6 +86,8 @@ for i in range(0, K):
         prob = cp.Problem(objective, constraints)
         prob.solve(verbose=True, solver=cp.SCS)
         di = np.round(U.value)
+        di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
+        di_fft = np.dot(dftmtx, di)
         if np.abs(prev_optimal - optimal_mi) <= threshold:
             print("The optimal value is", prob.value)
             break
@@ -65,18 +95,12 @@ for i in range(0, K):
     constrained_modfs[:, i] = mi
     constrained_demodfs[:, i] = di
 
-#plt.plot(U.value)
+# plt.plot(U.value)
 plt.plot(constrained_modfs)
 plt.plot(constrained_demodfs)
 plt.show()
-#np.save('hamk4-pp2.npy', constrained_modfs)
+np.save('hamk4-pp2_mod=1.npy', constrained_modfs)
+np.save('hamk4-pp2_demod=1.npy', constrained_demodfs)
 print('hello world')
 print()
 
-bandwidth = 1 * 1e6
-t = np.linspace(-5, 5, 1000)
-sigma = bandwidth * np.sqrt(2 * np.log(2))
-impulse_response = 1 / np.sqrt(4 * np.pi * (bandwidth**2) * np.log(2)) * np.exp(-t**2 / (4 * (bandwidth**2) * np.log(2)))
-
-
-one = np.convolve(modfs[:, 0], impulse_response, mode='same')
