@@ -26,6 +26,10 @@ if __name__ == '__main__':
 
     params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
                                                      total_laser_cycles=10000),
+                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
+                                                     total_laser_cycles=10000),
+                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
+                                                     total_laser_cycles=10000),
                                  ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1,
                                                      total_laser_cycles=10000)]
     params['meanBeta'] = 1e-4

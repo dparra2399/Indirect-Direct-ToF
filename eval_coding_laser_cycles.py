@@ -26,13 +26,13 @@ if __name__ == "__main__":
     params['depth_res'] = 1000  ##Conver to MM
 
     params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=None),
-                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK4SWISSPAD', 'zncc',
-                                                     total_laser_cycles=None),
-                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK5SWISSPAD', 'zncc',
-                                                     total_laser_cycles=None)]
-                                 #ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1,
-                                 #                    total_laser_cycles=None)]
+                                                     total_laser_cycles=10000),
+                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
+                                                     total_laser_cycles=10000),
+                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
+                                                     total_laser_cycles=10000),
+                                 ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1,
+                                                     total_laser_cycles=10000)]
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
     params['freq_idx'] = [1]
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     n_cycles = 10
     # n_sbr = 1
 
-    p_ave_source = 10 ** 7
+    p_ave_source = 10 ** 6
     sbr = 1
     p_ave_ambient = None
     (min_cycles_exp, max_cycles_exp) = (3, 6)
