@@ -12,9 +12,10 @@ N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
 dt = T / N  # Time step
-threshold = 5
+threshold = 1
 
 window_size = 0.15
+peak_power = 5
 h_t = np.zeros(N)
 h_t[:int(N * window_size)] = np.hanning(N * window_size)
 shift = np.argmax(h_t)
@@ -58,7 +59,7 @@ for i in range(0, K):
         constraints = [
             cp.sum(cp.multiply(U, dt)) <= 1,
             U >= 0,
-            U <= 2
+            U <= peak_power
         ]
         prob = cp.Problem(objective, constraints)
         prob.solve(verbose=True, solver=cp.SCS)
@@ -98,9 +99,9 @@ for i in range(0, K):
 # plt.plot(U.value)
 plt.plot(constrained_modfs)
 plt.plot(constrained_demodfs)
-plt.show()
-np.save('hamk4-pp2_mod=1.npy', constrained_modfs)
-np.save('hamk4-pp2_demod=1.npy', constrained_demodfs)
+#plt.show()
+full = np.stack((constrained_modfs, constrained_demodfs), axis=0)
+np.save(f'hamk4_pmax{peak_power}_wduty{window_size}.npy', full)
 print('hello world')
 print()
 
