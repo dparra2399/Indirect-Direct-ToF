@@ -7,6 +7,7 @@ from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from spad_toflib import spad_tof_utils
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 import numpy as np
+import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
@@ -14,7 +15,7 @@ breakpoint = debugger.set_trace
 if __name__ == '__main__':
 
     params = {}
-    params['n_tbins'] = 300
+    params['n_tbins'] = 1000
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 1 * 1e6
@@ -24,14 +25,9 @@ if __name__ == '__main__':
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1,
-                                                     total_laser_cycles=10000)]
+    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                                                     peak_factor=5, freq_window=0.15),
+                                 ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc')]
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
     params['freq_idx'] = [1]
@@ -73,17 +69,17 @@ if __name__ == '__main__':
         rec_algo = imaging_scheme.rec_algo
 
         light_obj.set_all_params(sbr=sbr, ave_source=p_ave_source, ambient=p_ave_ambient, rep_tau=tau,
-                                 t=t, mean_beta=mean_beta)
+                                 t=t, mean_beta=mean_beta, num_measures=coding_obj.get_num_measures())
 
         incident = light_obj.simulate_photons()
 
-        if light_source in ['Gaussian', 'GaussianSWISSPAD']:
+        if light_source in ['Gaussian']:
             coded_vals = coding_obj.encode_impulse(incident, trials)
         else:
             coded_vals = coding_obj.encode_cw(incident, trials)
 
-        if coding_scheme in ['Identity', 'IdentitySWISSPAD']:
-            assert light_source in ['Gaussian', 'GaussianSWISSPAD'], 'Identity coding only available for IRF'
+        if coding_scheme in ['Identity']:
+            assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
             decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
         else:

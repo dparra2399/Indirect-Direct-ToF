@@ -7,16 +7,19 @@ from felipe_utils.felipe_impulse_utils.tof_utils_felipe import zero_norm_t
 from felipe_utils.research_utils import signalproc_ops, np_utils
 from spad_toflib.emitted_lights import GaussianTIRF
 from spad_toflib.spad_tof_utils import *
+from utils.file_utils import get_constrained_ham_codes
 import matplotlib.pyplot as plt
-
 
 
 class Coding(ABC):
 
-    def __init__(self, h_irf=None, account_irf=False):
+    def __init__(self, total_laser_cycles=None, binomial=False, num_measures=None, h_irf=None, account_irf=False):
 
+        self.binomial = binomial
+        self.set_laser_cycles(total_laser_cycles)
         if self.correlations is None: self.set_coding_scheme()
         (self.n_tbins, self.n_functions) = (self.correlations.shape[-2], self.correlations.shape[-1])
+        self.set_num_measures(num_measures)
         self.update_irf(h_irf)
         self.account_irf = account_irf
 
@@ -33,7 +36,7 @@ class Coding(ABC):
     def update_irf(self, h_irf=None):
         # If nothing is given set to gaussian
         if (h_irf is None):
-            #print("hirf is NONE")
+            # print("hirf is NONE")
             self.h_irf = GaussianTIRF(n_tbins=self.n_tbins, mu=0, sigma=1, depths=None).light_source.squeeze()
         else:
             self.h_irf = h_irf.squeeze()
@@ -73,23 +76,64 @@ class Coding(ABC):
         self.norm_corrfs = normalize_measure_vals(self.correlations, axis=1)
 
     def encode_cw(self, incident, trials, after=False):
+        if self.binomial:
+            return self.encode_cw_bin(incident, trials)
+        else:
+            return self.encode_cw_pois(incident, trials, after)
+
+    def encode_cw_pois(self, incident, trials, after):
         if not after: incident = poisson_noise_array(incident, trials)
         intensities = np.matmul(incident, self.demodfs)[..., 0, :]
         if after: intensities = poisson_noise_array(intensities, trials)
         return intensities
 
+    def encode_cw_bin(self, incident, trials):
+        photons = np.matmul(incident, self.demodfs)[..., 0, :]
+        probabilities = 1 - np.exp(-photons)
+        rng = np.random.default_rng()
+        new_shape = (trials,) + probabilities.shape
+        photon_counts = rng.binomial(int(self.laser_cycles / self.n_functions), probabilities, size=new_shape)
+        return photon_counts
+
     ''' Felipe's Code'''
 
     def encode_impulse(self, transient_img, trials):
+        if self.binomial:
+            return self.encode_cw_bin(transient_img, trials)
+        else:
+            return self.encode_impulse_pois(transient_img, trials)
+
+    def encode_impulse_pois(self, transient_img, trials):
         assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
         transient_img = poisson_noise_array(transient_img, trials)
         return np.matmul(transient_img[..., np.newaxis, :], self.correlations).squeeze(-2)
+
+    def encode_impulse_bin(self, transient_img, trials):
+        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+        transient_img = poisson_noise_array(transient_img, trials)
+        photons = np.matmul(transient_img[..., np.newaxis, :], self.correlations).squeeze(-2)
+        probabilities = 1 - np.exp(-photons)
+        rng = np.random.default_rng()
+        new_shape = (trials,) + probabilities.shape
+        photon_counts = rng.binomial(int(self.laser_cycles / self.n_tbins), probabilities, size=new_shape)
+
+        return photon_counts
 
     def set_laser_cycles(self, input_cycles):
         if input_cycles is None:
             self.laser_cycles = None
             return
+        assert self.binomial is True, 'To set laser cycles must be binomial poisson model'
         self.laser_cycles = input_cycles
+
+    def set_num_measures(self, input_num):
+        if input_num is None:
+            self.num_measures = self.n_functions
+            return
+        self.num_measures = input_num
+
+    def get_num_measures(self):
+        return self.num_measures
 
 class KTapSinusoidCoding(Coding):
 
@@ -105,24 +149,42 @@ class KTapSinusoidCoding(Coding):
 
 
 class HamiltonianCoding(Coding):
-    def __init__(self, n_tbins, k, peak_factor, **kwargs):
+    def __init__(self, n_tbins, k, peak_factor=None, win_duty=None, **kwargs):
         self.n_functions = k
         self.peak_factor = peak_factor
+        self.win_duty = win_duty
         self.set_coding_scheme(n_tbins, k, peak_factor)
         super().__init__(**kwargs)
 
-    def set_coding_scheme(self, n_tbins, k, peak_factor):
-        if (k == 3):
-            if peak_factor is None: peak_factor = 6.
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK3(n_tbins, peak_factor)
-        elif (k == 4):
-            if peak_factor is None: peak_factor = 12.
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK4(n_tbins, peak_factor)
-        elif (k == 5):
-            if peak_factor is None: peak_factor = 30.
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK5(n_tbins, peak_factor)
+    def set_num_measures(self, input_num):
+        if input_num is None and self.binomial:
+            if self.n_functions == 3:
+                self.num_measures = 4
+            elif self.n_functions == 4:
+                self.num_measures = 7
+            elif self.n_functions == 5:
+                self.num_measures = 16
+            else:
+                assert False, 'not implemented for k>5'
+            return
+        elif input_num is None:
+            self.num_measures = self.n_functions
         else:
-            assert False
+            self.num_measures = input_num
+
+    def set_coding_scheme(self, n_tbins, k, peak_factor):
+        if peak_factor is not None:
+            assert self.win_duty is not None, 'IRF Window is None when doing constrained Codes'
+            (self.modfs, self.demodfs) = get_constrained_ham_codes(k, self.peak_factor, self.win_duty, n_tbins)
+        else:
+            if (k == 3):
+                (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK3(n_tbins)
+            elif (k == 4):
+                (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK4(n_tbins)
+            elif (k == 5):
+                (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK5(n_tbins)
+            else:
+                assert False
         self.set_correlations(self.modfs, self.demodfs)
 
 
@@ -152,6 +214,12 @@ class GatedCoding(Coding):
             self.correlations[start_tbin:end_tbin, i] = 1.
 
     def encode_impulse(self, transient_img, trials):
+        if self.binomial:
+            return self.encode_impulse_bin(transient_img, trials)
+        else:
+            return self.encode_impulse_pois(transient_img, trials)
+
+    def encode_impulse_pois(self, transient_img, trials):
         '''
         Encode the transient image using the n_codes inside the self.C matrix
         For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
@@ -163,6 +231,22 @@ class GatedCoding(Coding):
             start_idx = i + 1
             c_vals += transient_img[..., start_idx::self.gate_len]
         return c_vals
+
+    ''' MY CODE '''
+
+    def encode_impulse_bin(self, transient_img, trials):
+        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+        photons = np.array(transient_img[..., 0::self.gate_len])
+        for i in range(self.gate_len - 1):
+            start_idx = i + 1
+            photons += transient_img[..., start_idx::self.gate_len]
+
+        probabilities = 1 - np.exp(-photons)
+        rng = np.random.default_rng()
+        new_shape = (trials,) + probabilities.shape
+        photon_counts = rng.binomial(int(self.laser_cycles / self.n_tbins), probabilities, size=new_shape)
+
+        return photon_counts
 
     def matchfilt_reconstruction(self, c_vals):
         template = self.h_irf
@@ -199,75 +283,6 @@ class IdentityCoding(GatedCoding):
     '''
         Identity coding class. GatedCoding in the extreme case where n_maxres == n_gates
     '''
-
-    def __init__(self, n_tbins, **kwargs):
-        super().__init__(n_tbins=n_tbins, **kwargs)
-
-class KTapSinusoidSWISSSPADCoding(KTapSinusoidCoding):
-
-    def __init__(self, total_laser_cycles, **kwargs):
-        self.set_laser_cycles(total_laser_cycles)
-        super().__init__(**kwargs)
-
-    def encode_cw(self, incident, trials):
-        photons = np.matmul(incident, self.demodfs)[..., 0, :]
-        probabilities = 1 - np.exp(-photons)
-        rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.n_functions), probabilities, size=new_shape)
-        return photon_counts
-
-
-class HamiltonianSWISSSPADCoding(HamiltonianCoding):
-
-    def __init__(self, total_laser_cycles, num_measures=None, **kwargs):
-        self.set_laser_cycles(total_laser_cycles)
-        super().__init__(**kwargs)
-        self.set_num_measures(num_measures)
-
-    def set_num_measures(self, input_num):
-        if input_num is None:
-            if self.n_functions == 3:
-                self.num_measures = 4
-            elif self.n_functions == 4:
-                self.num_measures = 7
-            elif self.n_functions == 5:
-                self.num_measures = 16
-            else:
-                assert False, 'not implemented for k>5'
-            return
-        self.num_measures = input_num
-
-    def encode_cw(self, incident, trials):
-        photons = np.matmul(incident, self.demodfs)[..., 0, :]
-        probabilities = 1 - np.exp(-photons)
-        rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.num_measures), probabilities, size=new_shape)
-        return photon_counts
-
-class GatedSWISSPADCoding(GatedCoding):
-
-    def __init__(self, total_laser_cycles, **kwargs):
-        self.set_laser_cycles(total_laser_cycles)
-        super().__init__(**kwargs)
-
-
-    def encode_impulse(self, transient_img, trials):
-        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
-        photons = np.array(transient_img[..., 0::self.gate_len])
-        for i in range(self.gate_len - 1):
-            start_idx = i + 1
-            photons += transient_img[..., start_idx::self.gate_len]
-
-        probabilities = 1 - np.exp(-photons)
-        rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.n_tbins), probabilities, size=new_shape)
-
-        return photon_counts
-
-class IdentitySWISSPADCoding(GatedSWISSPADCoding):
 
     def __init__(self, n_tbins, **kwargs):
         super().__init__(n_tbins=n_tbins, **kwargs)

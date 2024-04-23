@@ -20,3 +20,17 @@ def write_errors_to_file(params, results, depths, levels_one, levels_two):
 
     if os.path.isfile(outfile):
         print("Filename {} overwritten".format(filename))
+
+
+def get_constrained_ham_codes(k, peak_power, win_duty, n_tbins):
+    filename = f"hamk{k}_pmax{peak_power}_wduty{win_duty}.npy"
+    dir = './optimizations/' + filename
+    try:
+        file = np.load(dir)
+    except FileNotFoundError:
+        assert False, f'Constrained Ham Codes not Implemented for {peak_power} peak power and {win_duty} window IRF'
+    (modfs, demodfs) = (file[0, ...], file[1, ...])
+    assert n_tbins <= modfs.shape[0], f'Constrained Ham Codes not Implemented for {n_tbins} time bins'
+    assert modfs.shape[0] % n_tbins == 0, f'Make Time bins a multiple of {modfs.shape[0]}'
+    subsample = int(modfs.shape[0] // n_tbins)
+    return modfs[::subsample], demodfs[::subsample]

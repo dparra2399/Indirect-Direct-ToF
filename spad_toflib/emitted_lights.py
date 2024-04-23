@@ -9,6 +9,7 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from spad_toflib.spad_tof_utils import calculate_ambient
 from felipe_utils.felipe_cw_utils.CodingFunctionUtilsFelipe import ScaleMod
 from felipe_utils.felipe_impulse_utils.tof_utils_felipe import *
+from utils.file_utils import get_constrained_ham_codes
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import math
@@ -83,11 +84,11 @@ class LightSource(ABC):
         self.set_tau(rep_tau)
 
 
-
 class SinglePhotonSource(LightSource):
 
-    def __init__(self, n_tbins, light_source=None, t_domain=None, **kwargs):
+    def __init__(self, n_tbins, binomial=False, light_source=None, t_domain=None, **kwargs):
         self.n_tbins = n_tbins
+        self.binomial = binomial
         self.set_t_domain(t_domain)
         if light_source is None: light_source = self.generate_source()
         super().__init__(light_source=light_source, **kwargs)
@@ -121,10 +122,24 @@ class SinglePhotonContinousWave(SinglePhotonSource):
         return shifted_modfs
 
     def simulate_photons(self):
+        if self.binomial:
+            return self.simulate_single_cycle()
+        else:
+            return self.simulate_n_cycles()
+
+    def simulate_n_cycles(self):
         incident = np.zeros(self.light_source.shape)
         scaled_modfs = ScaleMod(self.light_source, tau=self.tau, pAveSource=self.ave_source)
         for i in range(0, self.light_source.shape[-1]):
             incident[:, i] = (self.t * self.mean_beta * (scaled_modfs[:, i] + self.ambient)) / self.num_measures
+        return self.phase_shifted(incident)
+
+    def simulate_single_cycle(self):
+        laser_cycles = (1. / self.tau) * self.t
+        incident = np.zeros(self.light_source.shape)
+        scaled_modfs = ScaleMod(self.light_source, tau=self.tau, pAveSource=self.ave_source)
+        for i in range(0, self.light_source.shape[-1]):
+            incident[:, i] = (self.mean_beta * (scaled_modfs[:, i] + self.ambient)) / laser_cycles
         return self.phase_shifted(incident)
 
 
@@ -144,13 +159,14 @@ class KTapSinusoidSource(SinglePhotonContinousWave):
 
 
 class HamiltonianSource(SinglePhotonContinousWave):
-    def __init__(self, n_functions, modfs=None, peak_factor=None, **kwargs):
+    def __init__(self, n_functions, modfs=None, peak_factor=None, win_duty=None, **kwargs):
         self.n_functions = n_functions
-        self.set_peak_factor(peak_factor)
+        self.peak_factor = peak_factor
+        self.win_duty = win_duty
         super().__init__(modfs=modfs, **kwargs)
 
-    def set_peak_factor(self, input_factor):
-        if input_factor is None:
+    def set_peak_factor(self):
+        if self.peak_factor is None:
             if self.n_functions == 3:
                 self.peak_factor = 6.
             elif self.n_functions == 4:
@@ -160,9 +176,12 @@ class HamiltonianSource(SinglePhotonContinousWave):
             else:
                 assert False
             return
-        self.peak_factor = input_factor
 
     def generate_source(self):
+        if self.peak_factor is not None:
+            assert self.win_duty is not None, 'IRF Window is None when doing constrained Codes'
+            return get_constrained_ham_codes(self.n_functions, self.peak_factor, self.win_duty, self.n_tbins)[0]
+        self.set_peak_factor()
         modfs = np.zeros((self.n_tbins, self.n_functions))
         mod_duty = 1. / self.peak_factor
         for i in range(0, self.n_functions):
@@ -188,9 +207,15 @@ class GaussianTIRF(SinglePhotonSource):
 
     def simulate_photons(self):
         if self.peak_factor is None:
-            v_out = self.simulate_average_photons()
+            if self.binomial:
+                v_out = self.simulate_average_photons_single_cycle()
+            else:
+                v_out = self.simulate_average_photons_n_cycles()
         else:
-            v_out = self.simulate_peak_photons()
+            if self.binomial:
+                v_out = self.simulate_peak_photons_single_cycle()
+            else:
+                v_out = self.simulate_peak_photons_n_cycles()
 
         return v_out
 
@@ -217,57 +242,25 @@ class GaussianTIRF(SinglePhotonSource):
             v_out = (v_out / v_out.max(axis=-1, keepdims=True)) * (self.peak_factor * self.ave_source)
         return v_out
 
-    def simulate_average_photons(self, inplace=False):
+    def simulate_average_photons_n_cycles(self, inplace=False):
         v_out = self.set_average_area(self.light_source, inplace)
         v_out = (v_out + self.ambient) * self.mean_beta * self.t
         v_out *= self.num_measures
         return v_out
 
-    def simulate_peak_photons(self):
+    def simulate_peak_photons_n_cycles(self):
         v_out = self.set_peak_power(self.light_source)
         v_out = (v_out + self.ambient) * self.mean_beta * self.t
         v_out *= self.num_measures
         return v_out
 
-
-class KTapSinusoidSWISSSPADSource(KTapSinusoidSource):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def simulate_photons(self):
-        laser_cycles = (1. / self.tau) * self.t
-        incident = np.zeros(self.light_source.shape)
-        scaled_modfs = ScaleMod(self.light_source, tau=self.tau, pAveSource=self.ave_source)
-        for i in range(0, self.light_source.shape[-1]):
-            incident[:, i] = (self.mean_beta * (scaled_modfs[:, i] + self.ambient)) / laser_cycles
-        return self.phase_shifted(incident)
-
-
-class HamiltonianSWISSSPADSource(HamiltonianSource):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def simulate_photons(self):
-        laser_cycles = (1. / self.tau) * self.t
-        incident = np.zeros(self.light_source.shape)
-        scaled_modfs = ScaleMod(self.light_source, tau=self.tau, pAveSource=self.ave_source)
-        for i in range(0, self.light_source.shape[-1]):
-            incident[:, i] = (self.mean_beta * (scaled_modfs[:, i] + self.ambient)) / laser_cycles
-        return self.phase_shifted(incident)
-
-
-class GaussianSWISSPADTIRF(GaussianTIRF):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def simulate_average_photons(self, inplace=False):
+    def simulate_average_photons_single_cycle(self, inplace=False):
         laser_cycles = (1. / self.tau) * self.t
         v_out = self.set_average_area(self.light_source, inplace)
         v_out = ((v_out + self.ambient) * self.mean_beta) / laser_cycles
         return v_out
 
-    def simulate_peak_photons(self):
+    def simulate_peak_photons_single_cycle(self):
         laser_cycles = (1. / self.tau) * self.t
         v_out = self.set_peak_power(self.light_source)
         v_out = ((v_out + self.ambient) * self.mean_beta) / laser_cycles
