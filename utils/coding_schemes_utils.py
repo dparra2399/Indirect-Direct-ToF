@@ -26,28 +26,19 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, h_irf=None, t_dom
     n_functions = coding_system.ktaps
     peak_factor = coding_system.peak_factor
     pw = coding_system.pulse_width
-    if (light_id == 'KTapSinusoid'):
-        light_obj = KTapSinusoidSource(n_functions=n_functions, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'KTapSinusoidSWISSSPAD'):
-        light_obj = KTapSinusoidSWISSSPADSource(n_functions=n_functions, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK3'):
-        light_obj = HamiltonianSource(n_functions=3, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK3SWISSPAD'):
-        light_obj = HamiltonianSWISSSPADSource(n_functions=3, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK4'):
-        light_obj = HamiltonianSource(n_functions=4, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK4SWISSPAD'):
-        light_obj = HamiltonianSWISSSPADSource(n_functions=4, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK5'):
-        light_obj = HamiltonianSource(n_functions=5, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'HamiltonianK5SWISSPAD'):
-        light_obj = HamiltonianSWISSSPADSource(n_functions=5, peak_factor=peak_factor, n_tbins=n_tbins, depths=depths)
-    elif (light_id == 'Gaussian'):
-        light_obj = GaussianTIRF(n_tbins=n_tbins, peak_factor=peak_factor, mu=depth2time(depths), sigma=pw * tbin_res,
+    binomial = coding_system.binomial
+    win_duty = coding_system.freq_window
+    if light_id == 'KTapSinusoid':
+        light_obj = KTapSinusoidSource(n_functions=n_functions, binomial=binomial, n_tbins=n_tbins, depths=depths)
+    elif light_id == 'HamiltonianK3':
+        light_obj = HamiltonianSource(n_functions=3, binomial=binomial, peak_factor=peak_factor, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+    elif light_id == 'HamiltonianK4':
+        light_obj = HamiltonianSource(n_functions=4, binomial=binomial, peak_factor=peak_factor, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+    elif light_id == 'HamiltonianK5':
+        light_obj = HamiltonianSource(n_functions=5, binomial=binomial, peak_factor=peak_factor, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+    elif light_id == 'Gaussian':
+        light_obj = GaussianTIRF(n_tbins=n_tbins, binomial=binomial, peak_factor=peak_factor, mu=depth2time(depths), sigma=pw * tbin_res,
                                  depths=depths, t_domain=t_domain)
-    elif (light_id == 'GaussianSWISSPAD'):
-        light_obj = GaussianSWISSPADTIRF(n_tbins=n_tbins, peak_factor=peak_factor, mu=depth2time(depths),
-                                         sigma=pw * tbin_res, depths=depths, t_domain=t_domain)
 
     return light_obj
 
@@ -59,35 +50,24 @@ def create_coding_obj(coding_system, n_tbins, h_irf=None):
     peak_factor = coding_system.peak_factor
     n_gates = coding_system.n_gates
     laser_cycles = coding_system.total_laser_cycles
+    win_duty = coding_system.freq_window
+    binomial = coding_system.binomial
     if (coding_id == 'KTapSinusoid'):
-        coding_obj = KTapSinusoidCoding(n_tbins=n_tbins, ktaps=ktaps, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'KTapSinusoidSWISSSPAD'):
-        coding_obj = KTapSinusoidSWISSSPADCoding(total_laser_cycles=laser_cycles, n_tbins=n_tbins, ktaps=ktaps,
-                                                 account_irf=False, h_irf=h_irf)
+        coding_obj = KTapSinusoidCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, ktaps=ktaps, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK3'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, k=3, peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'HamiltonianK3SWISSPAD'):
-        coding_obj = HamiltonianSWISSSPADCoding(total_laser_cycles=laser_cycles, n_tbins=n_tbins, k=3,
-                                                peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=3,
+                                                peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK4'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, k=4, peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'HamiltonianK4SWISSPAD'):
-        coding_obj = HamiltonianSWISSSPADCoding(total_laser_cycles=laser_cycles, n_tbins=n_tbins, k=4,
-                                                peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=4,
+                                                peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK5'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, k=5, peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'HamiltonianK5SWISSPAD'):
-        coding_obj = HamiltonianSWISSSPADCoding(total_laser_cycles=laser_cycles, n_tbins=n_tbins, k=5,
-                                                peak_factor=peak_factor, account_irf=False, h_irf=h_irf)
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=5,
+                                                peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'Identity'):
-        coding_obj = IdentityCoding(n_tbins=n_tbins, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'Gated'):
-        coding_obj = GatedCoding(n_tbins=n_tbins, n_gates=n_gates, account_irf=False, h_irf=h_irf)
-    elif (coding_id == 'IdentitySWISSPAD'):
-        coding_obj = IdentitySWISSPADCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, account_irf=False,
+        coding_obj = IdentityCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=False,
                                             h_irf=h_irf)
-    elif (coding_id == 'GatedSWISSPAD'):
-        coding_obj = GatedSWISSPADCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, n_gates=n_gates,
+    elif (coding_id == 'Gated'):
+        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, n_gates=n_gates,
                                          account_irf=False, h_irf=h_irf)
 
     return coding_obj
@@ -127,8 +107,10 @@ class ImagingSystemParams:
     rec_algo: str
     coding_obj: Coding = None
     light_obj: LightSource = None
+    binomial: bool = False
     pulse_width: int = None
     peak_factor: float = None
+    freq_window: float = None
     ktaps: int = None
     n_gates: int = None
     total_laser_cycles: int = None
