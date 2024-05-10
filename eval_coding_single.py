@@ -25,7 +25,9 @@ if __name__ == '__main__':
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                                                     peak_factor=5, freq_window=0.1),
+                                 ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
                                                      peak_factor=5, freq_window=0.15),
                                  ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc')]
     params['meanBeta'] = 1e-4

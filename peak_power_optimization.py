@@ -3,11 +3,12 @@ import numpy as np
 from felipe_utils.felipe_cw_utils import CodingFunctionUtilsFelipe
 from spad_toflib.spad_tof_utils import gaussian_irf
 from scipy.fft import fft, fftshift
+from utils.file_utils import get_constrained_ham_codes
 import cvxpy as cp
 import matplotlib.pyplot as plt
 
-(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK4(N=1000)
-
+(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=1000)
+(m, d) = get_constrained_ham_codes(5, 5, 0.15, 1000)
 N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
@@ -41,11 +42,13 @@ for window_size in window_sizes:
         constrained_demodfs = np.zeros_like(demodfs)
         for i in range(0, K):
             corri = correlation[:, i]
-            di = np.ones(N)
-            di[:100] = 0
-            np.random.shuffle(di)
-            di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
-            di_fft = np.dot(dftmtx, di)
+            # di = np.ones(N)
+            # di[:100] = 0
+            # np.random.shuffle(di)
+            # di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
+            # di_fft = np.dot(dftmtx, di)
+            di_fft = d[:, i]
+            flag = True
             prev_optimal = 0
             while True:
                 U = cp.Variable(N)
@@ -69,6 +72,9 @@ for window_size in window_sizes:
                 mi = np.round(U.value)
                 mi = np.real(np.fft.ifft(np.fft.fft(mi) * np.fft.fft(h_t))) / (h_t.sum())
                 mi_fft = np.dot(dftmtx, mi)
+                if flag:
+                    mi_fft = m[:, i]
+                    flag = False
 
                 optimal_mi = prob.value
 

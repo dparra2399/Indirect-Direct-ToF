@@ -2,6 +2,7 @@
 # Library imports
 import numpy as np
 from IPython.core import debugger
+import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
