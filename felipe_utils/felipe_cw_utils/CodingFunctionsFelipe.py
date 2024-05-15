@@ -7,7 +7,6 @@ from scipy import signal
 # from IPython.core import debugger
 # breakpoint = debugger.set_trace
 import matplotlib as mpl
-mpl.use('qt5agg')
 import matplotlib.pyplot as plt
 
 #### Local imports

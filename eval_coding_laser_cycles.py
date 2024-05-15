@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 from IPython.core import debugger
 
 breakpoint = debugger.set_trace
-mpl.use('qt5agg')
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 from utils.coding_schemes_utils import init_coding_list
 from spad_toflib import spad_tof_utils

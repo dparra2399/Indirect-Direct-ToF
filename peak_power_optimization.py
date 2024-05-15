@@ -8,7 +8,6 @@ import cvxpy as cp
 import matplotlib.pyplot as plt
 
 (modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=1000)
-(m, d) = get_constrained_ham_codes(5, 5, 0.15, 1000)
 N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
@@ -17,6 +16,7 @@ threshold = 0.001
 
 window_sizes = [0.15]
 peak_powers = [5]
+(m, d) = get_constrained_ham_codes(K, peak_powers[0], window_sizes[0], N)
 
 dftmtx = np.fft.fft(np.eye(N))
 dftimtx = np.fft.ifft(np.eye(N))
@@ -109,7 +109,7 @@ for window_size in window_sizes:
         #plt.plot(constrained_demodfs)
         #plt.show()
         full = np.stack((constrained_modfs, constrained_demodfs), axis=0)
-        np.save(f'hamk5_pmax{peak_power}_wduty{window_size}.npy', full)
+        np.save(f'hamk{K}_pmax{peak_power}_wduty{window_size}.npy', full)
 
 print('hello world')
 print()

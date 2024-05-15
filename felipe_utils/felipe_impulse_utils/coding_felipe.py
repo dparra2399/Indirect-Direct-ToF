@@ -22,7 +22,6 @@ from felipe_utils.research_utils import signalproc_ops, np_utils, py_utils
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe as tof_utils
 
 import matplotlib as mpl
-mpl.use('qt5agg')
 import matplotlib.pyplot as plt
 
 TotalEnergyDefault = 1.
