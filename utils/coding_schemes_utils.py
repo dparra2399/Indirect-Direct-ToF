@@ -37,6 +37,7 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, h_irf=None, t_dom
     elif light_id == 'HamiltonianK5':
         light_obj = HamiltonianSource(n_functions=5, binomial=binomial, peak_factor=peak_factor, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
     elif light_id == 'Gaussian':
+        assert pw != None, 'Need to Declare Pulse_width for Gaussian Function'
         light_obj = GaussianTIRF(n_tbins=n_tbins, binomial=binomial, peak_factor=peak_factor, mu=depth2time(depths), sigma=pw * tbin_res,
                                  depths=depths, t_domain=t_domain)
 
@@ -67,6 +68,7 @@ def create_coding_obj(coding_system, n_tbins, h_irf=None):
         coding_obj = IdentityCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=False,
                                             h_irf=h_irf)
     elif (coding_id == 'Gated'):
+        assert n_gates != None, 'Need to declare number of gates for gated coding'
         coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, n_gates=n_gates,
                                          account_irf=False, h_irf=h_irf)
 
