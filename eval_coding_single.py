@@ -25,9 +25,12 @@ if __name__ == '__main__':
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc'),
-                                 ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                                                     peak_factor=5, freq_window=0.15)]
+    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                                                     binomial=True, total_laser_cycles=100_000),
+                                 ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                                                     binomial=True, total_laser_cycles=100_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
+                                                     binomial=True, total_laser_cycles=10_000_000)]
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
     params['freq_idx'] = [1]
@@ -39,10 +42,10 @@ if __name__ == '__main__':
     depths = np.arange(3.0, params['dMax'], dSample)
     # depths = np.array([105.0])
 
-    p_ave_source = (10 ** 5.5)
+    p_ave_source = (10 ** 6)
     # pAveAmbient = (10**5)
     p_ave_ambient = None
-    sbr = 1
+    sbr = 0.1
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']

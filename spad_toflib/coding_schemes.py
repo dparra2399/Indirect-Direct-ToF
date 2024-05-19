@@ -244,7 +244,7 @@ class GatedCoding(Coding):
         probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
         new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.n_tbins), probabilities, size=new_shape)
+        photon_counts = rng.binomial(int(self.laser_cycles / self.n_gates), probabilities, size=new_shape)
 
         return photon_counts
 

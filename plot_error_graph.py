@@ -2,14 +2,13 @@
 # Library imports
 import numpy as np
 import matplotlib as mpl
-mpl.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from IPython.core import debugger
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 
 breakpoint = debugger.set_trace
 
-file = np.load('data/results/ntbins_976_monte_1000.npz', allow_pickle=True)
+file = np.load('data/results/ntbins_1000_monte_1000.npz', allow_pickle=True)
 
 
 mae = file['results']

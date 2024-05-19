@@ -5,14 +5,13 @@ from IPython.core import debugger
 
 breakpoint = debugger.set_trace
 
-
 def gaussian_irf(x, mu, sigma):
     return np.exp(-(x - mu)**2 / (2 * sigma**2)) / (sigma * np.sqrt(2 * np.pi))
 
-def calculate_ambient(n_tbins, ave_ambient, dt, tau):
+def calculate_ambient(n_tbins, ave_ambient, tau, dt=None):
     eTotal = tau * ave_ambient
     base = np.ones(n_tbins)
-
+    if dt is None: dt = tau/n_tbins
     oldArea = np.sum(base) * dt
     amb = base * eTotal / oldArea
     return amb
