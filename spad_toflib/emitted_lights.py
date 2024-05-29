@@ -218,7 +218,7 @@ class GaussianTIRF(SinglePhotonSource):
         v_out = np.copy(self.light_source)
         total_source_photons = self.ave_source * self.t
         total_amb_photons = total_source_photons / self.sbr
-        v_out *= (total_source_photons / np.sum(v_out))
+        v_out *= (total_source_photons / v_out.sum(axis=-1, keepdims=True))
         v_out = v_out + (total_amb_photons / self.n_tbins)
         return v_out
 

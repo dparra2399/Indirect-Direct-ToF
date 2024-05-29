@@ -15,7 +15,7 @@ from utils.file_utils import write_errors_to_file
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 1000
+    params['n_tbins'] = 500
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 1 * 1e6
@@ -25,33 +25,34 @@ if __name__ == "__main__":
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-                                                     binomial=True, total_laser_cycles=6_000_000),
-                                 ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                                                     binomial=True, total_laser_cycles=6_000_000),
-                                 ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                                                     binomial=True, total_laser_cycles=6_000_000),
+
+    pulse_width = 1.0e-8
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    sigma = int(pulse_width / tbin_res)
+    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
                                  ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1,
-                                                     binomial=True, total_laser_cycles=6_000_000),
-                                 ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=30,
-                                                     n_gates=250, binomial=True, total_laser_cycles=6_000_000)
-                                 ]
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=sigma,
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000)]
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
     params['freq_idx'] = [1]
 
     params['levels_one'] = 'laser cycles'
-    params['levels_one_exp'] = (3, 7)
-    params['num_levels_one'] = 10
+    params['levels_one_exp'] = (5, 6)
+    params['num_levels_one'] = 20
     params['levels_two'] = 'ave power'
-    params['levels_two_exp'] = (2, 6)
-    params['num_levels_two'] = 10
+    params['levels_two_exp'] = (4, 5)
+    params['num_levels_two'] = 20
 
     n_level_one = params['num_levels_one']
     n_level_two = params['num_levels_two']
 
-    ave_source = 10 ** 5
-    sbr = 1
+    ave_source = 10 ** 4
+    sbr = 1.0
     laser_cycles = 5000
 
     dSample = 3.0
@@ -110,5 +111,6 @@ if __name__ == "__main__":
                     'depth_res']
                 results[i, y, x] = imaging_scheme.mean_absolute_error
 
-    write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two)
+    exp_num = 'avg_photons001'
+    write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two, exp=exp_num)
     print('complete')

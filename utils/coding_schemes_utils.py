@@ -53,23 +53,24 @@ def create_coding_obj(coding_system, n_tbins, h_irf=None):
     laser_cycles = coding_system.total_laser_cycles
     win_duty = coding_system.freq_window
     binomial = coding_system.binomial
+    gated = coding_system.gated
     if (coding_id == 'KTapSinusoid'):
-        coding_obj = KTapSinusoidCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, ktaps=ktaps, account_irf=False, h_irf=h_irf)
+        coding_obj = KTapSinusoidCoding(total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, n_tbins=n_tbins, ktaps=ktaps, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK3'):
-        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=3,
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, n_tbins=n_tbins, k=3,
                                                 peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK4'):
-        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=4,
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, n_tbins=n_tbins, k=4,
                                                 peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK5'):
-        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, binomial=binomial, n_tbins=n_tbins, k=5,
+        coding_obj = HamiltonianCoding(total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, n_tbins=n_tbins, k=5,
                                                 peak_factor=peak_factor, win_duty=win_duty, account_irf=False, h_irf=h_irf)
     elif (coding_id == 'Identity'):
-        coding_obj = IdentityCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=False,
+        coding_obj = IdentityCoding(n_tbins=n_tbins, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=False,
                                             h_irf=h_irf)
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
-        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, total_laser_cycles=laser_cycles, n_gates=n_gates,
+        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
                                          account_irf=False, h_irf=h_irf)
 
     return coding_obj
@@ -110,6 +111,7 @@ class ImagingSystemParams:
     coding_obj: Coding = None
     light_obj: LightSource = None
     binomial: bool = False
+    gated: bool = False
     pulse_width: int = None
     peak_factor: float = None
     freq_window: float = None

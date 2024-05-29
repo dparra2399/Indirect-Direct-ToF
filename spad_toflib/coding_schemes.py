@@ -13,9 +13,11 @@ import matplotlib.pyplot as plt
 
 class Coding(ABC):
 
-    def __init__(self, total_laser_cycles=None, binomial=False, num_measures=None, h_irf=None, account_irf=False):
+    def __init__(self, total_laser_cycles=None, binomial=False, gated=False,
+                 num_measures=None, h_irf=None, account_irf=False):
 
         self.binomial = binomial
+        self.gated = gated
         self.set_laser_cycles(total_laser_cycles)
         if self.correlations is None: self.set_coding_scheme()
         (self.n_tbins, self.n_functions) = (self.correlations.shape[-2], self.correlations.shape[-1])
@@ -92,7 +94,11 @@ class Coding(ABC):
         probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
         new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.n_functions), probabilities, size=new_shape)
+        if not self.gated:
+            num_measures = 1
+        else:
+            num_measures = self.n_functions
+        photon_counts = rng.binomial(int(self.laser_cycles / num_measures), probabilities, size=new_shape)
         return photon_counts
 
     ''' Felipe's Code'''
@@ -244,7 +250,11 @@ class GatedCoding(Coding):
         probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
         new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.n_gates), probabilities, size=new_shape)
+        if not self.gated:
+            num_measures = 1
+        else:
+            num_measures = self.n_gates
+        photon_counts = rng.binomial(int(self.laser_cycles / num_measures), probabilities, size=new_shape)
 
         return photon_counts
 

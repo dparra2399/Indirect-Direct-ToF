@@ -15,22 +15,26 @@ breakpoint = debugger.set_trace
 if __name__ == '__main__':
 
     params = {}
-    params['n_tbins'] = 1000
+    params['n_tbins'] = 1200
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 1 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
-    params['gate_size'] = 1 * ((1. / params['rep_freq']) / params['n_tbins'])
     params['T'] = 0.1  # Integration time. Exposure time in seconds
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
+    pulse_width = 1.0e-8
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    sigma = int(pulse_width / tbin_res)
     params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                                                     binomial=True, total_laser_cycles=100_000),
-                                 ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                                                     binomial=True, total_laser_cycles=100_000),
-                                 ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-                                                     binomial=True, total_laser_cycles=10_000_000)]
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1,
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=sigma,
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000)]
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
     params['freq_idx'] = [1]
@@ -42,10 +46,10 @@ if __name__ == '__main__':
     depths = np.arange(3.0, params['dMax'], dSample)
     # depths = np.array([105.0])
 
-    p_ave_source = (10 ** 6)
+    p_ave_source = (10 ** 4)
     # pAveAmbient = (10**5)
     p_ave_ambient = None
-    sbr = 0.1
+    sbr = 10
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
