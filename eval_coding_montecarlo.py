@@ -15,7 +15,7 @@ from utils.file_utils import write_errors_to_file
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 976
+    params['n_tbins'] = 500
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 1 * 1e6
@@ -25,26 +25,34 @@ if __name__ == "__main__":
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc'),
-                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK4SWISSPAD', 'zncc'),
-                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK5SWISSPAD', 'zncc'),
-                                 ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1)]
+
+    pulse_width = 1.0e-8
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    sigma = int(pulse_width / tbin_res)
+    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1,
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000),
+                                 ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=sigma,
+                                                     binomial=True, gated=False, total_laser_cycles=10_000_000)]
     params['meanBeta'] = 1e-4
-    params['trials'] = 5000
+    params['trials'] = 1000
     params['freq_idx'] = [1]
 
     params['levels_one'] = 'laser cycles'
-    params['levels_one_exp'] = (4, 8)
+    params['levels_one_exp'] = (5, 6)
     params['num_levels_one'] = 20
     params['levels_two'] = 'ave power'
-    params['levels_two_exp'] = (4, 8)
+    params['levels_two_exp'] = (4, 5)
     params['num_levels_two'] = 20
 
     n_level_one = params['num_levels_one']
     n_level_two = params['num_levels_two']
 
-    ave_source = 10 ** 5
-    sbr = 1
+    ave_source = 10 ** 4
+    sbr = 1.0
     laser_cycles = 5000
 
     dSample = 3.0
@@ -87,13 +95,13 @@ if __name__ == "__main__":
                 incident = light_obj.simulate_photons()
 
                 coding_obj.set_laser_cycles(updated_params['laser cycles'])
-                if light_source in ['Gaussian', 'GaussianSWISSPAD']:
+                if light_source in ['Gaussian']:
                     coded_vals = coding_obj.encode_impulse(incident, trials)
                 else:
                     coded_vals = coding_obj.encode_cw(incident, trials)
 
-                if coding_scheme in ['Identity', 'IdentitySWISSPAD']:
-                    assert light_source in ['Gaussian', 'GaussianSWISSPAD'], 'Identity coding only available for IRF'
+                if coding_scheme in ['Identity']:
+                    assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
                     decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                        rec_algo_id=rec_algo) * tbin_depth_res
                 else:
@@ -103,5 +111,6 @@ if __name__ == "__main__":
                     'depth_res']
                 results[i, y, x] = imaging_scheme.mean_absolute_error
 
-    write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two)
+    exp_num = 'avg_photons001'
+    write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two, exp=exp_num)
     print('complete')
