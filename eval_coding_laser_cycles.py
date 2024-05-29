@@ -80,13 +80,13 @@ if __name__ == "__main__":
             incident = light_obj.simulate_photons()
 
             coding_obj.set_laser_cycles(laser_cycles)
-            if light_source in ['Gaussian', 'GaussianSWISSPAD']:
+            if light_source in ['Gaussian']:
                 coded_vals = coding_obj.encode_impulse(incident, trials)
             else:
                 coded_vals = coding_obj.encode_cw(incident, trials)
 
-            if coding_scheme in ['Identity', 'IdentitySWISSPAD']:
-                assert light_source in ['Gaussian', 'GaussianSWISSPAD'], 'Identity coding only available for IRF'
+            if coding_scheme in ['Identity']:
+                assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
                 decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                    rec_algo_id=rec_algo) * tbin_depth_res
             else:
