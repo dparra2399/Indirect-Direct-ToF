@@ -14,36 +14,50 @@ from utils.coding_schemes_utils import ImagingSystemParams
 if __name__ == "__main__":
 
     params = {}
+    params['n_tbins'] = 1000000
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 1 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
-    # params['gate_size'] = 1 * ((1. / params['rep_freq']) / params['n_tbins'])
-    params['T'] = 0.1  # Integration time. Exposure time in seconds
     params['rep_tau'] = 1. / params['rep_freq']
+    params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                                                     binomial=True, total_laser_cycles=6_000_000),
-                                 ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                                                     binomial=True, total_laser_cycles=6_000_000),
-                                 ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-                                                     binomial=True, total_laser_cycles=6_000_000)]
+    square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
+    pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
+
+    pulse_width = 8e-9
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    sigma = int(pulse_width / tbin_res)
+
+    params['imaging_schemes'] = [
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                            duty=1. / 5.),
+        ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
+                            duty=1. / 5.),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
+    ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 1000
+    params['trials'] = 500
     params['freq_idx'] = [1]
 
-    p_ave_source = 10 ** 5
+    print(f'max depth: {params["dMax"]} meters')
+    print()
+
+    dSample = 1.0
+    depths = np.arange(0.1, params['dMax'], dSample)
+    # depths = np.array([105.0])
+
+    #Do either average photon count
+    photon_count = (10 ** 6)
     sbr = 1
-    p_ave_ambient = None
+    #Or peak photon count
+    peak_photon_count = 8
+    ambient_count = 10
 
-    # Get Depths and Shift to Time Scale
-    dSample = 3.0
-    depths = np.arange(3.0, params['dMax'], dSample)
-    gt_tshifts = tof_utils_felipe.depth2time(depths)
-
-    (min_time_bins, max_time_bins) = (1000, 9_000)
+    (min_time_bins, max_time_bins) = (1000, 10_000)
     time_bin_sample = 1000
     n_tbins_list = np.arange(min_time_bins, max_time_bins, time_bin_sample)
 
@@ -52,10 +66,9 @@ if __name__ == "__main__":
 
     for y in range(0, n_tbins_list.shape[0]):
         n_tbins = n_tbins_list[y]
-        params['n_tbins'] = n_tbins
         (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
-            (tof_utils_felipe.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
-        init_coding_list(n_tbins, depths, params, t_domain=t_domain, pulses_list=None)
+            (tof_utils_felipe.calc_tof_domain_params(n_tbins, rep_tau=params['rep_tau']))
+        init_coding_list(n_tbins, depths, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
         for i in range(len(imaging_schemes)):
             imaging_scheme = imaging_schemes[i]
@@ -64,16 +77,14 @@ if __name__ == "__main__":
             light_obj = imaging_scheme.light_obj
             light_source = imaging_scheme.light_id
             rec_algo = imaging_scheme.rec_algo
-            light_obj.set_all_params(sbr=sbr, ave_source=p_ave_source, ambient=p_ave_ambient,
-                                     rep_tau=params['rep_tau'],
-                                     t=params['T'], mean_beta=params['meanBeta'])
 
-            incident = light_obj.simulate_photons()
-
-            if light_source in ['Gaussian']:
-                coded_vals = coding_obj.encode_impulse(incident, trials)
+            if peak_photon_count is not None:
+                incident = light_obj.simulate_peak_photons(peak_photon_count, ambient_count)
             else:
-                coded_vals = coding_obj.encode_cw(incident, trials)
+                incident = light_obj.simulate_average_photons(photon_count, sbr)
+
+            coded_vals = coding_obj.encode(incident, trials).squeeze()
+
 
             if coding_scheme in ['Identity']:
                 assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
@@ -85,9 +96,6 @@ if __name__ == "__main__":
             imaging_scheme.mean_absolute_error = spad_tof_utils.compute_metrics(depths, decoded_depths) * params[
                 'depth_res']
             results[i, y] = imaging_scheme.mean_absolute_error
-
-
-
 
     for j in range(len(imaging_schemes)):
         plt.plot(n_tbins_list, results[j, :])

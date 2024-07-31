@@ -82,7 +82,7 @@ def GetSqSq(N=1000, K=4):
 	#### Return coding scheme
 	return (modFs, demodFs)
 
-def GetHamK3(N=1000):
+def GetHamK3(N=1000, modDuty = 1./ 6.):
 	"""GetHamK3: Get modulation and demodulation functions for the coding scheme
 		HamK3 - Sq16Sq50.	
 	Args:
@@ -93,15 +93,13 @@ def GetHamK3(N=1000):
 	"""
 	#### Set some parameters
 	K = 3
-	maxInstantPowerFactor = 6.
 	dt = float(TauDefault) / float(N)
 	#### Allocate modulation and demodulation vectors
 	modFs = np.zeros((N,K))
 	demodFs = np.zeros((N,K))
 	#### Prepare modulation functions
-	modDuty = 1./maxInstantPowerFactor
 	for i in range(0,K):
-		modFs[0:math.floor(modDuty*N),i] = maxInstantPowerFactor*AveragePowerDefault
+		modFs[0:math.floor(modDuty*N),i] = AveragePowerDefault
 	#### Prepare demodulation functions
 	## Make shape of function
 	demodDuty = 1./2.
@@ -115,7 +113,7 @@ def GetHamK3(N=1000):
 
 
 
-def GetHamK4(N=1000):
+def GetHamK4(N=1000, modDuty = 1. / 12.):
 	"""GetHamK4: Get modulation and demodulation functions for the coding scheme HamK4	
 	Args:
 		N (int): N
@@ -125,15 +123,15 @@ def GetHamK4(N=1000):
 	"""
 	#### Set some parameters
 	K = 4
-	maxInstantPowerFactor=12.
 	dt = float(TauDefault) / float(N)
 	#### Allocate modulation and demodulation vectors
 	modFs = np.zeros((N,K))
 	demodFs = np.zeros((N,K))
 	#### Prepare modulation functions
-	modDuty = 1./maxInstantPowerFactor
-	for i in range(0,K):
-		modFs[0:math.floor(modDuty*N),i] = maxInstantPowerFactor*AveragePowerDefault
+	for i in range(0, K):
+		modFs[0:math.floor(modDuty * N), i] =  AveragePowerDefault
+		# if i > 1:
+		# 	modFs[:, i] = np.tile(modFs[:int(N // 2), i], 2)
 	#### Prepare demodulation functions
 	## Make shape of function
 	demodDuty1 = np.array([6./12.,6./12.])
@@ -159,7 +157,7 @@ def GetHamK4(N=1000):
 	return (modFs, demodFs)
 
 
-def GetHamK5(N=1000):
+def GetHamK5(N=1000, modDuty = 1. / 30.):
 	"""GetHamK5: Get modulation and demodulation functions for the coding scheme HamK5.	
 	Args:
 		N (int): N
@@ -169,15 +167,19 @@ def GetHamK5(N=1000):
 	"""
 	#### Set some parameters
 	K = 5
-	maxInstantPowerFactor=30.
 	dt = float(TauDefault) / float(N)
 	#### Allocate modulation and demodulation vectors
 	modFs = np.zeros((N,K))
 	demodFs = np.zeros((N,K))
 	#### Prepare modulation functions
-	modDuty = 1./maxInstantPowerFactor
 	for i in range(0,K):
-		modFs[0:math.floor(modDuty*N),i] = maxInstantPowerFactor*AveragePowerDefault
+		modFs[0:math.floor(modDuty*N),i] = AveragePowerDefault
+		# if i == 2:
+		# 	modFs[:, i] = np.tile(modFs[:, i], 2)[0::2]
+		# elif i == 3:
+		# 	modFs[:, i] = np.tile(modFs[:, i], 4)[0::4]
+		# elif i == 4:
+		# 	modFs[:, i] = np.tile(modFs[:, i], 7)[0::7]
 	#### Prepare demodulation functions
 	## Make shape of function
 	demodDuty1 = np.array([15./30.,15./30.])

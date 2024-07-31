@@ -85,7 +85,7 @@ def calc_mean_percentile_errors(errors, percentiles=[0.5, 0.75, 0.95, 0.99]):
 	# Verify the input percentiles and find the indeces where we split the errors
 	percentiles = to_nparray(percentiles)
 	assert(not (np.any(percentiles > 1) or np.any(percentiles < 0))), "Percentiles need to be between 0 and 1"
-	percentile_indeces = np.round(n_elems*percentiles).astype(np.int)
+	percentile_indeces = np.round(n_elems*percentiles).astype(int)
 	# Calculate mean for each percentile
 	percentile_mean_errors = np.zeros_like(percentiles)
 	percentile_mask = np.zeros_like(errors)-1.
@@ -126,13 +126,14 @@ def calc_error_metrics(errors, percentiles=[0.5, 0.75, 0.95, 0.99], eps_list=[1.
 	return metrics
 
 def print_error_metrics(metrics, prefix=''):
-	print("{} mae = {:.2f}".format(prefix, metrics['mae']))
-	# print("{} rmse = {:.2f}".format(prefix, metrics['rmse']))
-	print("{} medae = {:.2f}".format(prefix, metrics['medae']))
-	np.set_printoptions(suppress=True)
-	print("{} percentile_mae = {}".format(prefix, metrics['percentile_mae'].round(decimals=2)))
-	np.set_printoptions(suppress=False)
-	print("{} 1_tol_errs = {:.2f}".format(prefix, metrics['1_tol_errs']))
+	print(f'{prefix}:')
+	print("\t mae = {:.2f}".format(metrics['mae']))
+	print("\t rmse = {:.2f}".format(metrics['rmse']))
+	print("\t medae = {:.2f}".format(metrics['medae']))
+	#np.set_printoptions(suppress=True)
+	#print("{} percentile_mae = {}".format(prefix, metrics['percentile_mae'].round(decimals=2)))
+	#np.set_printoptions(suppress=False)
+	#print("{} 1_tol_errs = {:.2f}".format(prefix, metrics['1_tol_errs']))
 	# print("{} 0_tol_errs = {}".format(prefix, metrics['0_tol_errs']))
 
 def domain2index(val, max_domain_val, n, is_circular=True):

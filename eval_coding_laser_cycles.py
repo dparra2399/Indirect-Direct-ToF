@@ -10,11 +10,12 @@ from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 from utils.coding_schemes_utils import init_coding_list
 from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams
+from utils.file_utils import get_string_name
 
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 300
+    params['n_tbins'] = 2200
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 1 * 1e6
@@ -24,30 +25,40 @@ if __name__ == "__main__":
     params['rep_tau'] = 1. / params['rep_freq']
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [ImagingSystemParams('HamiltonianK3SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('HamiltonianK4SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('HamiltonianK5SWISSPAD', 'HamiltonianK3SWISSPAD', 'zncc',
-                                                     total_laser_cycles=10000),
-                                 ImagingSystemParams('IdentitySWISSPAD', 'GaussianSWISSPAD', 'matchfilt', pulse_width=1,
-                                                     total_laser_cycles=10000)]
+
+    pulse_width = 8e-9
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    sigma = int(pulse_width / tbin_res)
+
+    params['imaging_schemes'] = [
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                            duty=30.0, freq_window=0.10, binomial=True, gated=True,
+                            total_laser_cycles=100_000_000),
+        ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
+                            duty=6.0, freq_window=0.10, binomial=True, gated=True,
+                            total_laser_cycles=100_000_000),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5,
+                            binomial=True, gated=True, total_laser_cycles=100_000_000),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
+                            binomial=True, gated=True, total_laser_cycles=100_000_000)
+    ]
+
     params['meanBeta'] = 1e-4
-    params['trials'] = 1000
+    params['trials'] = 100
     params['freq_idx'] = [1]
 
     # n_signal_lvls = 20
-    n_cycles = 10
+    n_cycles = 20
     # n_sbr = 1
 
-    p_ave_source = 10 ** 6
-    sbr = 1
+    p_ave_source = 10 ** 4
+    sbr = 5
     p_ave_ambient = None
-    (min_cycles_exp, max_cycles_exp) = (3, 6)
+    (min_cycles_exp, max_cycles_exp) = (5, 8)
     # (min_sbr_exp, max_sbr_exp) = (1, 1)
 
-    dSample = 3.0
-    depths = np.arange(3.0, params['dMax'], dSample)
+    dSample = 1.0
+    depths = np.arange(1.0, params['dMax'], dSample)
 
     n_cycles_list = np.round(np.power(10, np.linspace(min_cycles_exp, max_cycles_exp, n_cycles)))
     # sbr_list = np.power(10, np.linspace(min_sbr_exp, max_sbr_exp, n_sbr))
@@ -57,7 +68,10 @@ if __name__ == "__main__":
         (tof_utils_felipe.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
     gt_tshifts = tof_utils_felipe.depth2time(depths)
 
-    init_coding_list(params['n_tbins'], depths, params, t_domain=t_domain, pulses_list=None)
+    print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
+    print()
+
+    init_coding_list(params['n_tbins'], depths, params, t_domain=t_domain)
 
     imaging_schemes = params['imaging_schemes']
     trials = params['trials']
@@ -98,7 +112,8 @@ if __name__ == "__main__":
 
     for j in range(len(imaging_schemes)):
         plt.plot(np.log10(n_cycles_list), results[j, :])
-        plt.scatter(x=np.log10(n_cycles_list), y=results[j, :], label=imaging_schemes[j].coding_id)
+        plt.ylim(0, 2000)
+        plt.scatter(x=np.log10(n_cycles_list), y=results[j, :], label=get_string_name(imaging_schemes[j]))
 
     plt.legend()
     plt.xlabel('Number of total laser cycles (log)')
