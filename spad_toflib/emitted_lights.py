@@ -5,15 +5,16 @@ from IPython.core import debugger
 breakpoint = debugger.set_trace
 
 ## Local Imports
-from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
+from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_codes
 from spad_toflib.spad_tof_utils import calculate_ambient
 from felipe_utils.felipe_cw_utils.CodingFunctionUtilsFelipe import ScaleMod
 from felipe_utils.felipe_impulse_utils.tof_utils_felipe import *
+from felipe_utils.felipe_cw_utils import CodingFunctionsFelipe
 from utils.file_utils import get_constrained_ham_codes
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import math
-
+import scipy as sp
 
 TotalEnergyDefault = 1.
 TauDefault = 1.
@@ -22,18 +23,13 @@ AveragePowerDefault = TotalEnergyDefault / TauDefault
 
 class LightSource(ABC):
 
-    def __init__(self, light_source, depths, sbr=None, ave_source=None, ambient=None,
-                 rep_tau=None, num_measures=None, t=None, mean_beta=None):
-        self.light_source = light_source
+    def __init__(self, light_source, depths, t, rep_tau=None, num_measures=None):
+        self.set_light_source(light_source)
         self.depths = depths
-        self.set_all_params(sbr, ave_source, ambient, rep_tau, num_measures, t, mean_beta)
+        self.set_tau(rep_tau)
+        self.set_num_measures(num_measures)
+        self.set_integration_time(t)
         # Find tirf pixels with no signal
-
-    def set_integration_time(self, input_t):
-        if (input_t is None):
-            self.t = None
-            return
-        self.t = input_t
 
     def set_ambient(self, input_sbr, input_amb, dt=1, tau=1):
         if (input_amb is not None):
@@ -44,17 +40,13 @@ class LightSource(ABC):
             self.ambient = None
             self.sbr = None
 
+    def set_light_source(self, input_light_source):
+        self.light_source = input_light_source
     def set_ave_source(self, input_source):
         if (input_source is None):
             self.ave_source = None
             return
         self.ave_source = np_utils.to_nparray(input_source)
-
-    def set_mean_beta(self, input_beta):
-        if (input_beta is None):
-            self.mean_beta = None
-            return
-        self.mean_beta = input_beta
 
     def set_tau(self, input_tau):
         if (input_tau is None):
@@ -68,23 +60,35 @@ class LightSource(ABC):
             return
         self.num_measures = input_num
 
-    def set_all_params(self, sbr=None, ave_source=None, ambient=None,
-                       rep_tau=None, num_measures=None, t=None, mean_beta=None):
-        self.set_ave_source(ave_source)
-        self.set_mean_beta(mean_beta)
-        self.set_integration_time(t)
-        self.set_num_measures(num_measures)
-        self.set_tau(rep_tau)
-        self.set_ambient(sbr, ambient)
+    def set_integration_time(self, input_t):
+        if (input_t is None):
+            self.t = None
+            return
+        self.t = input_t
+
 
 class SinglePhotonSource(LightSource):
 
-    def __init__(self, n_tbins, binomial=False, light_source=None, t_domain=None, **kwargs):
+    def __init__(self, n_tbins, n_functions, light_source=None, split=False, binomial=False
+                 , t_domain=None, **kwargs):
         self.n_tbins = n_tbins
         self.binomial = binomial
+        self.split = split
         self.set_t_domain(t_domain)
-        if light_source is None: light_source = self.generate_source()
+        self.n_functions = n_functions
+        if light_source is None:
+            light_source = self.generate_source()
+        else:
+            light_source = self.set_source(light_source)
         super().__init__(light_source=light_source, **kwargs)
+
+    def set_source(self, input_light_source):
+        x = np.arange(input_light_source.size)
+        new_length = self.n_tbins
+        new_x = np.linspace(x.min(), x.max(), new_length)
+        new_y = sp.interpolate.interp1d(x, input_light_source, kind='cubic')(new_x)
+        output_source = np.repeat(np.expand_dims(new_y, axis=-1), self.n_functions, axis=-1)
+        return output_source.squeeze()
 
     def set_t_domain(self, t_domain):
         if t_domain is None:
@@ -97,14 +101,49 @@ class SinglePhotonSource(LightSource):
     def generate_source(self):
         pass
 
-    @abstractmethod
-    def simulate_photons(self):
-        pass
+    def simulate_peak_photons(self, peak_photons, ambient_photons):
+        if self.binomial:
+            laser_cycles = (1. / self.tau) * self.t
+            v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
+            v_out = v_out / laser_cycles
+            v_out[v_out < 0] = 0
+        else:
+            v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
+        return self.phase_shifted(v_out)
 
+    def simulate_average_photons(self, total_photons, sbr):
+        if self.binomial:
+            laser_cycles = (1. / self.tau) * self.t
+            v_out = self.simulate_average_photons_n_cycles(total_photons, sbr) / laser_cycles
+            v_out[v_out < 0] = 0
+        else:
+            v_out = self.simulate_average_photons_n_cycles(total_photons, sbr)
+        return self.phase_shifted(v_out)
 
-class SinglePhotonContinousWave(SinglePhotonSource):
-    def __init__(self, modfs=None, **kwargs):
-        super().__init__(light_source=modfs, **kwargs)
+    def simulate_average_photons_n_cycles(self, total_photons, sbr):
+        incident = np.zeros(self.light_source.shape)
+
+        if self.split: total_photons = total_photons / self.n_functions
+
+        total_amb_photons = total_photons / sbr
+        scaled_modfs = np.copy(self.light_source)
+        for i in range(0, self.light_source.shape[-1]):
+            scaled_modfs[:, i] *= (total_photons / np.sum(self.light_source[:, i]))
+            incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
+        return incident
+
+    def simulate_peak_photons_n_cycles(self, peak_photons, ambient_photons):
+        incident = np.zeros(self.light_source.shape)
+        peak_modfs = np.copy(self.light_source)
+
+        if self.split:
+            peak_photons = peak_photons / self.n_functions
+            ambient_photons = ambient_photons / self.n_functions
+
+        for k in range(self.light_source.shape[-1]):
+            peak_modfs[:, k] = (peak_modfs[:, k] / peak_modfs[:, k].max()) * peak_photons
+            incident[:, k] = peak_modfs[:, k] + (ambient_photons)
+        return incident
 
     def phase_shifted(self, modfs):
         shifted_modfs = np.zeros((self.depths.shape[0], modfs.shape[1], modfs.shape[0]))
@@ -114,34 +153,11 @@ class SinglePhotonContinousWave(SinglePhotonSource):
                 shifted_modfs[d, i, :] = np.roll(modfs[:, i], int(self.depths[d] / tbin_depth_res))
         return shifted_modfs
 
-    def simulate_photons(self):
-        if self.binomial:
-            return self.simulate_single_cycle()
-        else:
-            return self.simulate_n_cycles()
 
-    def simulate_n_cycles(self):
-        incident = np.zeros(self.light_source.shape)
-        total_source_photons = self.ave_source * self.t
-        total_amb_photons = total_source_photons / self.sbr
-        scaled_modfs = np.copy(self.light_source)
-        for i in range(0, self.light_source.shape[-1]):
-            scaled_modfs[:, i] *= (total_source_photons / np.sum(self.light_source[:, i]))
-            incident[:, i] = scaled_modfs[:, i] + (total_amb_photons / self.n_tbins)
-        return self.phase_shifted(incident)
-
-    def simulate_single_cycle(self):
-        laser_cycles = (1. / self.tau) * self.t
-        incident = self.simulate_n_cycles() / laser_cycles
-        return incident
-
-
-
-class KTapSinusoidSource(SinglePhotonContinousWave):
+class KTapSinusoidSource(SinglePhotonSource):
     def __init__(self, n_functions, modfs=None, **kwargs):
         if n_functions is None: n_functions = 3
-        self.n_functions = n_functions
-        super().__init__(modfs=modfs, **kwargs)
+        super().__init__(light_source=modfs, n_functions=n_functions, **kwargs)
 
     def generate_source(self):
         modfs = np.zeros((self.n_tbins, self.n_functions))
@@ -152,93 +168,49 @@ class KTapSinusoidSource(SinglePhotonContinousWave):
         return modfs
 
 
-class HamiltonianSource(SinglePhotonContinousWave):
-    def __init__(self, n_functions, modfs=None, peak_factor=None, win_duty=None, **kwargs):
-        self.n_functions = n_functions
-        self.peak_factor = peak_factor
+class HamiltonianSource(SinglePhotonSource):
+    def __init__(self, n_functions, modfs=None, duty=None, win_duty=None, **kwargs):
         self.win_duty = win_duty
-        super().__init__(modfs=modfs, **kwargs)
+        self.set_duty(duty)
+        super().__init__(n_functions=n_functions, light_source=modfs,  **kwargs)
 
-    def set_peak_factor(self):
-        if self.peak_factor is None:
+    def set_duty(self, duty):
+        if duty is None:
             if self.n_functions == 3:
-                self.peak_factor = 6.
+                self.duty = 1. / 6.
             elif self.n_functions == 4:
-                self.peak_factor = 12.
+                self.duty = 1. / 12.
             elif self.n_functions == 5:
-                self.peak_factor = 30.
+                self.duty = 1. / 30.
             else:
                 assert False
-            return
+
+        self.duty = duty
 
     def generate_source(self):
-        if self.peak_factor is not None:
-            assert self.win_duty is not None, 'IRF Window is None when doing constrained Codes'
-            return get_constrained_ham_codes(self.n_functions, self.peak_factor, self.win_duty, self.n_tbins)[0]
-        self.set_peak_factor()
         modfs = np.zeros((self.n_tbins, self.n_functions))
-        mod_duty = 1. / self.peak_factor
+        dummy_var = np.zeros((self.n_tbins, self.n_functions))
         for i in range(0, self.n_functions):
-            modfs[0:math.floor(mod_duty * self.n_tbins), i] = self.peak_factor * AveragePowerDefault
+            modfs[0:math.floor(self.duty * self.n_tbins), i] = AveragePowerDefault
+
+        if self.win_duty is not None:
+            (modfs, _) = smooth_codes(modfs, dummy_var, window_duty=self.win_duty)
+
         return modfs
 
 
 class GaussianTIRF(SinglePhotonSource):
 
-    def __init__(self, peak_factor=None, mu=None, sigma=None, **kwargs):
+    def __init__(self, tirf=None, mu=None, sigma=None, **kwargs):
         # Set mu, and sigma params
         (self.mu, self.sigma) = (0, 1.)
-        self.peak_factor = peak_factor
         if (not (mu is None)): self.mu = mu
         if (not (sigma is None)): self.sigma = sigma
         # Initialize the regular Temporal IRF
-        super().__init__(**kwargs)
+        super().__init__(n_functions=1, light_source=tirf, **kwargs)
 
     def generate_source(self):
         # Create a circular gaussian pulse
-        gaussian_tirf = gaussian_pulse(self.t_domain, self.mu, self.sigma, circ_shifted=True)
+        gaussian_tirf = gaussian_pulse(self.t_domain, 0, self.sigma, circ_shifted=True)
+        gaussian_tirf = np.expand_dims(gaussian_tirf, axis=-1)
         return gaussian_tirf
-
-    def simulate_photons(self):
-        if self.peak_factor is None:
-            if self.binomial:
-                v_out = self.simulate_average_photons_single_cycle()
-            else:
-                v_out = self.simulate_average_photons_n_cycles()
-        else:
-            if self.binomial:
-                v_out = self.simulate_peak_photons_single_cycle()
-            else:
-                v_out = self.simulate_peak_photons_n_cycles()
-
-        return v_out
-
-
-    def simulate_average_photons_n_cycles(self, inplace=False):
-        v_out = np.copy(self.light_source)
-        total_source_photons = self.ave_source * self.t
-        total_amb_photons = total_source_photons / self.sbr
-        v_out *= (total_source_photons / v_out.sum(axis=-1, keepdims=True))
-        v_out = v_out + (total_amb_photons / self.n_tbins)
-        return v_out
-
-    def simulate_peak_photons_n_cycles(self):
-        v_out = np.copy(self.light_source)
-        total_source_photons = self.ave_source * self.t
-        total_amb_photons = total_source_photons / self.sbr
-        peak_photons = total_source_photons * total_source_photons
-        v_out = (v_out / v_out.max(axis=-1, keepdims=True)) * peak_photons
-        v_out = v_out + (total_amb_photons / self.n_tbins)
-        return v_out
-
-    def simulate_average_photons_single_cycle(self, inplace=False):
-        laser_cycles = (1. / self.tau) * self.t
-        v_out = self.simulate_average_photons_n_cycles()
-        v_out = v_out / laser_cycles
-        return v_out
-
-    def simulate_peak_photons_single_cycle(self):
-        laser_cycles = (1. / self.tau) * self.t
-        v_out = self.simulate_peak_photons_n_cycles()
-        v_out = v_out / laser_cycles
-        return v_out

@@ -14,7 +14,7 @@ def write_errors_to_file(params, results, depths, levels_one, levels_two, exp):
     trials = params['trials']
 
     filename = 'ntbins_{}_monte_{}_exp_{}.npz'.format(n_tbins, trials, exp)
-    outfile = './data/results/5.22-5.29/' + filename
+    outfile = './data/results/July/' + filename
 
     np.savez(outfile, params=params, results=results, depths=depths,
              levels_one=levels_one, levels_two=levels_two)
@@ -41,12 +41,29 @@ def get_string_name(imaging_scheme):
     if imaging_scheme.coding_id == 'Identity':
         assert imaging_scheme.light_id == 'Gaussian'
         PW = imaging_scheme.pulse_width
-        str_name += f'Full-Resolution Histogram PW = {PW}'
+        #str_name += f'FRH PW = {PW}'
+        str_name += 'Full-resolution Hist.'
     elif imaging_scheme.coding_id == 'Gated':
         assert imaging_scheme.light_id == 'Gaussian'
         PW = imaging_scheme.pulse_width
         n_gates = imaging_scheme.n_gates
-        str_name += f'Coarse Histogram PW = {PW} and {n_gates} Gates'
+        #str_name += f'Coarse PW = {PW} and {n_gates} Gates'
+        str_name += 'Coarse Hist'
+    elif imaging_scheme.coding_id[:-2] == 'Hamiltonian':
+        if imaging_scheme.account_irf is True:
+            str_name += f'Ham{imaging_scheme.coding_id[-2:]} IRF'
+        else:
+            peak_photons = imaging_scheme.duty
+            duty = int(100/peak_photons)
+            #str_name += f'Ham{imaging_scheme.coding_id[-2:]} D = {duty}%'
+            str_name += f'Hamiltonian K={imaging_scheme.coding_id[-1:]}'
+    elif imaging_scheme.coding_id == 'KTapSinusoid':
+        ktaps = imaging_scheme.ktaps
+        cw_tof = imaging_scheme.cw_tof
+        if cw_tof:
+            str_name += f'CW Sinusoid K={ktaps}'
+        else:
+            str_name += f'SP Sinusoid K={ktaps}'
     else:
         str_name += f'{imaging_scheme.coding_id}'
     return str_name

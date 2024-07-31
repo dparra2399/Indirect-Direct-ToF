@@ -7,16 +7,16 @@ from utils.file_utils import get_constrained_ham_codes
 import cvxpy as cp
 import matplotlib.pyplot as plt
 
-(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=1000)
+(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=640)
 N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
 dt = T / N  # Time step
-threshold = 0.001
+threshold = 0.1
 
-window_sizes = [0.15]
-peak_powers = [5]
-(m, d) = get_constrained_ham_codes(K, peak_powers[0], window_sizes[0], N)
+window_sizes = [0.30]
+peak_powers = [6]
+#(m, d) = get_constrained_ham_codes(K, peak_powers[0], window_sizes[0], N)
 
 dftmtx = np.fft.fft(np.eye(N))
 dftimtx = np.fft.ifft(np.eye(N))
@@ -42,12 +42,12 @@ for window_size in window_sizes:
         constrained_demodfs = np.zeros_like(demodfs)
         for i in range(0, K):
             corri = correlation[:, i]
-            # di = np.ones(N)
-            # di[:100] = 0
-            # np.random.shuffle(di)
-            # di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
-            # di_fft = np.dot(dftmtx, di)
-            di_fft = d[:, i]
+            di = np.ones(N)
+            di[:100] = 0
+            np.random.shuffle(di)
+            di = np.real(np.fft.ifft(np.fft.fft(di) * np.fft.fft(h_t))) / (h_t.sum())
+            di_fft = np.dot(dftmtx, di)
+            #di_fft = d[:, i]
             flag = True
             prev_optimal = 0
             while True:
@@ -72,9 +72,9 @@ for window_size in window_sizes:
                 mi = np.round(U.value)
                 mi = np.real(np.fft.ifft(np.fft.fft(mi) * np.fft.fft(h_t))) / (h_t.sum())
                 mi_fft = np.dot(dftmtx, mi)
-                if flag:
-                    mi_fft = m[:, i]
-                    flag = False
+                # if flag:
+                #     mi_fft = m[:, i]
+                #     flag = False
 
                 optimal_mi = prob.value
 

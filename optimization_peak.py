@@ -5,14 +5,15 @@ from spad_toflib.spad_tof_utils import gaussian_irf
 from scipy.fft import fft, fftshift
 from utils.file_utils import get_constrained_ham_codes
 import cvxpy as cp
+import sklearn.preprocessing
 import matplotlib.pyplot as plt
 
-(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=1000)
+(modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK4(N=250)
 N = modfs.shape[0]
 K = modfs.shape[-1]
 T = 1  # Total time
 dt = T / N  # Time step
-threshold = 0.001
+threshold = 1.0
 
 peak_powers = [5]
 
@@ -33,7 +34,6 @@ for peak_power in peak_powers:
         di[:100] = 0
         np.random.shuffle(di)
         di_fft = np.dot(dftmtx, di)
-        flag = True
         prev_optimal = 0
         while True:
             U = cp.Variable(N)
@@ -70,6 +70,11 @@ for peak_power in peak_powers:
                 print("The optimal value is", prob.value)
                 break
             prev_optimal = optimal_mi
+            print()
+            print('###############################')
+            print(f'Iteration {i}')
+            print('###############################')
+            print()
         constrained_modfs[:, i] = mi
         constrained_demodfs[:, i] = di
 
