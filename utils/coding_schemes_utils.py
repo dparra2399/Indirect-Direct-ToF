@@ -58,6 +58,7 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
     coding_id = coding_system.coding_id
     ktaps = coding_system.ktaps
     n_gates = coding_system.n_gates
+    n_bits = coding_system.n_bits
     laser_cycles = coding_system.total_laser_cycles
     win_duty = coding_system.freq_window
     binomial = coding_system.binomial
@@ -66,6 +67,9 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
     h_irf = coding_system.h_irf
     pw = coding_system.pulse_width
     cw_tof = coding_system.cw_tof
+    freq_idx = coding_system.freq_idx
+    n_freqs = coding_system.n_freqs
+    n_codes = coding_system.n_codes
     if pw is None: pw = 1
     duty = coding_system.duty
     if (coding_id == 'KTapSinusoid'):
@@ -84,13 +88,30 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
                                                 duty=duty, win_duty=win_duty, account_irf=account_irf,
                                                 t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Identity'):
-        coding_obj = IdentityCoding(n_tbins=n_tbins, sigma= pw * tbin_res, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,
+        coding_obj = IdentityCoding(n_tbins=n_tbins, sigma=pw * tbin_res, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,
                                             t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
-        coding_obj = GatedCoding(n_tbins=n_tbins, sigma= pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
+        coding_obj = GatedCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
                                          account_irf=False, t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'Greys'):
+        assert n_bits != None, 'Need to declare number of bits for greys coding'
+        coding_obj = GrayCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_bits=n_bits,
+                                         account_irf=False, t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'Fourier'):
+        coding_obj = FourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+                                total_laser_cycles=laser_cycles, freq_idx=freq_idx, n_codes=n_codes,
+                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
 
+    elif (coding_id == 'TruncatedFourier'):
+        coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+                                total_laser_cycles=laser_cycles, n_freqs=n_freqs, n_codes=n_codes,
+                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
+
+    elif (coding_id == 'GrayTruncatedFourier'):
+        coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+                                total_laser_cycles=laser_cycles, n_codes=n_codes,
+                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
     return coding_obj
 
 
@@ -143,5 +164,9 @@ class ImagingSystemParams:
     freq_window: float = None
     ktaps: int = None
     n_gates: int = None
+    n_bits: int = None
+    freq_idx: list = None
+    n_freqs: int = None
+    n_codes: int = None
     total_laser_cycles: int = None
     mean_absolute_error: float = None

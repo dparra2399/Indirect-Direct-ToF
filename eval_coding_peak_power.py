@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from IPython.core import debugger
+import os
+import seaborn as sns
+sns.set_theme()
 
 breakpoint = debugger.set_trace
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
@@ -13,10 +16,12 @@ from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams
 from utils.file_utils import get_string_name
 
+
+
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 1000
+    params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 5 * 1e6
@@ -33,16 +38,16 @@ if __name__ == "__main__":
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=1. / 5.),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 5.),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
+                            duty=1. / 5., freq_window=0.10),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
+        #ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma)
     ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 500
+    params['trials'] = 1000
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
@@ -51,11 +56,11 @@ if __name__ == "__main__":
 
     n_peak_lvls = 10
     (min_peak_count, max_peak_count) = (5, 30)
-    ambient_count = 10
+    ambient_counts = [15, 5]
 
 
     dSample = 1.0
-    depths = np.arange(1.0, params['dMax'], dSample)
+    depths = np.arange(dSample, params['dMax'], dSample)
 
     n_signals_list = np.round(np.linspace(min_peak_count, max_peak_count, n_peak_lvls))
 
@@ -71,43 +76,56 @@ if __name__ == "__main__":
 
     imaging_schemes = params['imaging_schemes']
     trials = params['trials']
-    results = np.zeros((len(imaging_schemes), n_peak_lvls))
+    depth_res = params['depth_res']
+    results = np.zeros((len(imaging_schemes), n_peak_lvls, 2))
 
-    for i in range(len(imaging_schemes)):
-        imaging_scheme = imaging_schemes[i]
-        coding_obj = imaging_scheme.coding_obj
-        coding_scheme = imaging_scheme.coding_id
-        light_obj = imaging_scheme.light_obj
-        light_source = imaging_scheme.light_id
-        rec_algo = imaging_scheme.rec_algo
+    for pp in range(len(ambient_counts)):
+        ambient_count = ambient_counts[pp]
+        for i in range(len(imaging_schemes)):
+            imaging_scheme = imaging_schemes[i]
+            coding_obj = imaging_scheme.coding_obj
+            coding_scheme = imaging_scheme.coding_id
+            light_obj = imaging_scheme.light_obj
+            light_source = imaging_scheme.light_id
+            rec_algo = imaging_scheme.rec_algo
 
-        for y in range(0, n_peak_lvls):
-            peak_photon_count = n_signals_list[y]
-            incident = light_obj.simulate_peak_photons(peak_photon_count, ambient_count)
+            for y in range(0, n_peak_lvls):
+                peak_photon_count = n_signals_list[y]
+                incident = light_obj.simulate_peak_photons(peak_photon_count, ambient_count)
 
-            coded_vals = coding_obj.encode(incident, trials).squeeze()
+                coded_vals = coding_obj.encode(incident, trials).squeeze()
 
-            if coding_scheme in ['Identity']:
-                assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-                decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
-                                                                   rec_algo_id=rec_algo) * tbin_depth_res
-            else:
-                decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
+                if coding_scheme in ['Identity']:
+                    assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
+                    decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
+                                                                       rec_algo_id=rec_algo) * tbin_depth_res
+                else:
+                    decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
-            #imaging_scheme.mean_absolute_error =
-            results[i, y] = imaging_scheme.mean_absolute_error
+                errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
+                error_metrix = calc_error_metrics(errors)
+                results[i, y, pp] = error_metrix['mae']
 
-    fig, ax = plt.subplots()
-    for j in range(len(imaging_schemes)):
-        ax.plot(n_signals_list, results[j, :])
+    fig, ax = plt.subplots(1, len(ambient_counts), figsize=(15, 5))
 
-        ax.scatter(x=n_signals_list, y=results[j, :], label=get_string_name(imaging_schemes[j]))
+    for k in range(len(ambient_counts)):
+        for j in range(len(imaging_schemes)):
+            ax[k].plot(n_signals_list, results[j, :, k])
 
-    ax.legend()
-    ax.set_xlabel('Peak Photon Count')
-    ax.set_ylabel('MAE (mm)')
-    ax.set_title(f'Avergae Ambient Photons per Bin {ambient_count / params["n_tbins"]}')
-    ax.set_ylim(0, 1000)
-    ax.grid()
+            ax[k].scatter(x=n_signals_list, y=results[j, :, k], label=get_string_name(imaging_schemes[j]))
+
+        ax[k].set_xlabel('Peak Photon Count')
+        ax[k].set_ylabel('MAE (mm)')
+        ax[k].set_ylim(0, 1000)
+        ax[k].grid()
+        ax[k].legend(loc='upper right')
+        ax[k].grid()
+
+
+    ax[0].set_title(f'Low SNR Levels')
+    ax[1].set_title(f'High SNR Levels')
+
+    save_folder = '/Users/Patron/Desktop/cowsip figures'
+    fig.savefig(os.path.join(save_folder, 'figure2.jpg'), bbox_inches='tight')
     plt.show()
     print('complete')

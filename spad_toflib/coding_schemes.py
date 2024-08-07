@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 from scipy import interpolate
@@ -11,6 +12,7 @@ from spad_toflib.emitted_lights import GaussianTIRF
 from spad_toflib.spad_tof_utils import *
 from utils.file_utils import get_constrained_ham_codes
 import matplotlib.pyplot as plt
+from utils import plot_utils
 import scipy as sp
 
 
@@ -26,6 +28,8 @@ class Coding(ABC):
         self.update_irf(h_irf, t_domain)
         self.account_irf = account_irf
         self.set_laser_cycles(total_laser_cycles)
+        self.zero_norm_corrfs = None
+        self.norm_corrfs = None
         if self.correlations is None: self.set_coding_scheme(n_tbins)
         (self.n_tbins, self.n_functions) = (self.correlations.shape[-2], self.correlations.shape[-1])
         self.set_num_measures(num_measures)
@@ -34,9 +38,21 @@ class Coding(ABC):
     def set_coding_scheme(self, n_tbins):
         pass
 
+    @abstractmethod
+    def encode(self, incident, trails):
+        pass
+
     ''' Felipe's Code'''
 
     def zncc_reconstruction(self, intensities):
+        if self.zero_norm_corrfs is None:
+            self.zero_norm_corrfs = normalize_measure_vals(self.correlations, axis=0)
+        norm_int = normalize_measure_vals(intensities)
+        return np.matmul(self.zero_norm_corrfs, norm_int[..., np.newaxis]).squeeze(-1)
+
+    def ncc_reconstruction(self, intensities):
+        if self.norm_corrfs is None:
+            self.norm_corrfs = self.correlations - np.mean(self.correlations, axis=0)
         norm_int = normalize_measure_vals(intensities)
         return np.matmul(self.norm_corrfs, norm_int[..., np.newaxis]).squeeze(-1)
 
@@ -44,7 +60,11 @@ class Coding(ABC):
         # If nothing is given set to gaussian
         if (h_irf is None):
             print("hirf is NONE")
-            self.h_irf = gaussian_pulse(t_domain, 0, self.sigma, circ_shifted=True)
+            if (t_domain is not None):
+                self.h_irf = gaussian_pulse(t_domain, 0, self.sigma, circ_shifted=True)
+            else:
+                print('t_domain is None')
+                return
         else:
             if h_irf.shape[0] == self.n_tbins:
                 self.h_irf = h_irf.squeeze()
@@ -89,7 +109,28 @@ class Coding(ABC):
 
     def set_correlations(self, modfs, demodfs):
         self.correlations = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
-        self.norm_corrfs = normalize_measure_vals(self.correlations, axis=1)
+        self.zero_norm_corrfs = normalize_measure_vals(self.correlations, axis=1)
+
+    def set_laser_cycles(self, input_cycles):
+        if input_cycles is None:
+            self.laser_cycles = None
+            return
+        assert self.binomial is True, 'To set laser cycles must be binomial poisson model'
+        self.laser_cycles = input_cycles
+
+    def set_num_measures(self, input_num):
+        if input_num is None:
+            self.num_measures = self.n_functions
+            return
+        self.num_measures = input_num
+
+    def get_num_measures(self):
+        return self.num_measures
+
+
+class ContinuousWave(Coding):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def encode(self, incident, trials):
         if self.binomial:
@@ -99,12 +140,12 @@ class Coding(ABC):
 
     def encode_poison(self, incident, trials):
         if not self.after:
+            #tmp = incident[20, 0, :]
             incident = poisson_noise_array(incident, trials)
             intent = np.zeros((trials, incident.shape[1], self.n_functions))
             for i in range(self.n_functions):
                 for j in range(incident.shape[1]):
                     intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
-
         else:
             intent = np.zeros((incident.shape[0], self.n_functions))
             for i in range(self.n_functions):
@@ -126,26 +167,34 @@ class Coding(ABC):
         photon_counts = rng.binomial(int(self.laser_cycles / self.num_measures), probabilities, size=new_shape)
         return photon_counts
 
-    ''' Felipe's Code'''
+
+class ImpulseCoding(Coding):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def encode(self, incident, trials):
+        if self.binomial:
+            return self.encode_binomial(incident, trials)
+        else:
+            return self.encode_poison(incident, trials)
+
+    def encode_poison(self, incident, trials):
+        incident = poisson_noise_array(incident, trials)
+        return np.matmul(incident[..., np.newaxis, :], self.correlations).squeeze(-2)
+
+    def encode_binomial(self, incident, trials):
+
+        incident = poisson_noise_array(incident, trials)
+        photons = np.matmul(incident[..., np.newaxis, :], self.correlations).squeeze(-2)
+        probabilities = 1 - np.exp(-photons)
+        rng = np.random.default_rng()
+        new_shape = (trials,) + probabilities.shape
+
+        photon_counts = rng.binomial(int(self.laser_cycles), probabilities, size=new_shape)
+        return photon_counts
 
 
-    def set_laser_cycles(self, input_cycles):
-        if input_cycles is None:
-            self.laser_cycles = None
-            return
-        assert self.binomial is True, 'To set laser cycles must be binomial poisson model'
-        self.laser_cycles = input_cycles
-
-    def set_num_measures(self, input_num):
-        if input_num is None:
-            self.num_measures = self.n_functions
-            return
-        self.num_measures = input_num
-
-    def get_num_measures(self):
-        return self.num_measures
-
-class KTapSinusoidCoding(Coding):
+class KTapSinusoidCoding(ContinuousWave):
 
     def __init__(self, ktaps, **kwargs):
         if (ktaps is None): ktaps = 3
@@ -159,7 +208,7 @@ class KTapSinusoidCoding(Coding):
         self.set_correlations(self.modfs, self.demodfs)
 
 
-class HamiltonianCoding(Coding):
+class HamiltonianCoding(ContinuousWave):
     def __init__(self, k, duty=None, win_duty=None, **kwargs):
         self.n_functions = k
         self.set_duty(duty)
@@ -208,7 +257,7 @@ class HamiltonianCoding(Coding):
             assert False
 
         if self.win_duty is not None:
-            (self.modfs, self.demodfs) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
+            (self.modfs, _) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
 
         if self.account_irf:
             self.modfs = np.repeat(np.expand_dims(self.h_irf, axis=-1), k, axis=-1)
@@ -231,6 +280,12 @@ class GatedCoding(Coding):
         self.sigma = sigma
         super().__init__(**kwargs)
 
+    def encode(self, incident, trials):
+        if self.binomial:
+            return self.encode_binomial(incident, trials)
+        else:
+            return self.encode_poison(incident, trials)
+
     def set_coding_scheme(self, n_tbins):
         if self.n_gates == None:
             self.n_gates = n_tbins
@@ -241,7 +296,6 @@ class GatedCoding(Coding):
             start_tbin = i * self.gate_len
             end_tbin = start_tbin + self.gate_len
             self.correlations[start_tbin:end_tbin, i] = 1.
-
 
     def encode_poison(self, transient_img, trials):
         '''
@@ -306,9 +360,6 @@ class GatedCoding(Coding):
         return f(x_fullres)
 
 
-''' Felipe's Code'''
-
-
 class IdentityCoding(GatedCoding):
     '''
         Identity coding class. GatedCoding in the extreme case where n_maxres == n_gates
@@ -316,3 +367,153 @@ class IdentityCoding(GatedCoding):
 
     def __init__(self, n_tbins, **kwargs):
         super().__init__(n_tbins=n_tbins, **kwargs)
+
+
+class GrayCoding(ImpulseCoding):
+    def __init__(self, n_tbins, sigma, n_bits, **kwargs):
+        self.max_n_bits = int(np.floor(np.log2(n_tbins)))
+        self.n_bits = np.min((n_bits, self.max_n_bits))
+        if (n_bits > self.max_n_bits):
+            print("not using n_bits={}, using n_bits={} which is the max_n_bits for {} bins".format(n_bits,
+                                                                                                    self.max_n_bits,
+                                                                                                    n_tbins))
+        self.correlations = None
+        self.sigma = sigma
+        super().__init__(n_tbins=n_tbins, **kwargs)
+
+    def np_gray_code(self, n_bits):
+        return signalproc_ops.generate_gray_code(n_bits)
+
+    def set_coding_scheme(self, n_tbins):
+        self.correlations = np.zeros((self.n_tbins, self.n_bits))
+        self.gray_codes = self.np_gray_code(self.n_bits)
+        self.min_gray_code_length = self.gray_codes.shape[0]
+
+        if ((n_tbins % self.min_gray_code_length) != 0):
+            print(
+                "WARNING: Gray codes where the n_maxres is not a multiple of the gray code length, may have some small ambiguous regions")
+        self.x_fullres = np.arange(0, self.n_tbins) * (1. / self.n_tbins)
+        self.x_lowres = np.arange(0, self.min_gray_code_length) * (1. / self.min_gray_code_length)
+        ext_x_lowres = np.arange(-1, self.min_gray_code_length + 1) * (1. / self.min_gray_code_length)
+        ext_gray_codes = np.concatenate(
+            (self.gray_codes[-1, :][np.newaxis, :], self.gray_codes, self.gray_codes[0, :][np.newaxis, :]), axis=0)
+        f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
+        self.correlations = f(self.x_fullres)
+        self.correlations = (self.correlations * 2) - 1
+        self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
+
+
+class FourierCoding(ImpulseCoding):
+    def __init__(self, n_tbins, sigma, freq_idx=[0, 1], n_codes=None, **kwargs):
+        self.n_codes = n_codes
+        self.freq_idx = freq_idx
+        self.sigma = sigma
+        self.correlations = None
+        super().__init__(n_tbins=n_tbins, **kwargs)
+        self.lres_mode = False
+        self.lres_factor = 10
+        self.lres_n = int(np.floor(n_tbins / self.lres_factor))
+        self.lres_n_freqs = self.lres_n // 2
+
+    def init_coding_mat(self, n_tbins, freq_idx):
+        self.n_maxfreqs = n_tbins // 2
+        self.freq_idx = np_utils.to_nparray(freq_idx)
+        self.n_freqs = self.freq_idx.size
+        self.max_n_sinusoid_codes = self.k * self.n_freqs
+        if (self.n_codes is None):
+            self.n_sinusoid_codes = self.max_n_sinusoid_codes
+        else:
+            if (self.n_codes > self.max_n_sinusoid_codes): warnings.warn(
+                "self.n_codes is larger than max_n_sinusoid_codes, truncating number of codes to max_n_sinusoid_codes")
+            self.n_sinusoid_codes = np.min([self.max_n_sinusoid_codes, self.n_codes])
+        # Check input args
+        assert (self.freq_idx.ndim == 1), "Number of dimensions for freq_idx should be 1"
+        assert (self.n_freqs <= (
+                self.n_tbins // 2)), "Number of frequencies cannot exceed the number of points at the max resolution"
+        # Initialize and populate the matrix with zero mean sinusoids
+        self.correlations = np.zeros((self.n_tbins, self.n_sinusoid_codes))
+
+    def set_coding_scheme(self, n_tbins):
+        '''
+        Initialize all frequencies
+        '''
+        self.k = 2
+        self.init_coding_mat(n_tbins, self.freq_idx)
+        domain = np.arange(0, n_tbins) * ((2 * np.pi) / n_tbins)
+        fourier_mat = signalproc_ops.get_fourier_mat(n=n_tbins, freq_idx=self.freq_idx)
+        for i in range(self.n_sinusoid_codes):
+            if ((i % 2) == 0):
+                self.correlations[:, i] = fourier_mat[:, i // 2].real
+            else:
+                self.correlations[:, i] = fourier_mat[:, i // 2].imag
+        # self.C[:, 0::2] = fourier_mat.real
+        # self.C[:, 1::2] = fourier_mat.imag
+
+    def get_n_maxfreqs(self):
+        if (self.lres_mode):
+            return self.lres_n_freqs
+        else:
+            return self.n_maxfreqs
+
+    def construct_phasor(self, incident):
+        return incident[..., 0::2] - 1j * incident[..., 1::2]
+
+    def construct_fft_transient(self, incident):
+        fft_transient = np.zeros(incident.shape[0:-1] + (self.get_n_maxfreqs(),), dtype=np.complex64)
+        # Set the correct frequencies to the correct value
+        fft_transient[..., self.freq_idx] = self.construct_phasor(incident)
+        return fft_transient
+
+    def ifft_reconstruction(self, incident):
+        '''
+        Use ZNCC to approximately reconstruct the signal encoded by c_vec
+        '''
+        fft_transient = self.construct_fft_transient(incident)
+        # Finally return the IFT
+        return np.fft.irfft(fft_transient, axis=-1, n=self.n_tbins)
+
+
+class TruncatedFourierCoding(FourierCoding):
+    def __init__(self, n_tbins, sigma, n_freqs=1, n_codes=None, include_zeroth_harmonic=True, **kwargs):
+        if (not (n_codes is None) and (n_codes > 1)): n_freqs = np.ceil(n_codes / 2)
+        freq_idx = np.arange(0, n_freqs + 1)
+        # Remove zeroth harmonic if needed.
+        if (not include_zeroth_harmonic): freq_idx = freq_idx[1:]
+        self.include_zeroth_harmonic = include_zeroth_harmonic
+        super().__init__(n_tbins=n_tbins, sigma=sigma, freq_idx=freq_idx, n_codes=n_codes, **kwargs)
+
+    def ifft_reconstruction(self, c_vec):
+        phasors = self.construct_phasor(c_vec)
+        # if not available append zeroth harmonic
+        if (not self.include_zeroth_harmonic):
+            phasors = np.concatenate((np.zeros(phasors.shape[0:-1] + (1,), dtype=phasors.dtype), phasors), axis=-1)
+        # Finally return the IFT
+        return np.fft.irfft(phasors, axis=-1, n=self.n_tbins)
+
+
+class GrayTruncatedFourierCoding(ImpulseCoding):
+    def __init__(self, n_tbins, sigma, n_codes, **kwargs):
+        # Create Gray coding obj
+        self.gray_coding_obj = GrayCoding(n_tbins, sigma, n_codes)
+        self.n_gray_codes = self.gray_coding_obj.n_bits
+        # Create Fourier Coding obj with remaining codes we want to use
+        self.n_fourier_codes = n_codes - self.n_gray_codes
+        self.n_freqs = int(np.ceil(float(self.n_fourier_codes) / 2.))
+        if (self.n_freqs >= 1):
+            self.truncfourier_coding_obj = TruncatedFourierCoding(n_tbins, n_freqs=self.n_freqs,
+                                                                  sigma=sigma, include_zeroth_harmonic=False)
+        else:
+            self.truncfourier_coding_obj = None
+        # Set coding mat by concat the matrices
+        self.correlations = None
+        self.sigma = sigma
+        super().__init__(n_tbins=n_tbins, **kwargs)
+
+    def set_coding_scheme(self, n_tbins):
+        gray_C = self.gray_coding_obj.correlations
+        if (self.n_fourier_codes >= 1):
+            truncfourier_C = self.truncfourier_coding_obj.correlations[:, 0:self.n_fourier_codes]
+            self.correlations = np.concatenate((gray_C, truncfourier_C), axis=-1)
+        else:
+            self.correlations = gray_C
+
