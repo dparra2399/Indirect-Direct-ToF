@@ -19,10 +19,10 @@ breakpoint = debugger.set_trace
 if __name__ == '__main__':
 
     params = {}
-    params['n_tbins'] = 2000
+    params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 1.5 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['rep_tau'] = 1. / params['rep_freq']
     params['T'] = 0.1 #intergration time [used for binomial]
@@ -36,13 +36,15 @@ if __name__ == '__main__':
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=1. / 5.),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=8, pulse_width=sigma),
+        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=16, pulse_width=sigma),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 5.),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5),
+                            duty=1. / 5., freq_window=0.10),
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+                            duty=1. / 5., freq_window=0.10),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=100, pulse_width=sigma)
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=4, pulse_width=sigma)
     ]
 
     params['meanBeta'] = 1e-4
@@ -53,12 +55,12 @@ if __name__ == '__main__':
     print()
 
     dSample = 1.0
-    depths = np.arange(0.1, params['dMax'], dSample)
+    depths = np.arange(dSample, params['dMax']-dSample, dSample)
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count = (10 ** 6)
-    sbr = 1
+    photon_count = (10 ** 4)
+    sbr = 0.5
     #Or peak photon count
     peak_photon_count = 10
     ambient_count = 10

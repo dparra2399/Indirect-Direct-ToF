@@ -106,18 +106,18 @@ class SinglePhotonSource(LightSource):
             laser_cycles = (1. / self.tau) * self.t
             v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
             v_out = v_out / laser_cycles
-            v_out[v_out < 0] = 0
         else:
             v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
+        v_out[v_out < 0] = 0
         return self.phase_shifted(v_out)
 
     def simulate_average_photons(self, total_photons, sbr):
         if self.binomial:
             laser_cycles = (1. / self.tau) * self.t
             v_out = self.simulate_average_photons_n_cycles(total_photons, sbr) / laser_cycles
-            v_out[v_out < 0] = 0
         else:
             v_out = self.simulate_average_photons_n_cycles(total_photons, sbr)
+        v_out[v_out < 0] = 0
         return self.phase_shifted(v_out)
 
     def simulate_average_photons_n_cycles(self, total_photons, sbr):
