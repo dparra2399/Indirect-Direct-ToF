@@ -41,19 +41,19 @@ def get_string_name(imaging_scheme):
     if imaging_scheme.coding_id == 'Identity':
         assert imaging_scheme.light_id == 'Gaussian'
         PW = imaging_scheme.pulse_width
-        str_name += r'$\bf{FRH}$' +  f' $\sigma = {PW}\Delta$'
+        str_name += r'$\bf{FRH:}$' + f'\n $\sigma = {PW}\Delta$'
         #str_name += 'Full-resolution Hist.'
     elif imaging_scheme.coding_id == 'Gated':
         assert imaging_scheme.light_id == 'Gaussian'
         PW = imaging_scheme.pulse_width
         n_gates = imaging_scheme.n_gates
-        str_name += f'Coarse Hist, $\sigma = {PW}\Delta$'
+        str_name += r'$\bf{Coarse:}$ ' + f'\n $K={n_gates}, \sigma = {PW}\Delta$'
     elif imaging_scheme.coding_id[:-2] == 'Hamiltonian':
         if imaging_scheme.account_irf is True:
             str_name += f'Ham{imaging_scheme.coding_id[-2:]} IRF'
         else:
             #str_name += f'Ham{imaging_scheme.coding_id[-2:]} D = {duty}%'
-            str_name += r'$\bf{Hamiltonian}$' + f' K={imaging_scheme.coding_id[-1:]}'
+            str_name += r'$\bf{Hamiltonian:}$' + f'\n K={imaging_scheme.coding_id[-1:]}'
     elif imaging_scheme.coding_id == 'KTapSinusoid':
         ktaps = imaging_scheme.ktaps
         cw_tof = imaging_scheme.cw_tof
@@ -64,7 +64,7 @@ def get_string_name(imaging_scheme):
     elif imaging_scheme.coding_id == 'TruncatedFourier':
         k = (imaging_scheme.n_freqs + 1) * 2
         PW = imaging_scheme.pulse_width
-        str_name += r'$\bf{Trunc. Fourier}$' + f' K={k}, $\sigma = {PW}\Delta$'
+        str_name += r'$\bf{Trunc. Fourier:}$' + f'\n K={k}, $\sigma = {PW}\Delta$'
     else:
         str_name += f'{imaging_scheme.coding_id}'
     return str_name

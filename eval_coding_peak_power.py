@@ -38,16 +38,19 @@ if __name__ == "__main__":
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=8, pulse_width=sigma),
+        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=16, pulse_width=sigma),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                            duty=1. / 5., freq_window=0.10),
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
                             duty=1. / 5., freq_window=0.10),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        #ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma)
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=4, pulse_width=sigma)
     ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 1000
+    params['trials'] = 100
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
@@ -126,6 +129,6 @@ if __name__ == "__main__":
     ax[1].set_title(f'High SNR Levels')
 
     save_folder = '/Users/Patron/Desktop/cowsip figures'
-    fig.savefig(os.path.join(save_folder, 'figure2.jpg'), bbox_inches='tight')
+    #fig.savefig(os.path.join(save_folder, 'figure2.jpg'), bbox_inches='tight')
     plt.show()
     print('complete')
