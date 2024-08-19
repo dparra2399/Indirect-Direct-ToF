@@ -140,7 +140,6 @@ class ContinuousWave(Coding):
 
     def encode_poison(self, incident, trials):
         if not self.after:
-            #tmp = incident[20, 0, :]
             incident = poisson_noise_array(incident, trials)
             intent = np.zeros((trials, incident.shape[1], self.n_functions))
             for i in range(self.n_functions):
@@ -164,7 +163,12 @@ class ContinuousWave(Coding):
         probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
         new_shape = (trials,) + probabilities.shape
-        photon_counts = rng.binomial(int(self.laser_cycles / self.num_measures), probabilities, size=new_shape)
+        num_m = None
+        if self.gated is True:
+            num_m = self.num_measures
+        else:
+            num_m = 1
+        photon_counts = rng.binomial(int(self.laser_cycles / num_m), probabilities, size=new_shape)
         return photon_counts
 
 
@@ -184,14 +188,14 @@ class ImpulseCoding(Coding):
 
     def encode_binomial(self, incident, trials):
 
-        incident = poisson_noise_array(incident, trials)
-        photons = np.matmul(incident[..., np.newaxis, :], self.correlations).squeeze(-2)
-        probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
+        new_shape = (trials,) + incident.shape
+        probabilities = 1 - np.exp(-incident)
+        incident_noisy = rng.binomial(int(self.laser_cycles), probabilities, size=new_shape)
 
-        photon_counts = rng.binomial(int(self.laser_cycles), probabilities, size=new_shape)
-        return photon_counts
+        c_vals = np.matmul(incident_noisy[..., np.newaxis, :], self.correlations).squeeze(-2)
+
+        return c_vals
 
 
 class KTapSinusoidCoding(ContinuousWave):

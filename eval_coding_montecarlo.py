@@ -12,14 +12,15 @@ from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams, get_levels_list_montecarlo
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from utils.file_utils import write_errors_to_file
+from utils.plot_utils import *
 
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 3000
+    params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 2.5 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['gate_size'] = 1 * ((1. / params['rep_freq']) / params['n_tbins'])
     params['T'] = 0.1  # Integration time. Exposure time in seconds
@@ -31,25 +32,25 @@ if __name__ == "__main__":
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=1. / 4., freq_window=0.10),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
+        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=4, pulse_width=sigma),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
                             duty=1. / 4., freq_window=0.10),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=100, pulse_width=sigma)
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=64, pulse_width=sigma)
     ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 5000
+    params['trials'] = 1000
     params['freq_idx'] = [1]
 
     params['levels_one'] = 'peak power'
-    params['levels_one_exp'] = (5, 15)
-    params['num_levels_one'] = 30
+    params['levels_one_exp'] = (5, 30)
+    params['num_levels_one'] = 20
     params['levels_two'] = 'amb photons'
     params['levels_two_exp'] = (1, 15)
-    params['num_levels_two'] = 30
+    params['num_levels_two'] = 20
 
     n_level_one = params['num_levels_one']
     n_level_two = params['num_levels_two']
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     mean_beta = params['meanBeta']
     depth_res = params['depth_res']
     results = np.zeros((len(imaging_schemes), n_level_one, n_level_two))
-
+    probs = np.zeros((n_level_one, n_level_two))
     updated_params = {'laser cycles': None,
                       'integration time': t,
                       'ave power': None,
@@ -110,6 +111,7 @@ if __name__ == "__main__":
                 errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
                 error_metrix = calc_error_metrics(errors)
                 results[i, y, x] = error_metrix['mae']
+
 
     exp_num = '003'
     write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two, exp=exp_num)

@@ -10,7 +10,7 @@ import numpy as np
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from spad_toflib.emitted_lights import GaussianTIRF
 from utils.file_utils import get_string_name
-
+from utils.plot_utils import *
 import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
@@ -36,15 +36,14 @@ if __name__ == '__main__':
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=8, pulse_width=sigma),
-        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=16, pulse_width=sigma),
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 5., freq_window=0.10),
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=1. / 5., freq_window=0.10),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=4, pulse_width=sigma)
+        # ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'ncc', n_codes=8, pulse_width=1),
+        # ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+        #                     duty=1. / 4., freq_window=0.10, binomial=True,
+        #                     total_laser_cycles=1_000_000),
+        ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1),
+        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
+        #                     binomial=True, total_laser_cycles=1_000_000)
+        # ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=128, pulse_width=sigma)
     ]
 
     params['meanBeta'] = 1e-4
@@ -60,10 +59,12 @@ if __name__ == '__main__':
 
     #Do either average photon count
     photon_count = (10 ** 4)
-    sbr = 0.5
+    sbr = 0.1
     #Or peak photon count
     peak_photon_count = 10
     ambient_count = 10
+
+    total_cycles = params['rep_freq'] * params['T']
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -98,7 +99,8 @@ if __name__ == '__main__':
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 
-        if coding_scheme in ['Identity']:
+        coded_vals
+        if coding_scheme in ['Identikty']:
             assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
             decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
