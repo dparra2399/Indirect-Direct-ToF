@@ -17,10 +17,10 @@ from utils.plot_utils import *
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 1024
+    params['n_tbins'] = 2048
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 5 * 1e6
+    params['rep_freq'] = 10 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['gate_size'] = 1 * ((1. / params['rep_freq']) / params['n_tbins'])
     params['T'] = 0.1  # Integration time. Exposure time in seconds
@@ -31,14 +31,18 @@ if __name__ == "__main__":
     tbin_res = params['rep_tau'] / params['n_tbins']
     sigma = int(pulse_width / tbin_res)
 
+    # params['imaging_schemes'] = [
+    #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=1, pulse_width=sigma),
+    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    #                         duty=1. / 4., freq_window=0.10),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
+    #     ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma)
+    # ]
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
-        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=4, pulse_width=sigma),
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 4., freq_window=0.10),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=64, pulse_width=sigma)
+        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
+        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True),
+
     ]
 
     params['meanBeta'] = 1e-4
@@ -57,7 +61,7 @@ if __name__ == "__main__":
 
 
     dSample = 1.0
-    depths = np.arange(dSample, params['dMax'], dSample)
+    depths = np.arange(dSample, params['dMax']-dSample, dSample)
 
     (levels_one, levels_two) = get_levels_list_montecarlo(params)
 
@@ -113,6 +117,6 @@ if __name__ == "__main__":
                 results[i, y, x] = error_metrix['mae']
 
 
-    exp_num = '003'
+    exp_num = 'sinusoid001'
     write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two, exp=exp_num)
     print('complete')

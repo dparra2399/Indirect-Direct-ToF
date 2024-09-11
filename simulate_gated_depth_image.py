@@ -10,19 +10,30 @@ from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 import numpy as np
 from spad_toflib.emitted_lights import GaussianTIRF
-import torch
-from torch.utils.data import Dataset
-from torchvision import datasets
-from torchvision.transforms import ToTensor
+# import torch
+# from torch.utils.data import Dataset
+# from torchvision import datasets
+# from torchvision.transforms import ToTensor
 
 from utils.file_utils import get_string_name
+from matplotlib import rc
 import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('TkAgg')
+
+rc('text',usetex=True)
+rc('text.latex', preamble=r'\usepackage{color}')
+
+font = {'family': 'serif',
+        'weight': 'bold',
+        'size': 7}
+
+rc('font', **font)
 
 breakpoint = debugger.set_trace
 
-depth_folder = '/Users/Patron/Downloads/sample_transient_images/depth_images_240x320_nt-2000/'
-rgb_folder = '/Users/Patron/Downloads/sample_transient_images/rgb_images_240x320_nt-2000/'
+depth_folder = r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\depth_images_240x320_nt-2000'
+rgb_folder =  r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\rgb_images_240x320_nt-2000'
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
@@ -30,14 +41,14 @@ if __name__ == '__main__':
     params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 10 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['rep_tau'] = 1. / params['rep_freq']
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
-    pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
+    #square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
+    #pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
 
     pulse_width = 8e-9
     tbin_res = params['rep_tau'] / params['n_tbins']
@@ -45,12 +56,12 @@ if __name__ == '__main__':
 
     params['imaging_schemes'] = [
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 15., freq_window=0.10, binomial=True, gated=True,
+                            duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
                             total_laser_cycles=100_000),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
                             binomial=True, gated=True, total_laser_cycles=100_000),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=16, pulse_width=10,
-                            binomial=True, gated=True, total_laser_cycles=100_000)
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma,
+                             binomial=True, gated=True, total_laser_cycles=100_000),
     ]
 
     params['meanBeta'] = 1e-4
@@ -69,7 +80,7 @@ if __name__ == '__main__':
     # Do either average photon count
     photon_count = (10 ** 4)
     sbr = 0.1
-    laser_cycles = [3e5, 9e5]
+    laser_cycles = [2e6]
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -103,7 +114,7 @@ if __name__ == '__main__':
             light_source = imaging_scheme.light_id
             rec_algo = imaging_scheme.rec_algo
 
-            incident = light_obj.simulate_average_photons(photon_count, sbr)
+            incident = light_obj.simulate_peak_photons(10, 10)
             coding_obj.set_laser_cycles(laser_cycle)
 
             coded_vals = coding_obj.encode(incident, trials).squeeze()
@@ -125,13 +136,20 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(len(laser_cycles), len(params['imaging_schemes']), figsize=(8, 8), squeeze=False)
 
-    counter = 0
+    fig, axs = plt.subplots(len(laser_cycles)*2, len(params['imaging_schemes']), figsize=(4.4, 2.6), squeeze=False)
+    plt.subplots_adjust(hspace=0.05, wspace=0.01)
+
+    counter1 = 0
+    counter2 = 1
+
+    axs[0][0].set_ylabel('Depth Map')
+    axs[1][0].set_ylabel('Depth Errors (mm)')
     for j in range(0, len(laser_cycles)):
         #axs[counter][0].set_ylabel('Depth Map')
-        axs[counter][0].set_ylabel(r'$\bf{Log Laser Cycles:}$' + f' {int(laser_cycles[j])}',
-                                   labelpad=10)
+        #axs[counter1][0].set_ylabel(r'$\bf{\Delta t:}$' + f': {peak_photon_counts[j]} \n'
+                                   #r'$\bf{\Phi^{bkg}:}$' + f'{ambient_counts[j]}:', rotation='horizontal',
+                                   #labelpad=20)
         for i in range(len(params['imaging_schemes'])):
             scheme = params['imaging_schemes'][i]
             depth_map = depth_images[j, :, :, i]
@@ -139,7 +157,6 @@ if __name__ == '__main__':
             image_mask = np.zeros_like(depth_map)
             image_mask[depth_map < np.min(depth_image)] = 1
             image_mask[depth_map > np.max(depth_image)] = 1
-
 
             depth_map[depth_map < np.min(depth_image)] = np.mean(depth_image)
             depth_map[depth_map > np.max(depth_image)] = np.mean(depth_image)
@@ -149,25 +166,41 @@ if __name__ == '__main__':
             num_outliers = (error_map[error_map > 0.3]).size
             percent_outliers = num_outliers / depth_image.size
 
+            axs[counter1][i].imshow(depth_map, cmap='jet')
+            axs[counter1][i].imshow(image_mask, cmap='binary', alpha=0.9 * (image_mask > 0))
 
-            axs[counter][i].imshow(depth_map, cmap='hsv')
-            axs[counter][i].imshow(image_mask, cmap='binary', alpha=0.9 * (image_mask > 0))
+            axs[counter2][i].imshow(error_map, vmin=0, vmax=1.0)
 
-            # axs[counter+1][i].imshow(error_map, vmin=0, vmax=1.0, cmap='hot')
+            if counter1 == 0:
+                str_name = ''
+                if scheme.coding_id.startswith('TruncatedFourier'):
+                    str_name = 'Truncated Fourier \n (Wide)'
+                    axs[0][i].set_title(str_name)
+                elif scheme.coding_id.startswith('Gated'):
+                    str_name = 'Coarse Hist. \n (Wide)'
+                    axs[0][i].set_title(str_name)
+                elif scheme.coding_id.startswith('Hamiltonian'):
+                    str_name = 'SiP Hamiltonian' + '\n' + r'(\textcolor{red}{Proposed})'
+                    axs[0][i].set_title(str_name, color='red')
+                elif scheme.coding_id == 'Identity':
+                    if scheme.pulse_width == 1:
+                        str_name = 'Full-Res. Hist. \n (Narrow)'
+                        axs[0][i].set_title(str_name)
+                    else:
+                        str_name = 'Full-Res. Hist. \n (Wide)'
+                        axs[0][i].set_title(str_name)
 
-            if counter == 0:
-                axs[counter][i].set_title(f'{get_string_name(scheme)}')
-            axs[counter][i].get_xaxis().set_ticks([])
-            axs[counter][i].get_yaxis().set_ticks([])
-            # axs[counter+1][i].get_xaxis().set_ticks([])
-            # axs[counter+1][i].get_yaxis().set_ticks([])
+            axs[counter1][i].get_xaxis().set_ticks([])
+            axs[counter1][i].get_yaxis().set_ticks([])
+            axs[counter2][i].get_xaxis().set_ticks([])
+            axs[counter2][i].get_yaxis().set_ticks([])
             #if counter == 2:
-            axs[counter][i].set_xlabel(f'Outliers: {percent_outliers * 100: .1f}% \n '
-                                 f'RMSE: {rmse[j, i] / 10: .2f} cm \n '
-                                 f'MAE: {mae[j, i] / 10: .2f} cm ')
-        counter += 1
+            axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm')
+        counter1 += 2
+        counter2 += 2
+
     fig.tight_layout()
-    fig.savefig('figure5.jpg', bbox_inches='tight')
+    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure6a.svg', bbox_inches='tight')
     plt.show()
 #plt.show()
 print()

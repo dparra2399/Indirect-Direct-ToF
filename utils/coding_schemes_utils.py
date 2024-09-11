@@ -70,22 +70,27 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
     freq_idx = coding_system.freq_idx
     n_freqs = coding_system.n_freqs
     n_codes = coding_system.n_codes
+
+    if gated is True:
+        split = True
+    else:
+        split = coding_system.split
     if pw is None: pw = 1
     duty = coding_system.duty
     if (coding_id == 'KTapSinusoid'):
         coding_obj = KTapSinusoidCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,
-                                        ktaps=ktaps, after=cw_tof, account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
+                                        ktaps=ktaps, split=split, after=cw_tof, account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK3'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,k=3,
-                                                duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
                                                 t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK4'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=4,
-                                                duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
                                                 t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK5'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=5,
-                                                duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
                                                 t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Identity'):
         coding_obj = IdentityCoding(n_tbins=n_tbins, sigma=pw * tbin_res, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,

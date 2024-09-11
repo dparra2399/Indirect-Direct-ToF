@@ -5,7 +5,7 @@ import os
 from math import comb
 from scipy.stats import binom, poisson
 
-save_folder = '/Users/Patron/Desktop/cowsip figures'
+save_folder = 'Z:\\Research_Users\\David\\paper figures'
 
 
 def plot_hist(incident, detected, demodfs):
@@ -37,13 +37,12 @@ def plot_hist(incident, detected, demodfs):
     axs[2].set_xlabel('Time')
     axs[2].set_title('Demodulation Functions')
 
-    fig.savefig(os.path.join(save_folder, 'figure1.jpg'), bbox_inches='tight')
+    fig.savefig(os.path.join(save_folder, 'figure1b.svg'), bbox_inches='tight')
     plt.show()
 
 
-def plot_modulation_function(modf):
-    font = {'family': 'normal',
-            'weight': 'bold',
+def plot_modulation_function(modf, pulsed=False):
+    font = {'family': 'serif',
             'size': 10}
 
     matplotlib.rc('font', **font)
@@ -54,18 +53,19 @@ def plot_modulation_function(modf):
     axs.set_yticks([])
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
-    axs.set_ylim(0, 30)
-    axs.set_title('Modulated Intensity')
-    axs.set_xlabel('Time')
-    axs.set_ylabel('Intensity')
-    axs.plot(modf)
-    fig.savefig(os.path.join(save_folder, 'figure1a.jpg'), bbox_inches='tight')
+    axs.set_ylim(0, 15)
+    #axs.set_title('Modulated Functions')
+    #axs.set_xlabel('Time')
+    #axs.set_ylabel('Intensity')
+    axs.plot(modf, color='blue')
+    if pulsed is not False:
+        axs.plot(pulsed, color='red')
+    fig.savefig(os.path.join(save_folder, 'figure1a.svg'), bbox_inches='tight')
     plt.show()
 
 
 def plot_modulation_function_with_histogram(modf, hist):
-    font = {'family': 'normal',
-            'weight': 'bold',
+    font = {'family': 'serif',
             'size': 10}
 
     matplotlib.rc('font', **font)
@@ -77,17 +77,17 @@ def plot_modulation_function_with_histogram(modf, hist):
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
     axs.set_ylim(0, 30)
-    axs.set_title('Measured Histogram')
-    axs.set_xlabel('Time Bins')
-    axs.set_ylabel('Photon Count')
-    axs.plot(modf)
-    axs.bar(np.arange(0, hist.shape[0]), hist, alpha=0.5, edgecolor='black', linewidth=1.0, color='#1f77b4')
-    fig.savefig(os.path.join(save_folder, 'figure1b.jpg'), bbox_inches='tight')
+    #axs.set_title('Measured Histogram')
+    #axs.set_xlabel('Time Bins')
+    #axs.set_ylabel('Photon Count')
+    axs.plot(modf, color='blue')
+    axs.bar(np.arange(0, hist.shape[0]), hist, alpha=0.5, edgecolor='black', linewidth=0.5, color='#1f77b4')
+    fig.savefig(os.path.join(save_folder, 'figure1b.svg'), bbox_inches='tight')
     plt.show()
 
 
 def plot_demodulation_functions(demodfs):
-    font = {'family': 'normal',
+    font = {'family': 'serif',
             'size': 10}
 
     matplotlib.rc('font', **font)
@@ -98,14 +98,37 @@ def plot_demodulation_functions(demodfs):
     axs.set_yticks([])
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
-    axs.set_title('Demodulation Functions')
-    axs.set_xlabel('Time')
-    axs.plot(demodfs[:, 0], color='red')
-    axs.plot(demodfs[:, 1], color='green')
-    axs.plot(demodfs[:, 2], color='purple')
-    fig.savefig(os.path.join(save_folder, 'figure1c.jpg'), bbox_inches='tight')
+    #axs.set_title('Demodulation Functions')
+    #axs.set_xlabel('Time')
+    axs.plot(demodfs[:, 0], color='salmon')
+    axs.plot(demodfs[:, 1], color='limegreen')
+    axs.plot(demodfs[:, 2], color='violet')
+    fig.savefig(os.path.join(save_folder, 'figure1c.svg'), bbox_inches='tight')
     plt.show()
 
+def plot_correlation_functions(correlation, b_vals, d_hat):
+    font = {'family': 'serif',
+            'size': 10}
+
+    matplotlib.rc('font', **font)
+
+    fig, axs = plt.subplots()
+
+    axs.set_xticks([])
+    axs.set_yticks([])
+    axs.spines['top'].set_visible(False)
+    axs.spines['right'].set_visible(False)
+    #axs.set_title('Correlation Functions')
+    #axs.set_xlabel('Depth')
+    axs.plot(correlation[:, 0], color='salmon')
+    axs.plot(correlation[:, 1], color='limegreen')
+    axs.plot(correlation[:, 2], color='violet')
+    axs.scatter(x=d_hat, y=b_vals[0], color='blue')
+    axs.scatter(x=d_hat, y=b_vals[1], color='blue')
+    axs.scatter(x=d_hat, y=b_vals[2], color='blue')
+    axs.axvline(x=d_hat, color='orange')
+    fig.savefig(os.path.join(save_folder, 'figure1d.svg'), bbox_inches='tight')
+    plt.show()
 
 
 def calculate_bin_prob(D, theta_bkg, theta_max, total_cycles):
