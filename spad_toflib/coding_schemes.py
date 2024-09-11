@@ -129,7 +129,8 @@ class Coding(ABC):
 
 
 class ContinuousWave(Coding):
-    def __init__(self, **kwargs):
+    def __init__(self, split=False, **kwargs):
+        self.split = split
         super().__init__(**kwargs)
 
     def encode(self, incident, trials):
@@ -140,16 +141,24 @@ class ContinuousWave(Coding):
 
     def encode_poison(self, incident, trials):
         if not self.after:
+            #inc = incident[8, 0, :]
             incident = poisson_noise_array(incident, trials)
+            #hist = incident[100, 8, 0, :]
             intent = np.zeros((trials, incident.shape[1], self.n_functions))
             for i in range(self.n_functions):
                 for j in range(incident.shape[1]):
-                    intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
+                    if self.split == False:
+                        intent[:, j, i] = np.inner(incident[:, j, 0, :], self.demodfs[:, i])
+                    else:
+                        intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
         else:
             intent = np.zeros((incident.shape[0], self.n_functions))
             for i in range(self.n_functions):
                 for j in range(incident.shape[0]):
-                    intent[j, i] = np.inner(incident[j, i, :], self.demodfs[:, i])
+                    if self.split == False:
+                        intent[:, j, i] = np.inner(incident[:, j, 0, :], self.demodfs[:, i])
+                    else:
+                        intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
             intent = poisson_noise_array(intent, trials)
 
         return intent

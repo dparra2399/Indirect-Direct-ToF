@@ -10,19 +10,26 @@ from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 import numpy as np
 from spad_toflib.emitted_lights import GaussianTIRF
-import torch
-from torch.utils.data import Dataset
-from torchvision import datasets
-from torchvision.transforms import ToTensor
+from matplotlib import rc
+import matplotlib
+matplotlib.use('TkAgg')
+
+rc('text',usetex=True)
+rc('text.latex', preamble=r'\usepackage{color}')
+
+font = {'family': 'serif',
+        'weight': 'bold',
+        'size': 7}
+
+rc('font', **font)
 
 from utils.file_utils import get_string_name
-import matplotlib
 import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
-depth_folder = '/Users/Patron/Downloads/sample_transient_images/depth_images_240x320_nt-2000/'
-rgb_folder = '/Users/Patron/Downloads/sample_transient_images/rgb_images_240x320_nt-2000/'
+depth_folder = r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\depth_images_240x320_nt-2000'
+rgb_folder =  r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\rgb_images_240x320_nt-2000'
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
@@ -36,19 +43,21 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
-    pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
+    #square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
+    #pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
 
     pulse_width = 8e-9
     tbin_res = params['rep_tau'] / params['n_tbins']
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        # ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-        #                      duty=1. / 4., freq_window=0.10),
-        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=1, pulse_width=sigma)
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                              duty=1. / 4., freq_window=0.10),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=1, pulse_width=sigma),
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=sigma, n_gates=32),
+
     ]
 
     params['meanBeta'] = 1e-4
@@ -68,8 +77,8 @@ if __name__ == '__main__':
     photon_count = (10 ** 6)
     sbr = 1
     # Or peak photon count
-    peak_photon_counts = [10, 20]
-    ambient_counts = [10, 5]
+    peak_photon_counts = [10]
+    ambient_counts = [10]
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -128,22 +137,36 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(len(peak_photon_counts), len(params['imaging_schemes']), figsize=(10, 5), squeeze=False)
+    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes']), figsize=(7.5, 2.6), squeeze=False)
+    plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
-    counter = 0
+    counter1 = 0
+    counter2 = 1
+
+    axs[0][0].set_ylabel('Depth Map')
+    axs[1][0].set_ylabel('Depth Errors (mm)')
     for j in range(0, len(peak_photon_counts)):
         #axs[counter][0].set_ylabel('Depth Map')
-        axs[counter][0].set_ylabel(r'$\bf{\Delta:}$' + f': {peak_photon_counts[j]} \n'
-                                   r'$\bf{\alpha:}$' + f'{ambient_counts[j]}:', rotation='horizontal',
-                                   labelpad=20)
+        #axs[counter1][0].set_ylabel(r'$\bf{\Delta t:}$' + f': {peak_photon_counts[j]} \n'
+                                   #r'$\bf{\Phi^{bkg}:}$' + f'{ambient_counts[j]}:', rotation='horizontal',
+                                   #labelpad=20)
         for i in range(len(params['imaging_schemes'])):
+            # if i == 0:
+            #     axs[counter1][i].get_xaxis().set_ticks([])
+            #     axs[counter1][i].get_yaxis().set_ticks([])
+            #     axs[counter2][i].get_xaxis().set_ticks([])
+            #     axs[counter2][i].get_yaxis().set_ticks([])
+            #     axs[counter1][i].imshow(rgb_image, cmap='jet')
+            #     axs[counter1][i].set_title('RGB Image')
+            #     axs[counter2][i].set_axis_off()
+            #     continue
+
             scheme = params['imaging_schemes'][i]
             depth_map = depth_images[j, :, :, i]
 
             image_mask = np.zeros_like(depth_map)
             image_mask[depth_map < np.min(depth_image)] = 1
             image_mask[depth_map > np.max(depth_image)] = 1
-
 
             depth_map[depth_map < np.min(depth_image)] = np.mean(depth_image)
             depth_map[depth_map > np.max(depth_image)] = np.mean(depth_image)
@@ -153,27 +176,43 @@ if __name__ == '__main__':
             num_outliers = (error_map[error_map > 0.3]).size
             percent_outliers = num_outliers / depth_image.size
 
+            axs[counter1][i].imshow(depth_map, cmap='jet')
+            axs[counter1][i].imshow(image_mask, cmap='binary', alpha=0.9 * (image_mask > 0))
 
-            axs[counter][i].imshow(depth_map, cmap='hsv')
-            axs[counter][i].imshow(image_mask, cmap='binary', alpha=0.9 * (image_mask > 0))
+            axs[counter2][i].imshow(error_map, vmin=0, vmax=1.0)
 
-            # axs[counter+1][i].imshow(error_map, vmin=0, vmax=1.0, cmap='hot')
+            if counter1 == 0:
+                str_name = ''
+                if scheme.coding_id.startswith('TruncatedFourier'):
+                    str_name = 'Truncated Fourier \n (Wide)'
+                    axs[0][i].set_title(str_name)
+                elif scheme.coding_id.startswith('Gated'):
+                    str_name = 'Coarse Hist. \n (Wide)'
+                    axs[0][i].set_title(str_name)
+                elif scheme.coding_id.startswith('Hamiltonian'):
+                    str_name = 'SiP Hamiltonian' + '\n' + r'(\textcolor{red}{Proposed})'
+                    axs[0][i].set_title(str_name, color='red')
+                elif scheme.coding_id == 'Identity':
+                    if scheme.pulse_width == 1:
+                        str_name = 'Full-Res. Hist. \n (Narrow)'
+                        axs[0][i].set_title(str_name)
+                    else:
+                        str_name = 'Full-Res. Hist. \n (Wide)'
+                        axs[0][i].set_title(str_name)
 
-            if counter == 0:
-                axs[counter][i].set_title(f'{get_string_name(scheme)}')
-            axs[counter][i].get_xaxis().set_ticks([])
-            axs[counter][i].get_yaxis().set_ticks([])
-            # axs[counter+1][i].get_xaxis().set_ticks([])
-            # axs[counter+1][i].get_yaxis().set_ticks([])
+            axs[counter1][i].get_xaxis().set_ticks([])
+            axs[counter1][i].get_yaxis().set_ticks([])
+            axs[counter2][i].get_xaxis().set_ticks([])
+            axs[counter2][i].get_yaxis().set_ticks([])
             #if counter == 2:
-            axs[counter][i].set_xlabel(f'Outliers: {percent_outliers * 100: .1f}% \n '
-                                 f'RMSE: {rmse[j, i] / 10: .2f} cm \n '
-                                 f'MAE: {mae[j, i] / 10: .2f} cm ')
-        counter += 1
+            axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm')
+        counter1 += 2
+        counter2 += 2
 
     fig.tight_layout()
-    fig.savefig('figure6.jpg', bbox_inches='tight')
+    plt.subplots_adjust(hspace=0.05, wspace=0.05)
+    #fig.suptitle('TCSPC Single-Photon Sensor', fontweight='bold')
+    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure5a.svg', bbox_inches='tight')
     plt.show()
-#plt.show()
-print()
+    print()
 print('YAYYY')

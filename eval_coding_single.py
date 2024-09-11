@@ -12,35 +12,36 @@ from spad_toflib.emitted_lights import GaussianTIRF
 from utils.file_utils import get_string_name
 from utils.plot_utils import *
 import matplotlib.pyplot as plt
-
+import matplotlib
+matplotlib.use('TkAgg')
 breakpoint = debugger.set_trace
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
     params = {}
-    params['n_tbins'] = 1024
-    # params['dMax'] = 5
-    # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
+    params['n_tbins'] = 64
+    #params['dMax'] = 5
+    #params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 5 * 1e6
-    params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['rep_tau'] = 1. / params['rep_freq']
+    params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['T'] = 0.1 #intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
-    pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
+    #square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
+    #pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
 
     pulse_width = 8e-9
     tbin_res = params['rep_tau'] / params['n_tbins']
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        # ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'ncc', n_codes=8, pulse_width=1),
-        # ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-        #                     duty=1. / 4., freq_window=0.10, binomial=True,
-        #                     total_laser_cycles=1_000_000),
-        ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1),
+        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width =sigma),
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                             duty=1. / 4., freq_window=0.1),
+        ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1)
         # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
         #                     binomial=True, total_laser_cycles=1_000_000)
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=128, pulse_width=sigma)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count = (10 ** 4)
+    photon_count = (10 ** 8)
     sbr = 0.1
     #Or peak photon count
     peak_photon_count = 10
@@ -99,8 +100,8 @@ if __name__ == '__main__':
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 
-        coded_vals
-        if coding_scheme in ['Identikty']:
+
+        if coding_scheme in ['Identity']:
             assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
             decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
