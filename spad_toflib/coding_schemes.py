@@ -6,13 +6,9 @@ from scipy import interpolate
 from felipe_utils.felipe_cw_utils import CodingFunctionsFelipe
 from felipe_utils.felipe_impulse_utils.tof_utils_felipe import zero_norm_t
 from felipe_utils.research_utils import signalproc_ops, np_utils
-from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_codes
+from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 
-from spad_toflib.emitted_lights import GaussianTIRF
 from spad_toflib.spad_tof_utils import *
-from utils.file_utils import get_constrained_ham_codes
-import matplotlib.pyplot as plt
-from utils import plot_utils
 import scipy as sp
 
 
@@ -140,25 +136,36 @@ class ContinuousWave(Coding):
             return self.encode_poison(incident, trials)
 
     def encode_poison(self, incident, trials):
+        a = np.copy(incident)
+        b = np.copy(self.demodfs)
         if not self.after:
-            #inc = incident[8, 0, :]
-            incident = poisson_noise_array(incident, trials)
-            #hist = incident[100, 8, 0, :]
-            intent = np.zeros((trials, incident.shape[1], self.n_functions))
-            for i in range(self.n_functions):
-                for j in range(incident.shape[1]):
-                    if self.split == False:
-                        intent[:, j, i] = np.inner(incident[:, j, 0, :], self.demodfs[:, i])
-                    else:
-                        intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
+           # inc = incident[18, 0, :]
+            if self.split == False:
+                a = poisson_noise_array(a[:, 0, :], trials)
+                intent = np.einsum('mnp,pq->mnq', a, b)
+            else:
+                a = poisson_noise_array(a, trials)
+                intent = np.einsum('mnqp,pq->mnq', a, b)
+            # incident = poisson_noise_array(incident, trials)
+            # #hist = incident[100, 18, 0, :]
+            # intent = np.zeros((trials, incident.shape[1], self.n_functions))
+            # for i in range(self.n_functions):
+            #     for j in range(incident.shape[1]):
+            #         if self.split == False:
+            #             intent[:, j, i] = np.inner(incident[:, j, 0, :], self.demodfs[:, i])
+            #         else:
+            #             intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
         else:
-            intent = np.zeros((incident.shape[0], self.n_functions))
-            for i in range(self.n_functions):
-                for j in range(incident.shape[0]):
-                    if self.split == False:
-                        intent[j, i] = np.inner(incident[j, 0, :], self.demodfs[:, i])
-                    else:
-                        intent[j, i] = np.inner(incident[j, i, :], self.demodfs[:, i])
+            #intent = np.zeros((incident.shape[0], self.n_functions))
+            # for i in range(self.n_functions):
+            #     for j in range(incident.shape[0]):
+            #         intent[j, i] = np.inner(incident[j, i, :], self.demodfs[:, i])
+            if self.split == False:
+                a = a[:, 0, :]
+                intent = np.einsum('np,pq->nq', a, b)
+            else:
+                intent = np.einsum('nqp,pq->nq', a, b)
+                #intent = np.einsum('ijj->i', result)
             intent = poisson_noise_array(intent, trials)
 
         return intent
@@ -316,7 +323,9 @@ class GatedCoding(Coding):
         For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
         '''
         assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+        #inc = transient_img[18, :]
         transient_img = poisson_noise_array(transient_img, trials)
+        #hist = transient_img[100, 18, :]
         c_vals = np.array(transient_img[..., 0::self.gate_len])
         for i in range(self.gate_len - 1):
             start_idx = i + 1
@@ -461,6 +470,7 @@ class FourierCoding(ImpulseCoding):
                 self.correlations[:, i] = fourier_mat[:, i // 2].imag
         # self.C[:, 0::2] = fourier_mat.real
         # self.C[:, 1::2] = fourier_mat.imag
+        print(f'Fourier coding K={self.correlations.shape[-1]}')
 
     def get_n_maxfreqs(self):
         if (self.lres_mode):
@@ -487,7 +497,7 @@ class FourierCoding(ImpulseCoding):
 
 
 class TruncatedFourierCoding(FourierCoding):
-    def __init__(self, n_tbins, sigma, n_freqs=1, n_codes=None, include_zeroth_harmonic=True, **kwargs):
+    def __init__(self, n_tbins, sigma, n_freqs=1, n_codes=None, include_zeroth_harmonic=False, **kwargs):
         if (not (n_codes is None) and (n_codes > 1)): n_freqs = np.ceil(n_codes / 2)
         freq_idx = np.arange(0, n_freqs + 1)
         # Remove zeroth harmonic if needed.

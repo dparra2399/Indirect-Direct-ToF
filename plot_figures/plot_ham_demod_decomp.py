@@ -1,13 +1,10 @@
-import time
-
-import numpy as np
 from IPython.core import debugger
 
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
 from spad_toflib.spad_tof_utils import split_into_indices, gated_ham
 
-from utils.plot_utils import *
+from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('TkAgg')
