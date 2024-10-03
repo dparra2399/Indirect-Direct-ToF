@@ -2,8 +2,10 @@
 # Library imports
 import numpy as np
 import matplotlib as mpl
+import seaborn as sns
 import matplotlib.pyplot as plt
 from IPython.core import debugger
+
 
 breakpoint = debugger.set_trace
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
@@ -15,10 +17,10 @@ from utils.file_utils import get_string_name
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 2200
+    params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 1 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['gate_size'] = 1 * ((1. / params['rep_freq']) / params['n_tbins'])
     params['T'] = 0.1  # Integration time. Exposure time in seconds
@@ -31,13 +33,10 @@ if __name__ == "__main__":
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=30.0, freq_window=0.10, binomial=True, gated=True,
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+                            duty=1./4., freq_window=0.10, binomial=True, gated=True,
                             total_laser_cycles=100_000_000),
-        ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-                            duty=6.0, freq_window=0.10, binomial=True, gated=True,
-                            total_laser_cycles=100_000_000),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=5,
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
                             binomial=True, gated=True, total_laser_cycles=100_000_000),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
                             binomial=True, gated=True, total_laser_cycles=100_000_000)
@@ -51,18 +50,15 @@ if __name__ == "__main__":
     n_cycles = 20
     # n_sbr = 1
 
-    p_ave_source = 10 ** 4
-    sbr = 5
-    p_ave_ambient = None
-    (min_cycles_exp, max_cycles_exp) = (5, 8)
+    #peak_photon_count = 1000
+    ambient_count = 10
+    (min_cycles_exp, max_cycles_exp) = (5, 15)
     # (min_sbr_exp, max_sbr_exp) = (1, 1)
 
     dSample = 1.0
     depths = np.arange(1.0, params['dMax'], dSample)
 
     n_cycles_list = np.round(np.power(10, np.linspace(min_cycles_exp, max_cycles_exp, n_cycles)))
-    # sbr_list = np.power(10, np.linspace(min_sbr_exp, max_sbr_exp, n_sbr))
-    # sbr_levels, n_cycles_levels = np.meshgrid(sbr_list, n_cycles_list)
 
     (rep_tau, rep_freq, tbin_res, t_domain, dMax, tbin_depth_res) = \
         (tof_utils_felipe.calc_tof_domain_params(params['n_tbins'], rep_tau=params['rep_tau']))
@@ -87,17 +83,11 @@ if __name__ == "__main__":
 
         for y in range(0, n_cycles):
             laser_cycles = n_cycles_list[y]
-            light_obj.set_all_params(sbr=sbr, ave_source=p_ave_source, ambient=p_ave_ambient,
-                                     rep_tau=params['rep_tau'],
-                                     t=params['T'], mean_beta=params['meanBeta'])
 
-            incident = light_obj.simulate_photons()
+            incident = light_obj.simulate_peak_photons(peak_photon_count, ambient_count)
 
             coding_obj.set_laser_cycles(laser_cycles)
-            if light_source in ['Gaussian']:
-                coded_vals = coding_obj.encode_impulse(incident, trials)
-            else:
-                coded_vals = coding_obj.encode_cw(incident, trials)
+            coded_vals = coding_obj.encode(incident, trials).squeeze()
 
             if coding_scheme in ['Identity']:
                 assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
@@ -112,10 +102,10 @@ if __name__ == "__main__":
 
     for j in range(len(imaging_schemes)):
         plt.plot(np.log10(n_cycles_list), results[j, :])
-        plt.ylim(0, 2000)
         plt.scatter(x=np.log10(n_cycles_list), y=results[j, :], label=get_string_name(imaging_schemes[j]))
 
     plt.legend()
+    plt.ylim(0, 2000)
     plt.xlabel('Number of total laser cycles (log)')
     plt.ylabel('MAE (mm)')
     plt.grid()
