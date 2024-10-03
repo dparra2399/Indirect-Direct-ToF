@@ -88,7 +88,7 @@ class SinglePhotonSource(LightSource):
         new_x = np.linspace(x.min(), x.max(), new_length)
         new_y = sp.interpolate.interp1d(x, input_light_source, kind='cubic')(new_x)
         output_source = np.repeat(np.expand_dims(new_y, axis=-1), self.n_functions, axis=-1)
-        return output_source.squeeze()
+        return output_source
 
     def set_t_domain(self, t_domain):
         if t_domain is None:
