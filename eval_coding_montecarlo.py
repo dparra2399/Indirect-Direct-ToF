@@ -17,7 +17,7 @@ from utils.plot_utils import *
 if __name__ == "__main__":
 
     params = {}
-    params['n_tbins'] = 2048
+    params['n_tbins'] = 1024
     # params['dMax'] = 5
     # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 10 * 1e6
@@ -40,8 +40,8 @@ if __name__ == "__main__":
     #     ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma)
     # ]
     params['imaging_schemes'] = [
-        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
         ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True),
+        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
 
     ]
 
@@ -115,6 +115,7 @@ if __name__ == "__main__":
                 errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
                 error_metrix = calc_error_metrics(errors)
                 results[i, y, x] = error_metrix['mae']
+        print('done')
 
 
     exp_num = 'sinusoid001'
