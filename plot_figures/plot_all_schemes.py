@@ -1,15 +1,9 @@
-import time
-
 from IPython.core import debugger
 
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from spad_toflib import spad_tof_utils
 from felipe_utils.felipe_impulse_utils import tof_utils_felipe
-import numpy as np
-from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
-from spad_toflib.emitted_lights import GaussianTIRF
 from utils.file_utils import get_string_name
-from utils.plot_utils import *
+from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
 
 

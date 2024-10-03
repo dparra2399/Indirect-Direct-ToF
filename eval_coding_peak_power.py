@@ -15,6 +15,7 @@ from utils.coding_schemes_utils import init_coding_list
 from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams
 from utils.file_utils import get_string_name
+#mpl.use('TkAgg')
 
 
 
@@ -30,23 +31,32 @@ if __name__ == "__main__":
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    square_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_square_10mhz.npy')
-    pulse_irf = np.load('/Users/Patron/PycharmProjects/Flimera-Processing/irf_pulse_10mhz.npy')
 
     pulse_width = 8e-9
     tbin_res = params['rep_tau'] / params['n_tbins']
     sigma = int(pulse_width / tbin_res)
 
+    # params['imaging_schemes'] = [
+    #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
+    #                         duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    #                         duty=1./4., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
+    #                         binomial=True, gated=True, total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
+    #                         binomial=True, gated=True, total_laser_cycles=1_000_000)
+    # ]
+
+
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=8, pulse_width=sigma),
-        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=16, pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=3, pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=4, pulse_width=sigma),
+
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 5., freq_window=0.10),
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-                            duty=1. / 5., freq_window=0.10),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=4, pulse_width=sigma)
+                            duty=1. / 6., freq_window=0.10),
     ]
 
     params['meanBeta'] = 1e-4
@@ -59,7 +69,7 @@ if __name__ == "__main__":
 
     n_peak_lvls = 10
     (min_peak_count, max_peak_count) = (5, 30)
-    ambient_counts = [15, 5]
+    ambient_counts = [25, 5]
 
 
     dSample = 1.0
@@ -125,10 +135,10 @@ if __name__ == "__main__":
         ax[k].grid()
 
 
-    ax[0].set_title(f'Low SNR Levels')
-    ax[1].set_title(f'High SNR Levels')
+    ax[0].set_title(f'{ambient_counts[0]} Ambient Photons Per Bin')
+    ax[1].set_title(f'{ambient_counts[1]} Ambient Photons Per Bin')
 
-    save_folder = '/Users/Patron/Desktop/cowsip figures'
-    #fig.savefig(os.path.join(save_folder, 'figure2.jpg'), bbox_inches='tight')
+    save_folder = 'Z:\\Research_Users\\David\\paper figures'
+    #fig.savefig(os.path.join(save_folder, 'suppfigure6.svg'), bbox_inches='tight')
     plt.show()
     print('complete')
