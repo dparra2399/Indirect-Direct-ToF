@@ -156,9 +156,9 @@ class ContinuousWave(Coding):
             for i in range(self.n_functions):
                 for j in range(incident.shape[0]):
                     if self.split == False:
-                        intent[:, j, i] = np.inner(incident[:, j, 0, :], self.demodfs[:, i])
+                        intent[j, i] = np.inner(incident[j, 0, :], self.demodfs[:, i])
                     else:
-                        intent[:, j, i] = np.inner(incident[:, j, i, :], self.demodfs[:, i])
+                        intent[j, i] = np.inner(incident[j, i, :], self.demodfs[:, i])
             intent = poisson_noise_array(intent, trials)
 
         return intent

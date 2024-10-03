@@ -13,7 +13,7 @@ from utils.file_utils import get_string_name
 from utils.plot_utils import *
 import matplotlib.pyplot as plt
 import matplotlib
-matplotlib.use('TkAgg')
+#matplotlib.use('TkAgg')
 breakpoint = debugger.set_trace
 
 # Press the green button in the gutter to run the script.
