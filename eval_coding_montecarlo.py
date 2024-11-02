@@ -3,7 +3,7 @@
 from IPython.core import debugger
 
 breakpoint = debugger.set_trace
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from utils.coding_schemes_utils import init_coding_list
 from utils.coding_schemes_utils import ImagingSystemParams, get_levels_list_montecarlo
 from felipe_utils.research_utils.np_utils import calc_error_metrics
@@ -28,51 +28,58 @@ if __name__ == "__main__":
     sigma = int(pulse_width / tbin_res)
 
     # params['imaging_schemes'] = [
-    #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
-    #     ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=sigma),
-    #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-    #                         duty=1. / 6., freq_window=0.10),
-    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-    #                         duty=1. / 6., freq_window=0.10),
-    #     ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-    #                         duty=1. / 6., freq_window=0.10),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-    #     ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=64, pulse_width=sigma)
+    #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=110)
+    #     # ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    #     #                     duty=1. / 4., freq_window=0.10),
+    #     # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+    #     # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
+    #     # ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma)
     # ]
+
+    params['imaging_schemes'] = [
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc'),
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc'),
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=6, pulse_width=1),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1),
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1),
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=6, pulse_width=1),
+
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
+    ]
     # params['imaging_schemes'] = [
     #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
     #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True),
     #
     # ]
-    params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-                            duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
-                            total_laser_cycles=1_000_000),
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1./4., freq_window=0.10, binomial=True, gated=True,
-                            total_laser_cycles=1_000_000),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-                            binomial=True, gated=True, total_laser_cycles=1_000_000),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
-                            binomial=True, gated=True, total_laser_cycles=1_000_000)
-    ]
+    # params['imaging_schemes'] = [
+    #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
+    #                         duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    #                         duty=1./4., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
+    #                         binomial=True, gated=True, total_laser_cycles=1_000_000),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
+    #                         binomial=True, gated=True, total_laser_cycles=1_000_000)
+    # ]
 
 
     params['meanBeta'] = 1e-4
     params['trials'] = 2000
     params['freq_idx'] = [1]
 
-    params['levels_one'] = 'peak power'
-    params['levels_one_exp'] = (5, 60)
-    params['num_levels_one'] = 30
-    params['levels_two'] = 'amb photons'
-    params['levels_two_exp'] = (1, 25)
-    params['num_levels_two'] = 30
+    params['levels_one'] = 'ave power'
+    params['levels_one_exp'] = (1, 6)
+    params['num_levels_one'] = 20
+    params['levels_two'] = 'sbr'
+    params['levels_two_exp'] = (-1, 1)
+    params['num_levels_two'] = 20
 
     n_level_one = params['num_levels_one']
     n_level_two = params['num_levels_two']
-
 
     dSample = 1.0
     depths = np.arange(dSample, params['dMax']-dSample, dSample)
@@ -131,6 +138,6 @@ if __name__ == "__main__":
                 results[i, y, x] = error_metrix['mae']
 
 
-    exp_num = 'CoWSiP001'
+    exp_num = 'AvgPower_CoWSiP001'
     write_errors_to_file(params, results, depths, levels_one=levels_one, levels_two=levels_two, exp=exp_num)
     print('complete')

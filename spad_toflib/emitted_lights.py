@@ -6,13 +6,7 @@ breakpoint = debugger.set_trace
 
 ## Local Imports
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_codes
-from spad_toflib.spad_tof_utils import calculate_ambient
-from felipe_utils.felipe_cw_utils.CodingFunctionUtilsFelipe import ScaleMod
-from felipe_utils.felipe_impulse_utils.tof_utils_felipe import *
-from felipe_utils.felipe_cw_utils import CodingFunctionsFelipe
-from utils.file_utils import get_constrained_ham_codes
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+from felipe_utils.tof_utils_felipe import *
 import math
 import scipy as sp
 
@@ -142,7 +136,7 @@ class SinglePhotonSource(LightSource):
 
         for k in range(self.light_source.shape[-1]):
             peak_modfs[:, k] = (peak_modfs[:, k] / peak_modfs[:, k].max()) * peak_photons
-            incident[:, k] = peak_modfs[:, k] + (ambient_photons)
+            incident[:, k] = peak_modfs[:, k] + ambient_photons
         return incident
 
     def phase_shifted(self, modfs):
@@ -171,21 +165,21 @@ class KTapSinusoidSource(SinglePhotonSource):
 class HamiltonianSource(SinglePhotonSource):
     def __init__(self, n_functions, modfs=None, duty=None, win_duty=None, **kwargs):
         self.win_duty = win_duty
-        self.set_duty(duty)
+        self.set_duty(duty, n_functions)
         super().__init__(n_functions=n_functions, light_source=modfs,  **kwargs)
 
-    def set_duty(self, duty):
+    def set_duty(self, duty, n_functions):
         if duty is None:
-            if self.n_functions == 3:
+            if n_functions == 3:
                 self.duty = 1. / 6.
-            elif self.n_functions == 4:
+            elif n_functions == 4:
                 self.duty = 1. / 12.
-            elif self.n_functions == 5:
+            elif n_functions == 5:
                 self.duty = 1. / 30.
             else:
                 assert False
-
-        self.duty = duty
+        else:
+            self.duty = duty
 
     def generate_source(self):
         modfs = np.zeros((self.n_tbins, self.n_functions))
@@ -201,11 +195,12 @@ class HamiltonianSource(SinglePhotonSource):
 
 class GaussianTIRF(SinglePhotonSource):
 
-    def __init__(self, tirf=None, mu=None, sigma=None, **kwargs):
+    def __init__(self, tirf=None, mu=None, sigma=None, win_duty=None, **kwargs):
         # Set mu, and sigma params
         (self.mu, self.sigma) = (0, 1.)
         if (not (mu is None)): self.mu = mu
         if (not (sigma is None)): self.sigma = sigma
+        self.win_duty = win_duty
         # Initialize the regular Temporal IRF
         super().__init__(n_functions=1, light_source=tirf, **kwargs)
 
@@ -213,4 +208,7 @@ class GaussianTIRF(SinglePhotonSource):
         # Create a circular gaussian pulse
         gaussian_tirf = gaussian_pulse(self.t_domain, 0, self.sigma, circ_shifted=True)
         gaussian_tirf = np.expand_dims(gaussian_tirf, axis=-1)
+        if self.win_duty is not None:
+             dummy_var = np.zeros((self.n_tbins, self.n_functions))
+             (gaussian_tirf, _) = smooth_codes(gaussian_tirf, dummy_var, window_duty=self.win_duty)
         return gaussian_tirf

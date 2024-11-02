@@ -1,11 +1,8 @@
 import numpy as np
 
-from felipe_utils.felipe_cw_utils import CodingFunctionUtilsFelipe
-from spad_toflib.spad_tof_utils import gaussian_irf
-from scipy.fft import fft, fftshift
+from felipe_utils import CodingFunctionUtilsFelipe
 from utils.file_utils import get_constrained_ham_codes
 import cvxpy as cp
-import matplotlib.pyplot as plt
 
 (modfs, demodfs) = CodingFunctionUtilsFelipe.GetHamK5(N=1000)
 N = modfs.shape[0]

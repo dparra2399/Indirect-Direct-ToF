@@ -1,7 +1,7 @@
 from IPython.core import debugger
 
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from utils.file_utils import get_string_name
 from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # Press the green button in the gutter to run the script.
     if __name__ == '__main__':
         params = {}
-        params['n_tbins'] = 128
+        params['n_tbins'] = 1024
         # params['dMax'] = 5
         # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
         params['rep_freq'] = 5 * 1e6
@@ -34,24 +34,33 @@ if __name__ == '__main__':
         sigma = int(pulse_width / tbin_res)
 
         params['imaging_schemes'] = [
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=1, pulse_width=sigma),
-            ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                                 duty=1. / 4., freq_window=0.10),
-            ImagingSystemParams('Identity', 'Gaussian', 'linear', pulse_width=1),
-            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma),
-            ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=16, pulse_width=sigma)
+            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1),
+            ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=5, pulse_width=1),
+            ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc'),
+            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+            ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=20)
+        ]
+
+        params['imaging_schemes'] = [
+            ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10),
+            # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
+                                freq_window=0.10),
+
+            ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True,
+                                freq_window=0.10),
+            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
+
         ]
 
         # params['imaging_schemes'] = [
-        #     ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=sigma),
         #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
         #                          duty=1. / 4., freq_window=0.10),
         #     ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
         #                         duty=1. / 4., freq_window=0.10),
         #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc',
         #                         ktaps=3),
-        #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
-        #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=3, pulse_width=sigma)
+        #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=6, pulse_width=sigma),
         #
         # ]
 
@@ -124,7 +133,7 @@ if __name__ == '__main__':
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)
 
-    fig.suptitle('Coding Scheme Tested in Paper', fontsize=12,  fontweight="bold")
+    fig.suptitle('Coding Scheme Tested', fontsize=12,  fontweight="bold")
     fig.tight_layout()  # Adjust the rect to make space for the common labels
 
 
