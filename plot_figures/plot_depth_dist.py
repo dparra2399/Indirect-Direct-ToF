@@ -4,7 +4,7 @@ import time
 
 from IPython.core import debugger
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
@@ -33,9 +33,10 @@ if __name__ == '__main__':
     sigma = int(pulse_width / tbin_res)
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=False, split=False),
+        #ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=False, split=False),
         ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True, split=False),
-        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=20, pulse_width=sigma),
+        ImagingSystemParams('GrayTruncatedFourier', 'Gaussian', 'zncc', n_codes=20, pulse_width=1),
+        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
     ]
 
     params['meanBeta'] = 1e-4
@@ -50,10 +51,10 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count = (10 ** 8)
+    photon_count = (10 ** 4)
     sbr = 0.1
     #Or peak photon count
-    peak_photon_count = 15
+    peak_photon_count = None
     ambient_count = 10
 
     total_cycles = params['rep_freq'] * params['T']
@@ -112,23 +113,34 @@ if __name__ == '__main__':
         print(f'{toc-tic:.6f} seconds')
 
     num_bins = 100
-    # #bins = np.linspace(-500, 500, num_bins)
-    colors = ['blue', 'orange', 'green']
+    bins = np.linspace(-500, 500, num_bins)
+    colors = ['#ff7f0e', '#2ca02c', '#1f77b4']
     fig, axs = plt.subplots()
-    n, bins, patches = axs.hist(all_errors[:, 0], num_bins, alpha=0., color=colors[0])
-    axs.hist(all_errors[:, 1], bins, alpha=0.7, color=colors[1])
-    axs.hist(all_errors[:, 2], bins, alpha=0.7, color=colors[2])
-    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure2a.svg', bbox_inches='tight')
+    axs.hist(all_errors[:, 0], bins, alpha=0.7, color=colors[0], density=True, label='I-ToF')
+    axs.hist(all_errors[:, 1], bins, alpha=0.7, color=colors[1], density=True, label='d-ToF (Compressed)')
+    #axs.hist(all_errors[:, 2], bins, alpha=0.7, color=colors[2])
+    axs.set_ylabel('Depth Counts')
+    axs.set_xlabel('Depth error')
+    axs.set_title('Average Power')
+    axs.legend()
+
+    #axs.set_ylim(0, 10000)
+    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure2a.svg', bbox_inches='tight')
+    fig.savefig('Z:\\Research_Users\\David\\paper figures\\ppt.png', bbox_inches='tight')
     plt.show()
     plt.close()
 
     fig,axs = plt.subplots()
-    labels = ['CoWSiP-ToF', 'i-ToF', 'd-ToF']
-    x = [1, 2, 3]
+    labels = ['i-ToF', 'd-ToF']
+    x = [1, 2]
     axs.set_xticks(x)
     axs.set_xticklabels(labels)
     axs.bar(x, n_tbins / n_codes, color=colors)
-    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure2b.svg', bbox_inches='tight')
+    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure2b.svg', bbox_inches='tight')
+    fig.savefig('Z:\\Research_Users\\David\\paper figures\\ppt2.png', bbox_inches='tight')
+    axs.set_ylabel('Compression Rate')
+    axs.legend()
+    #axs.set_xlabel('Depth error')
     plt.show()
     plt.close()
     print()
