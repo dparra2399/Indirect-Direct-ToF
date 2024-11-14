@@ -1,7 +1,7 @@
 from IPython.core import debugger
 
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from spad_toflib.spad_tof_utils import split_into_indices, gated_ham
 
 from plot_figures.plot_utils import *

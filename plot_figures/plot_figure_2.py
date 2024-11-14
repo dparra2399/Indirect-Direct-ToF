@@ -2,7 +2,7 @@ from IPython.core import debugger
 
 from spad_toflib.spad_tof_utils import normalize_measure_vals
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
 

@@ -44,7 +44,7 @@ def get_string_name(imaging_scheme):
             str_name = r'$\bf{FRH}$' + r' $\bf{(Wide)}$'
         else:
             str_name = r'$\bf{FRH}$' + r' $\bf{(Narrow)}$'
-        str_name = r'Full Res. Histogram' + f'\n $\sigma = {PW}\Delta$'
+        str_name = r'Full Res. Histogram' + f'\n $\sigma = {PW}\Delta t$'
         #str_name += 'Full-resolution Hist.'
     elif imaging_scheme.coding_id == 'Gated':
         assert imaging_scheme.light_id == 'Gaussian'
@@ -54,7 +54,7 @@ def get_string_name(imaging_scheme):
             str_name = r'Coarse' + r' $\bf{(Wide)}$'
         else:
             str_name = r'Coarse' + r' $\bf{(Narrow)}$'
-        str_name = r'$\bf{Coarse} \bf{Hist.}$ ' + f'\n $K={n_gates}, \sigma = {PW}\Delta$'
+        str_name = r'Coarse Hist. ' + f'\n $K={n_gates}, \sigma = {PW}\Delta t$'
     elif imaging_scheme.coding_id[:-2] == 'Hamiltonian':
         if imaging_scheme.account_irf is True:
             str_name = f'Ham{imaging_scheme.coding_id[-2:]} IRF'
@@ -69,17 +69,19 @@ def get_string_name(imaging_scheme):
         else:
             str_name = f'SP Sinusoid K={ktaps}'
     elif imaging_scheme.coding_id == 'TruncatedFourier':
-        k = (imaging_scheme.n_freqs + 1) * 2
+        k = imaging_scheme.n_codes
+        if k is None:
+            k = imaging_scheme.n_freqs * 2
         PW = imaging_scheme.pulse_width
         if PW > 1:
             str_name = r'$\bf{Trunc. Fourier}$' + r' $\bf{(Wide)}$'
         else:
             str_name = r'$\bf{Trunc. Fourier}$' + r' $\bf{(Narrow)}$'
-        str_name = r'Truncated Fourier' + f'\n K={k}, $\sigma = {PW}\Delta$'
+        str_name = r'Truncated Fourier' + f'\n K={k}, $\sigma = {PW}\Delta t$'
     elif imaging_scheme.coding_id == 'Greys':
         k = imaging_scheme.n_bits
         PW = imaging_scheme.pulse_width
-        str_name = r'Continuous Greys' + f'\n K={k}, $\sigma = {PW}\Delta$'
+        str_name = r'Continuous Greys' + f'\n K={k}, $\sigma = {PW}\Delta t$'
     else:
         str_name = f'{imaging_scheme.coding_id}'
     return str_name

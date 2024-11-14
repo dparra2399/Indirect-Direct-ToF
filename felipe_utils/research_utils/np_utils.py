@@ -125,8 +125,8 @@ def calc_error_metrics(errors, percentiles=[0.5, 0.75, 0.95, 0.99], eps_list=[1.
 		metrics['{}_tol_errs'.format(int(eps_list[i]))] = calc_eps_tolerance_error(scaled_errors, eps = eps_list[i])
 	return metrics
 
-def print_error_metrics(metrics, prefix=''):
-	print(f'{prefix}:')
+def print_error_metrics(metrics, prefix='', K=None):
+	print(f'{prefix} K={K}:')
 	print("\t mae = {:.2f}".format(metrics['mae']))
 	print("\t rmse = {:.2f}".format(metrics['rmse']))
 	print("\t medae = {:.2f}".format(metrics['medae']))

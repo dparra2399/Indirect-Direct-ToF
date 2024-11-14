@@ -48,7 +48,7 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=
     elif light_id == 'Gaussian':
         if pw is None: pw = 1
         light_obj = GaussianTIRF(tirf=h_irf, n_tbins=n_tbins, binomial=binomial, sigma=pw * tbin_res,
-                                 t=t, rep_tau=tau, depths=depths, t_domain=t_domain)
+                                 t=t, rep_tau=tau, depths=depths, t_domain=t_domain, win_duty=win_duty)
 
     return light_obj
 
@@ -92,26 +92,38 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=5,
                                                 split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
                                                 t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'ModifiedHamiltonianK3'):
+        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,k=3,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'ModifiedHamiltonianK4'):
+        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=4,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'ModifiedHamiltonianK5'):
+        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=5,
+                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
+                                                t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Identity'):
         coding_obj = IdentityCoding(n_tbins=n_tbins, sigma=pw * tbin_res, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,
-                                            t_domain=t_domain, h_irf=h_irf)
+                                            t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
         coding_obj = GatedCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
-                                         account_irf=False, t_domain=t_domain, h_irf=h_irf)
+                                         account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
     elif (coding_id == 'Greys'):
         assert n_bits != None, 'Need to declare number of bits for greys coding'
         coding_obj = GrayCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_bits=n_bits,
-                                         account_irf=False, t_domain=t_domain, h_irf=h_irf)
+                                         account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
     elif (coding_id == 'Fourier'):
         coding_obj = FourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, freq_idx=freq_idx, n_codes=n_codes,
-                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
+                                account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
 
     elif (coding_id == 'TruncatedFourier'):
         coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, n_freqs=n_freqs, n_codes=n_codes,
-                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
+                                account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
 
     elif (coding_id == 'GrayTruncatedFourier'):
         coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
