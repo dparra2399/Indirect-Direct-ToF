@@ -1,14 +1,12 @@
 # Python imports
 # Library imports
 import numpy as np
-import matplotlib as mpl
-import seaborn as sns
 import matplotlib.pyplot as plt
 from IPython.core import debugger
 
 
 breakpoint = debugger.set_trace
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from utils.coding_schemes_utils import init_coding_list
 from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams

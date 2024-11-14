@@ -1,6 +1,7 @@
 ### Python imports
 #### Library imports
 import numpy as np
+from felipe_utils.tof_utils_felipe import *
 from IPython.core import debugger
 
 breakpoint = debugger.set_trace
@@ -61,3 +62,36 @@ def split_into_indices(square_array):
     if start_index is not None:
         indices.append((start_index, len(square_array) - 1))
     return indices
+
+
+def simulate_average_photons_n_cycles(light_source, total_photons, sbr):
+    incident = np.zeros(light_source.shape)
+    n_tbins = light_source.shape[0]
+
+    if sbr == 0:
+        total_amb_photons = 0
+    else:
+        total_amb_photons = total_photons / sbr
+    scaled_modfs = np.copy(light_source)
+    for i in range(0, light_source.shape[-1]):
+        scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
+        incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / n_tbins))
+    return incident
+
+
+def phase_shifted(light_source, depths, tbin_depth_res):
+    shifted_modfs = np.zeros((depths.shape[0], light_source.shape[1], light_source.shape[0]))
+    for d in range(0, depths.shape[0]):
+        for i in range(0, light_source.shape[-1]):
+            shifted_modfs[d, i, :] = np.roll(light_source[:, i], int(depths[d] / tbin_depth_res))
+    return shifted_modfs
+
+def zncc_reconstruction(intensities, corrs):
+    norm_int = zero_norm_t(intensities, axis=-1)
+    zero_norm_corrs = zero_norm_t(corrs, axis=-1)
+    return np.matmul(zero_norm_corrs, norm_int[..., np.newaxis]).squeeze(-1)
+
+def ncc_reconstruction(intensities, corrs):
+    norm_int = norm_t(intensities, axis=-1)
+    norm_corrs = norm_t(corrs, axis=-1)
+    return np.matmul(norm_corrs, norm_int[..., np.newaxis]).squeeze(-1)

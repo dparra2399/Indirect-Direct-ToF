@@ -4,11 +4,11 @@ import time
 
 from IPython.core import debugger
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from plot_figures.plot_utils import *
 
-#matplotlib.use('TkAgg')
+#matplotlib.use('QTkAgg')
 breakpoint = debugger.set_trace
 
 # Press the green button in the gutter to run the script.
@@ -18,32 +18,47 @@ if __name__ == '__main__':
     params['n_tbins'] = 1024
     #params['dMax'] = 5
     #params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
-    params['rep_freq'] = 10 * 1e6
+    params['rep_freq'] = 5 * 1e6
     params['rep_tau'] = 1. / params['rep_freq']
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['T'] = 0.1 #intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    pulse_irf = np.genfromtxt(r"C:\\Users\\Patron\\PycharmProjects\\Flimera-Processing\\irfs\\pulse_10mhz.csv", delimiter=',')[:, 1]
-    pulse_irf = np.roll(pulse_irf, -np.argmax(pulse_irf))
-    square_irf = np.genfromtxt(r"C:\\Users\\Patron\\PycharmProjects\\Flimera-Processing\\irfs\\sqr25_10mhz.csv", delimiter=',')[:, 1]
 
-    pulse_width = 8e-9
-    tbin_res = params['rep_tau'] / params['n_tbins']
-    sigma = int(pulse_width / tbin_res)
+
+    # params['imaging_schemes'] = [
+    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc'),
+    #     ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+    #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=3, pulse_width=1),
+    #     ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1),
+    #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
+    #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
+    # ]
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', account_irf=True,
-                            h_irf=square_irf, n_freqs=8, pulse_width=sigma),
-        #ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1),
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            account_irf=True, h_irf=square_irf, duty=1. / 4., freq_window=0.10),
-        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt',
-                            account_irf=True, h_irf=pulse_irf ,pulse_width=sigma),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=64, pulse_width=sigma,
-                            account_irf=True, h_irf=pulse_irf)
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1./4.),
+        #ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True, freq_window=0.10),
+
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=5, pulse_width=1, account_irf=True, freq_window=0.10),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
+
     ]
+
+    # params['imaging_schemes'] = [
+    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
+    #                         duty=1./12., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=100_000),
+    #     ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
+    #                         duty=1. / 30., freq_window=0.10, binomial=True, gated=True,
+    #                         total_laser_cycles=100_000),
+    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
+    #                         binomial=True, gated=True, total_laser_cycles=100_000),
+    #     ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=sigma, n_gates=32,
+    #                         binomial=True, gated=True, total_laser_cycles=100_000)
+    # ]
+
+
 
     params['meanBeta'] = 1e-4
     params['trials'] = 1000
@@ -57,10 +72,10 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count = (10 ** 8)
-    sbr = 0.1
+    photon_count =  (10 ** 3)
+    sbr = 1.0
     #Or peak photon count
-    peak_photon_count = 1000
+    peak_photon_count = 100
     ambient_count = 10
 
     total_cycles = params['rep_freq'] * params['T']
@@ -110,7 +125,7 @@ if __name__ == '__main__':
         all_error = np.reshape((decoded_depths - depths[np.newaxis, :]) * depth_res, (errors.size))
         error_metrix = calc_error_metrics(errors)
         print()
-        print_error_metrics(error_metrix, prefix=coding_scheme)
+        print_error_metrics(error_metrix, prefix=coding_scheme, K=coding_obj.n_functions)
 
         toc = time.perf_counter()
         print(f'{toc-tic:.6f} seconds')

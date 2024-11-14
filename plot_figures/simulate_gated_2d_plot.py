@@ -5,17 +5,14 @@ import os
 
 from IPython.core import debugger
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from spad_toflib import spad_tof_utils
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
-from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
+from felipe_utils import tof_utils_felipe
+from felipe_utils.research_utils.np_utils import calc_error_metrics
 import numpy as np
-from spad_toflib.emitted_lights import GaussianTIRF
 # import torch
 # from torch.utils.data import Dataset
 # from torchvision import datasets
 # from torchvision.transforms import ToTensor
 
-from utils.file_utils import get_string_name
 from matplotlib import rc
 import matplotlib
 import matplotlib.pyplot as plt
@@ -53,15 +50,16 @@ if __name__ == '__main__':
     pulse_width = 8e-9
     tbin_res = params['rep_tau'] / params['n_tbins']
     sigma = int(pulse_width / tbin_res)
+    sigma = 20
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-                            binomial=True, gated=True, total_laser_cycles=100_000),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=64, pulse_width=sigma,
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=sigma,
                              binomial=True, gated=True, total_laser_cycles=100_000),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
+                            duty=1. / 12., freq_window=0.10, binomial=True, gated=True,
                             total_laser_cycles=100_000),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
+                            binomial=True, gated=True, total_laser_cycles=100_000)
     ]
 
     params['meanBeta'] = 1e-4
@@ -81,10 +79,10 @@ if __name__ == '__main__':
     # Do either average photon count
     photon_count = (10 ** 4)
     sbr = 0.1
-    peak_photon_count = 10
+    peak_photon_count = None
     ambient_count = 10
 
-    laser_cycle = 2e6
+    laser_cycle = 4e5
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -144,8 +142,8 @@ if __name__ == '__main__':
     axs.plot(np.linspace(0, nc, nc), depth_image[line, :], color='red')
     axs.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
     fig.tight_layout()
-    axs.set_ylim(2,7)
-    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure7a.svg', bbox_inches='tight')
+    axs.set_ylim(2.5,6.5)
+    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure7a.svg', bbox_inches='tight')
     plt.show()
 print()
 print('YAYYY')

@@ -1,7 +1,6 @@
 # Python imports
 # Library imports
 import numpy as np
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from IPython.core import debugger
 import os
@@ -9,10 +8,9 @@ import seaborn as sns
 sns.set_theme()
 
 breakpoint = debugger.set_trace
-from felipe_utils.felipe_impulse_utils import tof_utils_felipe
+from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics
 from utils.coding_schemes_utils import init_coding_list
-from spad_toflib import spad_tof_utils
 from utils.coding_schemes_utils import ImagingSystemParams
 from utils.file_utils import get_string_name
 #mpl.use('TkAgg')
@@ -51,12 +49,12 @@ if __name__ == "__main__":
 
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=2, pulse_width=sigma),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=3, pulse_width=sigma),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_freqs=4, pulse_width=sigma),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=110),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=6, pulse_width=110),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=110),
 
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-                            duty=1. / 6., freq_window=0.10),
+                            duty=1. / 4., freq_window=0.10),
     ]
 
     params['meanBeta'] = 1e-4
@@ -139,6 +137,6 @@ if __name__ == "__main__":
     ax[1].set_title(f'{ambient_counts[1]} Ambient Photons Per Bin')
 
     save_folder = 'Z:\\Research_Users\\David\\paper figures'
-    #fig.savefig(os.path.join(save_folder, 'suppfigure6.svg'), bbox_inches='tight')
+    fig.savefig(os.path.join(save_folder, 'suppfigure6.svg'), bbox_inches='tight')
     plt.show()
     print('complete')

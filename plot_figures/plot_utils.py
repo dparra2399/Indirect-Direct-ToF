@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.colors as mcolors
 import numpy as np
 import os
 from math import comb
@@ -15,28 +16,15 @@ def plot_hist(incident, detected, demodfs):
 
     matplotlib.rc('font', **font)
 
-    fig, axs = plt.subplots(1, 3, figsize=(9, 3))
+    save_folder = 'Z:\\Research_Users\\David\\paper figures'
+    fig, axs = plt.subplots()
 
-    for i in range(3):
-        axs[i].set_xticks([])
-        axs[i].set_yticks([])
-        axs[i].spines['top'].set_visible(False)
-        axs[i].spines['right'].set_visible(False)
+    axs.set_xticks([])
+    axs.set_yticks([])
+    axs.spines['top'].set_visible(False)
+    axs.spines['right'].set_visible(False)
 
-    axs[0].plot(incident)
-    axs[0].set_xlabel('Time')
-    axs[0].set_ylabel('Intensity')
-    axs[0].set_title('Modulation Function')
-
-    axs[1].bar(np.arange(0, detected.shape[0]), detected, edgecolor='black', linewidth=0.1, color='#1f77b4')
-    axs[1].set_xlabel('Time bins')
-    axs[1].set_ylabel('Photon Count')
-    axs[1].set_title('Histogram')
-
-    axs[2].plot(demodfs)
-    axs[2].set_xlabel('Time')
-    axs[2].set_title('Demodulation Functions')
-
+    axs.bar(np.arange(0, detected.shape[0]), detected, edgecolor='black', linewidth=0.1, color='blue')
     fig.savefig(os.path.join(save_folder, 'figure1b.svg'), bbox_inches='tight')
     plt.show()
 
@@ -72,9 +60,8 @@ def plot_modulation_function_with_histogram(modf, hist, filename=None):
     #axs.set_title('Measured Histogram')
     #axs.set_xlabel('Time Bins')
     #axs.set_ylabel('Photon Count')
-    axs.plot(modf, color='lightblue')
     axs.bar(np.arange(0, hist.shape[0]), hist, edgecolor='black', linewidth=0.5, color='blue')
-    fig.savefig(os.path.join(save_folder, f'{filename}.svg'), bbox_inches='tight')
+    fig.savefig(os.path.join(save_folder, f'whatever.svg'), bbox_inches='tight')
     plt.show()
 
 
@@ -138,22 +125,37 @@ def calculate_poisson_prob(theta_bkg, theta_max):
     prob_poisson = 1-(not_prob_poison**500)
     return prob_poisson
 
-def get_scheme_color(coding_scheme, pw=None, cw_tof=False):
+def get_scheme_color(coding_scheme, k, cw_tof=False):
     color = None
     if coding_scheme.startswith('TruncatedFourier'):
-        color = '#ff7f0e'
+        if k==6:
+            color = 'gold'
+        else:
+            color = '#ff7f0eff'
     elif coding_scheme.startswith('Gated'):
         color = '#2ca02c'
     elif coding_scheme.startswith('Hamiltonian'):
-        color = '#1f77b4'
+        if k==5:
+            color = '#1f77b4'
+        elif k==4:
+            color = '#1f77b4'
     elif coding_scheme == 'Identity':
-        if pw == 1:
-            color = '#e377c2'
-        else:
-            color = '#d62728'
+        color = '#e377c2'
     elif coding_scheme.startswith('KTapSinusoid'):
         if cw_tof:
-            color = '#ff7f0e'
+            color = '#ff7f0eff'
         else:
             color = '#1f77b4'
+    elif coding_scheme.startswith('Greys'):
+            color = '#d62728'
     return color
+
+
+def darken_cmap(cmap, factor=0.8):
+    """Darkens a colormap by a given factor."""
+    cdict = cmap._segmentdata
+    new_cdict = {}
+    for key in ('red', 'green', 'blue'):
+        new_cdict[key] = [(x[0], factor * x[1], factor * x[2]) for x in cdict[key]]
+    return mcolors.LinearSegmentedColormap('darker_cmap', new_cdict)
+
