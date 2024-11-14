@@ -53,18 +53,6 @@ if __name__ == "__main__":
     #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True),
     #
     # ]
-    # params['imaging_schemes'] = [
-    #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-    #                         duty=1. / 4., freq_window=0.10, binomial=True, gated=True,
-    #                         total_laser_cycles=1_000_000),
-    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-    #                         duty=1./4., freq_window=0.10, binomial=True, gated=True,
-    #                         total_laser_cycles=1_000_000),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-    #                         binomial=True, gated=True, total_laser_cycles=1_000_000),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma,
-    #                         binomial=True, gated=True, total_laser_cycles=1_000_000)
-    # ]
 
 
     params['meanBeta'] = 1e-4
@@ -136,6 +124,7 @@ if __name__ == "__main__":
                 errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
                 error_metrix = calc_error_metrics(errors)
                 results[i, y, x] = error_metrix['mae']
+        print('done')
 
 
     exp_num = 'AvgPower_CoWSiP001'
