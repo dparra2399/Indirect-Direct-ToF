@@ -34,13 +34,14 @@ if __name__ == '__main__':
     #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
     #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
     # ]
-
+    filename = 'coded_model.npy'
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1./4.),
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1./12.),
         #ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True, freq_window=0.10),
-
-        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=5, pulse_width=1, account_irf=True, freq_window=0.10),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
+                            freq_window=0.10),
+        ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, pulse_width=1, freq_window=0.10),
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True, freq_window=0.10),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
 
     ]
@@ -67,15 +68,15 @@ if __name__ == '__main__':
     print(f'max depth: {params["dMax"]} meters')
     print()
 
-    dSample = 1.0
+    dSample = 1.05
     depths = np.arange(dSample, params['dMax']-dSample, dSample)
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count =  (10 ** 3)
+    photon_count =  (10 ** 4)
     sbr = 1.0
     #Or peak photon count
-    peak_photon_count = 100
+    peak_photon_count = None #100
     ambient_count = 10
 
     total_cycles = params['rep_freq'] * params['T']

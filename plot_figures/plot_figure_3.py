@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
             #ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
             #ImagingSystemParams('Gated', 'Gaussian', 'identity', pulse_width=15, n_gates=32)
-            ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc')
+            ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc', freq_window=.10)
         ]
 
         params['meanBeta'] = 1e-4
@@ -95,25 +95,25 @@ if __name__ == '__main__':
         axs[0].spines['right'].set_visible(False)
         axs[0].set_ylim(0, 15)
 
-        axs[0].plot(inc, color='blue')
+        axs[0].plot(inc, color='#00B0F0')
 
         axs[1].set_xticks([])
         axs[1].set_yticks([])
         axs[1].spines['top'].set_visible(False)
         axs[1].spines['right'].set_visible(False)
-        axs[1].plot(demodfs[:, 0], color='#d41d07ff')
-        axs[1].plot(demodfs[:, 1], color='#007e07ff')
-        axs[1].plot(demodfs[:, 2], color='#9b009bff')
+        axs[1].plot(demodfs[:, 0], color='red')
+        axs[1].plot(demodfs[:, 1], color='green')
+        axs[1].plot(demodfs[:, 2], color='orange')
 
         axs[2].set_xticks([])
         axs[2].set_yticks([])
         axs[2].spines['top'].set_visible(False)
         axs[2].spines['right'].set_visible(False)
-        axs[2].plot(correlations[:, 0], color='#d41d07ff')
-        axs[2].plot(correlations[:, 1], color='#007e07ff')
-        axs[2].plot(correlations[:, 2], color='#9b009bff')
+        axs[2].plot(correlations[:, 0], color='darkred')
+        axs[2].plot(correlations[:, 1], color='darkgreen')
+        axs[2].plot(correlations[:, 2], color='darkorange')
 
         fig.tight_layout()
-        fig.savefig(os.path.join(save_folder, 'figure3a.svg'), bbox_inches='tight')
+        #fig.savefig(os.path.join(save_folder, 'figure3a.svg'), bbox_inches='tight')
 
         plt.show()

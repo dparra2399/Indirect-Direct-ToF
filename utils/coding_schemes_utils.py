@@ -6,6 +6,7 @@ from spad_toflib.emitted_lights import *
 from dataclasses import dataclass
 import numpy as np
 
+learned_folder = 'learned_codes'
 
 def init_coding_list(n_tbins, depths, params, t_domain=None):
     coding_list = []
@@ -49,6 +50,11 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=
         if pw is None: pw = 1
         light_obj = GaussianTIRF(tirf=h_irf, n_tbins=n_tbins, binomial=binomial, sigma=pw * tbin_res,
                                  t=t, rep_tau=tau, depths=depths, t_domain=t_domain, win_duty=win_duty)
+
+    elif light_id == 'Learned':
+        filename = os.path.join(os.path.join(learned_folder, 'illumination'), coding_system.checkpoint_file)
+        light_obj = LearnedSource(filename=filename, split=split, binomial=binomial,
+                                      t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
 
     return light_obj
 
@@ -114,21 +120,27 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
     elif (coding_id == 'Greys'):
         assert n_bits != None, 'Need to declare number of bits for greys coding'
         coding_obj = GrayCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_bits=n_bits,
-                                         account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+                                         account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
     elif (coding_id == 'Fourier'):
         coding_obj = FourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, freq_idx=freq_idx, n_codes=n_codes,
-                                account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
 
     elif (coding_id == 'TruncatedFourier'):
         coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, n_freqs=n_freqs, n_codes=n_codes,
-                                account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
 
     elif (coding_id == 'GrayTruncatedFourier'):
         coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, n_codes=n_codes,
-                                account_irf=False, t_domain=t_domain, h_irf=h_irf)
+                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
+    elif (coding_id == 'Learned'):
+        filename = os.path.join(os.path.join(learned_folder, 'coding_matrices'), coding_system.checkpoint_file)
+        coding_obj = LearnedCoding(n_tbins=n_tbins, sigma=pw * tbin_res, checkpoints=filename,
+                                   binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
+                                   account_irf=False, t_domain=t_domain, h_irf=h_irf,
+                                   win_duty=win_duty)
     return coding_obj
 
 
@@ -187,3 +199,4 @@ class ImagingSystemParams:
     n_codes: int = None
     total_laser_cycles: int = None
     mean_absolute_error: float = None
+    checkpoint_file: str = None

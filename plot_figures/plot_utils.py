@@ -9,7 +9,7 @@ from scipy.stats import binom, poisson
 save_folder = 'Z:\\Research_Users\\David\\paper figures'
 
 
-def plot_hist(incident, detected, demodfs):
+def plot_hist(detected):
     font = {'family': 'normal',
             'weight': 'bold',
             'size': 10}
