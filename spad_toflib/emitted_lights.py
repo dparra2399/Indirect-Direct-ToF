@@ -73,7 +73,7 @@ class SinglePhotonSource(LightSource):
         if light_source is None:
             light_source = self.generate_source()
         else:
-            light_source = self.set_source(light_source)
+             light_source = self.set_source(light_source)
         super().__init__(light_source=light_source, **kwargs)
 
     def set_source(self, input_light_source):
@@ -147,6 +147,20 @@ class SinglePhotonSource(LightSource):
                 shifted_modfs[d, i, :] = np.roll(modfs[:, i], int(self.depths[d] / tbin_depth_res))
         return shifted_modfs
 
+
+class LearnedSource(SinglePhotonSource):
+    def __init__(self, filename, win_duty=None, **kwargs):
+        self.filename = filename
+        self.win_duty = win_duty
+        super().__init__(light_source=None, n_functions=None, **kwargs)
+
+    def generate_source(self):
+        light_source = np.load(self.filename)
+        if self.win_duty is not None:
+            dummy_var = np.zeros((self.n_tbins, 1))
+            (light_source, _) = smooth_codes(light_source, dummy_var, window_duty=self.win_duty)
+        self.n_functions = light_source.shape[-1]
+        return light_source
 
 class KTapSinusoidSource(SinglePhotonSource):
     def __init__(self, n_functions, modfs=None, **kwargs):

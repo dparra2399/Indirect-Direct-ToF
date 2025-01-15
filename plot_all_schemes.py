@@ -41,12 +41,14 @@ if __name__ == '__main__':
             ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=20)
         ]
 
+        filename = 'coded_model.npy'
         params['imaging_schemes'] = [
-            ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10),
+            ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1. / 12.),
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
             ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
                                 freq_window=0.10),
-
+            ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, pulse_width=1,
+                                freq_window=0.10),
             ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True,
                                 freq_window=0.10),
             ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
@@ -91,9 +93,9 @@ if __name__ == '__main__':
 
         fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4)
 
-        axs[0][1].set_title('Incident Waveform')
-        axs[0][2].set_title('Demodulation Functions')
-        axs[0][3].set_title('Coding Matrix')
+        axs[0][1].set_title('Emitted S(t)')
+        axs[0][2].set_title('Coding Functions D(t)')
+        axs[0][3].set_title('Coding Matrix D')
         for i in range(len(imaging_schemes)):
             imaging_scheme = imaging_schemes[i]
             coding_obj = imaging_scheme.coding_obj
@@ -119,7 +121,7 @@ if __name__ == '__main__':
             axs[i][1].set_xlabel('Time')
             axs[i][2].set_xlabel('Time')
 
-            if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys']:
+            if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys', 'Learned']:
                 axs[i][2].plot(coding_obj.correlations)
                 axs[i][3].imshow(coding_obj.correlations.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
@@ -127,8 +129,8 @@ if __name__ == '__main__':
                 axs[i][2].plot(coding_obj.demodfs)
                 axs[i][3].imshow(coding_obj.demodfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
-
-            axs[i][1].plot(np.roll(light_obj.light_source, int(n_tbins/2)), color='blue')
+            first_zero_index = np.where(light_obj.light_source == 0)[0]
+            axs[i][1].plot(np.roll(light_obj.light_source, 25), color='blue')
             axs[i][0].set_axis_off()
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)
@@ -165,6 +167,6 @@ if __name__ == '__main__':
             color='black', linewidth=1
         ))
 
-    fig.savefig('Z:\\Research_Users\\David\\paper figures\\supfigure1.svg', bbox_inches='tight')
+    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\supfigure1.svg', bbox_inches='tight')
     plt.show()
 

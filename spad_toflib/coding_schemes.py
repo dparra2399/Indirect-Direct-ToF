@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 from scipy import interpolate
-from statsmodels.nonparametric.kernels import gaussian
 import matplotlib.pyplot as plt
 from felipe_utils import CodingFunctionsFelipe
 from felipe_utils.tof_utils_felipe import zero_norm_t, norm_t
@@ -154,7 +153,7 @@ class ContinuousWave(Coding):
            # inc = incident[18, 0, :]
             if self.split == False:
                 a = poisson_noise_array(a[:, 0, :], trials)
-                #detected = a[100, 18, :]
+                detected = a[100, 26, :]
                 intent = np.einsum('mnp,pq->mnq', a, b)
             else:
                 a = poisson_noise_array(a, trials)
@@ -221,6 +220,16 @@ class ImpulseCoding(Coding):
 
         return c_vals
 
+class LearnedCoding(ImpulseCoding):
+    def __init__(self, n_tbins, sigma, checkpoints, **kwargs):
+        self.n_tbins = n_tbins
+        self.sigma = sigma
+        self.checkpoints = checkpoints
+        self.correlations = None
+        super().__init__(n_tbins=n_tbins, **kwargs)
+
+    def set_coding_scheme(self, n_tbins):
+        self.correlations = np.load(self.checkpoints)
 
 class KTapSinusoidCoding(ContinuousWave):
 
