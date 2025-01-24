@@ -1,6 +1,5 @@
 # Python imports
 # Library imports
-import plotly.graph_objects as go
 from IPython.core import debugger
 from felipe_utils import tof_utils_felipe
 from plot_figures.plot_utils import *
@@ -16,15 +15,13 @@ font = {'family': 'serif',
 
 rc('font', **font)
 
-rc('text',usetex=True)
-rc('text.latex', preamble=r'\usepackage{color}')
 
 #plt.style.use('dark_background')
 
 breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\paper figures'
-file = np.load('../data/results/September/ntbins_1024_monte_2000_exp_CoWSiP001.npz', allow_pickle=True)
+file = np.load('../data/results/ntbins_1024_monte_2000_exp_Learned001.npz', allow_pickle=True)
 
 num = 1
 num2 = 1
@@ -56,7 +53,7 @@ for j in range(len(imaging_schemes)):
     elif imaging_schemes[j].coding_id.startswith('Gated'):
         str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[j].n_gates}'
         if imaging_schemes[j].pulse_width == 1:
-            continue
+            pass
     elif imaging_schemes[j].coding_id.startswith('Hamiltonian'):
         if imaging_schemes[j].coding_id.endswith('3') or imaging_schemes[j].coding_id.endswith('5'):
             continue
@@ -76,15 +73,13 @@ for j in range(len(imaging_schemes)):
     elif imaging_schemes[j].coding_id == 'Greys':
         str_name = 'Count. Greys'
         if imaging_schemes[j].n_bits != 5:
-             continue
-        continue
+             pass
 
     k = imaging_schemes[j].coding_obj.n_functions
     surf = ax.plot_surface(levels_one,levels_two, tmp,
                            label=get_string_name(imaging_schemes[j]), alpha=0.8,
                            edgecolors='k', lw=0.5, shade=False, antialiased=True,
                            color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
-    arr.append(go.Surface(z=mae[j, :, :], x=levels_one, y=levels_two))
     surf._edgecolors2d = surf._edgecolor3d
     surf._facecolors2d = surf._facecolor3d
 
@@ -96,7 +91,7 @@ ax.view_init(elev=20., azim=-60)
 
 #ax.set_zlabel('Mean Depth Error in (mm)')
 ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-ax.set_zlim(0, 500)
+ax.set_zlim(0, 200)
 fig.tight_layout()
 fig.savefig(os.path.join(save_folder, 'figure6a.svg'), bbox_inches='tight', dpi=3000)
 plt.show(block=True)

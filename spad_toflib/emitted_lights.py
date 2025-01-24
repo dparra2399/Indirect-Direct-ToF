@@ -14,6 +14,7 @@ TotalEnergyDefault = 1.
 TauDefault = 1.
 AveragePowerDefault = TotalEnergyDefault / TauDefault
 
+learned_folder = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class LightSource(ABC):
 
@@ -149,18 +150,19 @@ class SinglePhotonSource(LightSource):
 
 
 class LearnedSource(SinglePhotonSource):
-    def __init__(self, filename, win_duty=None, **kwargs):
-        self.filename = filename
+    def __init__(self, filename, n_functions, win_duty=None, **kwargs):
+        self.filename = os.path.join(os.path.join(learned_folder, 'illumination'), filename)
+        self.n_functions = n_functions
         self.win_duty = win_duty
-        super().__init__(light_source=None, n_functions=None, **kwargs)
+        super().__init__(light_source=None, n_functions=n_functions, **kwargs)
 
     def generate_source(self):
         light_source = np.load(self.filename)
+        output_source = np.repeat(light_source, self.n_functions, axis=-1)
         if self.win_duty is not None:
-            dummy_var = np.zeros((self.n_tbins, 1))
-            (light_source, _) = smooth_codes(light_source, dummy_var, window_duty=self.win_duty)
-        self.n_functions = light_source.shape[-1]
-        return light_source
+            dummy_var = np.zeros((self.n_tbins, self.n_functions))
+            (output_source, _) = smooth_codes(output_source, dummy_var, window_duty=self.win_duty)
+        return output_source
 
 class KTapSinusoidSource(SinglePhotonSource):
     def __init__(self, n_functions, modfs=None, **kwargs):

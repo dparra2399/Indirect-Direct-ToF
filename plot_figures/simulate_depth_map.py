@@ -14,12 +14,10 @@ from matplotlib import rc
 import matplotlib
 matplotlib.use('TkAgg')
 
-rc('text',usetex=True)
-rc('text.latex', preamble=r'\usepackage{color}')
 
 font = {'family': 'serif',
         'weight': 'bold',
-        'size': 7}
+        'size': 12}
 
 rc('font', **font)
 
@@ -42,19 +40,17 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
+    filename = 'coded_model-v8.npy'
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc'),
-        ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=20, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1),
-        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=5, pulse_width=1),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-    ]
+        #ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1. / 12.),
+        # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
+                            freq_window=0.10),
+        ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, n_codes=4),
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True, freq_window=0.10),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
 
-    # params['imaging_schemes'] = [
-    #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3, cw_tof=True),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-    #
-    # ]
+    ]
 
     params['meanBeta'] = 1e-4
     params['trials'] = 1
@@ -63,10 +59,10 @@ if __name__ == '__main__':
     print(f'max depth: {params["dMax"]} meters')
     print()
 
-    filename = 'veach-bidir_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    #filename = 'veach-bidir_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'cbox_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'breakfast-hall_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     depth_image = np.load(os.path.join(depth_folder, filename))
     rgb_image = np.load(os.path.join(rgb_folder, filename))
@@ -76,11 +72,11 @@ if __name__ == '__main__':
 
     # Do either average photon count
     peak_photon_counts = [(10 ** 3)]
-    ambient_counts = [0.1]
+    ambient_counts = [1.0]
     # Or peak photon count
-    peak_photon_counts = [40]
-    peak_photon_count = ''
-    ambient_counts = [5]
+    #peak_photon_counts = [40]
+    peak_photon_count = None
+    #ambient_counts = [5]
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -140,7 +136,7 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes']), figsize=(5.6, 2.6), squeeze=False)
+    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes'])+1, squeeze=False)
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
     counter1 = 0
@@ -178,18 +174,22 @@ if __name__ == '__main__':
             axs[counter2][i].get_xaxis().set_ticks([])
             axs[counter2][i].get_yaxis().set_ticks([])
             #if counter == 2:
-            #axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm \n MAE: {mae[j, i] / 10:.2f} cm')
-
+            axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm \n MAE: {mae[j, i] / 10:.2f} cm')
+            axs[0][i].set_title(scheme.coding_id)
             print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[j, i] / 10: .2f} cm, MAE: {mae[j, i] / 10:.2f} cm')
         counter1 += 2
         counter2 += 2
 
-    cbar_im = fig.colorbar(depth_im, ax=axs[0, :], orientation='vertical')
-    cbar_error = fig.colorbar(error_im, ax=axs[1, :], orientation='vertical')
+    axs[0, -1].axis('off')
+    axs[1, -1].axis('off')
+    cbar_im = fig.colorbar(depth_im, ax=axs[0, -1], orientation='vertical', label='Depth (meters)')
+    cbar_error = fig.colorbar(error_im, ax=axs[1, -1], orientation='vertical', label='Error (meters)')
 
-    fig.tight_layout()
+    axs[0, -1].legend()
+    axs[1, -1].legend()
+    #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure6a.svg', bbox_inches='tight', dpi=3000)
+    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure6a.svg', bbox_inches='tight', dpi=3000)
     plt.show()
     print()
 print('YAYYY')

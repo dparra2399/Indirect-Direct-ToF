@@ -12,6 +12,7 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_co
 from spad_toflib.spad_tof_utils import *
 import scipy as sp
 
+learned_folder = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class Coding(ABC):
 
@@ -153,7 +154,7 @@ class ContinuousWave(Coding):
            # inc = incident[18, 0, :]
             if self.split == False:
                 a = poisson_noise_array(a[:, 0, :], trials)
-                detected = a[100, 26, :]
+                #detected = a[100, 26, :]
                 intent = np.einsum('mnp,pq->mnq', a, b)
             else:
                 a = poisson_noise_array(a, trials)
@@ -220,16 +221,29 @@ class ImpulseCoding(Coding):
 
         return c_vals
 
-class LearnedCoding(ImpulseCoding):
-    def __init__(self, n_tbins, sigma, checkpoints, **kwargs):
+class LearnedCoding(ContinuousWave):
+    def __init__(self, n_tbins, n_codes, checkpoints, **kwargs):
         self.n_tbins = n_tbins
-        self.sigma = sigma
         self.checkpoints = checkpoints
+        self.n_codes = n_codes
         self.correlations = None
+        self.sigma = 1
         super().__init__(n_tbins=n_tbins, **kwargs)
 
     def set_coding_scheme(self, n_tbins):
-        self.correlations = np.load(self.checkpoints)
+        demods_filename = os.path.join(os.path.join(learned_folder, 'coding_matrices'), self.checkpoints)
+        mods_filename = os.path.join(os.path.join(learned_folder, 'illumination'), self.checkpoints)
+
+        self.demodfs = np.load(demods_filename)
+        self.modfs = np.load(mods_filename)
+
+        self.modfs = np.repeat(self.modfs, self.n_codes, axis=-1)
+
+        if self.win_duty is not None:
+            (self.modfs, _) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
+
+        self.set_correlations(self.modfs, self.demodfs)
+
 
 class KTapSinusoidCoding(ContinuousWave):
 
