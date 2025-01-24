@@ -24,7 +24,7 @@ def plot_hist(detected):
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
 
-    axs.bar(np.arange(0, detected.shape[0]), detected, edgecolor='black', linewidth=0.1, color='blue')
+    axs.bar(np.arange(0, detected.shape[0]), detected, width=2.0, color='blue')
     fig.savefig(os.path.join(save_folder, 'figure1b.svg'), bbox_inches='tight')
     plt.show()
 
@@ -148,6 +148,8 @@ def get_scheme_color(coding_scheme, k, cw_tof=False):
             color = '#1f77b4'
     elif coding_scheme.startswith('Greys'):
             color = '#d62728'
+    elif coding_scheme.startswith('Learned'):
+            color = 'purple'
     return color
 
 

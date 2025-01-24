@@ -6,7 +6,6 @@ from spad_toflib.emitted_lights import *
 from dataclasses import dataclass
 import numpy as np
 
-learned_folder = 'learned_codes'
 
 def init_coding_list(n_tbins, depths, params, t_domain=None):
     coding_list = []
@@ -52,8 +51,8 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=
                                  t=t, rep_tau=tau, depths=depths, t_domain=t_domain, win_duty=win_duty)
 
     elif light_id == 'Learned':
-        filename = os.path.join(os.path.join(learned_folder, 'illumination'), coding_system.checkpoint_file)
-        light_obj = LearnedSource(filename=filename, split=split, binomial=binomial,
+        filename = coding_system.checkpoint_file
+        light_obj = LearnedSource(filename=filename, n_functions=coding_system.n_codes, split=split, binomial=binomial,
                                       t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
 
     return light_obj
@@ -136,8 +135,8 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
                                 total_laser_cycles=laser_cycles, n_codes=n_codes,
                                 account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Learned'):
-        filename = os.path.join(os.path.join(learned_folder, 'coding_matrices'), coding_system.checkpoint_file)
-        coding_obj = LearnedCoding(n_tbins=n_tbins, sigma=pw * tbin_res, checkpoints=filename,
+        filename = coding_system.checkpoint_file
+        coding_obj = LearnedCoding(n_tbins=n_tbins, n_codes=n_codes, checkpoints=filename,
                                    binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
                                    account_irf=False, t_domain=t_domain, h_irf=h_irf,
                                    win_duty=win_duty)

@@ -7,7 +7,7 @@ from plot_figures.plot_utils import *
 import matplotlib.pyplot as plt
 
 font = {'family': 'serif',
-            'size': 7}
+            'size': 13}
 
 matplotlib.rc('font', **font)
 
@@ -32,13 +32,14 @@ if __name__ == '__main__':
         tbin_res = params['rep_tau'] / params['n_tbins']
         sigma = int(pulse_width / tbin_res)
 
-
-
+        filename = 'coded_model.npy'
         params['imaging_schemes'] = [
 
             #ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc', ktaps=3),
             #ImagingSystemParams('Gated', 'Gaussian', 'identity', pulse_width=15, n_gates=32)
             ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc', freq_window=.10)
+            #ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, pulse_width=1, freq_window=0.10,
+            #                    account_irf=True, n_codes=4),
         ]
 
         params['meanBeta'] = 1e-4
@@ -94,6 +95,8 @@ if __name__ == '__main__':
         axs[0].spines['top'].set_visible(False)
         axs[0].spines['right'].set_visible(False)
         axs[0].set_ylim(0, 15)
+        axs[0].set_xlabel('Time')
+        axs[0].set_ylabel('Intensity')
 
         axs[0].plot(inc, color='#00B0F0')
 
@@ -104,6 +107,7 @@ if __name__ == '__main__':
         axs[1].plot(demodfs[:, 0], color='red')
         axs[1].plot(demodfs[:, 1], color='green')
         axs[1].plot(demodfs[:, 2], color='orange')
+        axs[1].set_xlabel('Time')
 
         axs[2].set_xticks([])
         axs[2].set_yticks([])
@@ -112,7 +116,7 @@ if __name__ == '__main__':
         axs[2].plot(correlations[:, 0], color='darkred')
         axs[2].plot(correlations[:, 1], color='darkgreen')
         axs[2].plot(correlations[:, 2], color='darkorange')
-
+        axs[2].set_xlabel('Depth')
         fig.tight_layout()
         #fig.savefig(os.path.join(save_folder, 'figure3a.svg'), bbox_inches='tight')
 
