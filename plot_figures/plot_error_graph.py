@@ -21,10 +21,10 @@ rc('font', **font)
 breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\paper figures'
-file = np.load('../data/results/ntbins_1024_monte_2000_exp_Learned001.npz', allow_pickle=True)
+file = np.load('../data/results/ntbins_1024_monte_1000_exp_Learned005.npz', allow_pickle=True)
 
-num = 1
-num2 = 1
+num = 7
+num2 = 4
 mae = file['results'][:, num2:-num, num2:-num]
 levels_one = file['levels_one'][num2:-num, num2:-num]
 levels_two = file['levels_two'][num2:-num, num2:-num]
@@ -74,12 +74,17 @@ for j in range(len(imaging_schemes)):
         str_name = 'Count. Greys'
         if imaging_schemes[j].n_bits != 5:
              pass
+        continue
+    elif imaging_schemes[j].coding_id == 'Learned':
+        if not imaging_schemes[j].checkpoint_file.startswith('version_7'):
+            continue
+
 
     k = imaging_schemes[j].coding_obj.n_functions
-    surf = ax.plot_surface(levels_one,levels_two, tmp,
+    surf = ax.plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
                            label=get_string_name(imaging_schemes[j]), alpha=0.8,
-                           edgecolors='k', lw=0.5, shade=False, antialiased=True,
-                           color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
+                           edgecolors='k', lw=0.5, shade=False, antialiased=True,)
+                           #color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
     surf._edgecolors2d = surf._edgecolor3d
     surf._facecolors2d = surf._facecolor3d
 
@@ -91,9 +96,9 @@ ax.view_init(elev=20., azim=-60)
 
 #ax.set_zlabel('Mean Depth Error in (mm)')
 ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-ax.set_zlim(0, 200)
+ax.set_zlim(12, 60)
 fig.tight_layout()
-fig.savefig(os.path.join(save_folder, 'figure6a.svg'), bbox_inches='tight', dpi=3000)
+#fig.savefig(os.path.join(save_folder, 'figure6a.svg'), bbox_inches='tight', dpi=3000)
 plt.show(block=True)
 
 # fig = go.Figure(data=arr)

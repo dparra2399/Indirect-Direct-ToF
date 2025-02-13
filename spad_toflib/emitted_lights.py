@@ -150,14 +150,14 @@ class SinglePhotonSource(LightSource):
 
 
 class LearnedSource(SinglePhotonSource):
-    def __init__(self, filename, n_functions, win_duty=None, **kwargs):
-        self.filename = os.path.join(os.path.join(learned_folder, 'illumination'), filename)
+    def __init__(self, model, n_functions, win_duty=None, **kwargs):
+        self.model = os.path.join(learned_folder, model, 'illum_model.npy')
         self.n_functions = n_functions
         self.win_duty = win_duty
         super().__init__(light_source=None, n_functions=n_functions, **kwargs)
 
     def generate_source(self):
-        light_source = np.load(self.filename)
+        light_source = np.load(self.model)
         output_source = np.repeat(light_source, self.n_functions, axis=-1)
         if self.win_duty is not None:
             dummy_var = np.zeros((self.n_tbins, self.n_functions))

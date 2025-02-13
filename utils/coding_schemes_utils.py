@@ -51,8 +51,9 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=
                                  t=t, rep_tau=tau, depths=depths, t_domain=t_domain, win_duty=win_duty)
 
     elif light_id == 'Learned':
-        filename = coding_system.checkpoint_file
-        light_obj = LearnedSource(filename=filename, n_functions=coding_system.n_codes, split=split, binomial=binomial,
+        model = coding_system.model
+        n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        light_obj = LearnedSource(model=model, n_functions=n_codes, split=split, binomial=binomial,
                                       t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
 
     return light_obj
@@ -135,8 +136,10 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
                                 total_laser_cycles=laser_cycles, n_codes=n_codes,
                                 account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
     elif (coding_id == 'Learned'):
-        filename = coding_system.checkpoint_file
-        coding_obj = LearnedCoding(n_tbins=n_tbins, n_codes=n_codes, checkpoints=filename,
+        model = coding_system.model
+        n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        print(f'Learned K={n_codes}')
+        coding_obj = LearnedCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
                                    binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
                                    account_irf=False, t_domain=t_domain, h_irf=h_irf,
                                    win_duty=win_duty)
@@ -198,4 +201,4 @@ class ImagingSystemParams:
     n_codes: int = None
     total_laser_cycles: int = None
     mean_absolute_error: float = None
-    checkpoint_file: str = None
+    model: str = None
