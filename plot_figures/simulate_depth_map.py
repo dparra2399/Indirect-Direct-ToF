@@ -12,7 +12,6 @@ from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error
 import numpy as np
 from matplotlib import rc
 import matplotlib
-matplotlib.use('TkAgg')
 
 
 font = {'family': 'serif',
@@ -40,15 +39,17 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    filename = 'coded_model-v8.npy'
     params['imaging_schemes'] = [
-        #ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1. / 12.),
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.15),
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
         ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
-                            freq_window=0.10),
-        ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, n_codes=4),
-        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True, freq_window=0.10),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
+                            freq_window=0.15),
+        ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.15),
+        # ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_charbonnier', freq_window=0.10),
+        # ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.10),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, freq_window=0.15),
+
+        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
     ]
 
@@ -71,8 +72,8 @@ if __name__ == '__main__':
     print(f'Max Depth {depths.max()}')
 
     # Do either average photon count
-    peak_photon_counts = [(10 ** 3)]
-    ambient_counts = [1.0]
+    peak_photon_counts = [500]
+    ambient_counts = [0.1]
     # Or peak photon count
     #peak_photon_counts = [40]
     peak_photon_count = None
@@ -163,7 +164,7 @@ if __name__ == '__main__':
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
                 spine.set_linewidth(4)
 
-            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=2.0)
+            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=0.5)
 
             for spine in axs[counter2][i].spines.values():
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color

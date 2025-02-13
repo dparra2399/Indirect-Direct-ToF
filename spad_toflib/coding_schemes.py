@@ -222,17 +222,17 @@ class ImpulseCoding(Coding):
         return c_vals
 
 class LearnedCoding(ContinuousWave):
-    def __init__(self, n_tbins, n_codes, checkpoints, **kwargs):
+    def __init__(self, n_tbins, n_codes, model, **kwargs):
         self.n_tbins = n_tbins
-        self.checkpoints = checkpoints
+        self.model = model
         self.n_codes = n_codes
         self.correlations = None
         self.sigma = 1
         super().__init__(n_tbins=n_tbins, **kwargs)
 
     def set_coding_scheme(self, n_tbins):
-        demods_filename = os.path.join(os.path.join(learned_folder, 'coding_matrices'), self.checkpoints)
-        mods_filename = os.path.join(os.path.join(learned_folder, 'illumination'), self.checkpoints)
+        demods_filename = os.path.join(learned_folder,  self.model, 'coded_model.npy')
+        mods_filename = os.path.join(learned_folder, self.model, 'illum_model.npy')
 
         self.demodfs = np.load(demods_filename)
         self.modfs = np.load(mods_filename)

@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 
 
 font = {'family': 'serif',
-        'size': 7}
-
+        'size': 7
+        }
 matplotlib.rc('font', **font)
 
 # Press the green button in the gutter to run the script.
@@ -32,27 +32,15 @@ if __name__ == '__main__':
         pulse_width = 8e-9
         tbin_res = params['rep_tau'] / params['n_tbins']
         sigma = int(pulse_width / tbin_res)
-
         params['imaging_schemes'] = [
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1),
-            ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=5, pulse_width=1),
-            ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc'),
-            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-            ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, pulse_width=20)
-        ]
-
-        filename = 'coded_model.npy'
-        params['imaging_schemes'] = [
-            ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.10, duty=1. / 12.),
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
-                                freq_window=0.10),
-            ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, pulse_width=1,
-                                freq_window=0.10, n_codes=4),
-            ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1, account_irf=True,
-                                freq_window=0.10),
-            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
-            ImagingSystemParams('Gated', 'Gaussian', 'linear', n_gates=32, freq_window=0.10, pulse_width=1),
+            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=3, pulse_width=1, account_irf=True,
+                                freq_window=0.15),
+            ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k3_mae', freq_window=0.15),
+            #ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_charbonnier', freq_window=0.10),
+            #ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.10),
+
+            # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
         ]
 
@@ -131,7 +119,7 @@ if __name__ == '__main__':
                 axs[i][3].imshow(coding_obj.demodfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
             first_zero_index = np.where(light_obj.light_source == 0)[0]
-            axs[i][1].plot(np.roll(light_obj.light_source, 30), color='blue')
+            axs[i][1].plot(np.roll(light_obj.light_source, 100), color='blue')
             axs[i][0].set_axis_off()
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)

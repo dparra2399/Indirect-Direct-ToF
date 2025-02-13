@@ -24,39 +24,17 @@ if __name__ == '__main__':
     params['T'] = 0.1 #intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-
-
-    # params['imaging_schemes'] = [
-    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc'),
-    #     ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-    #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=3, pulse_width=1),
-    #     ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=4, pulse_width=1),
-    #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1),
-    #     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=sigma)
-    # ]
-    filename = 'coded_model-v8.npy'
     params['imaging_schemes'] = [
         #ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
                             freq_window=0.10),
-        ImagingSystemParams('Learned', 'Learned', 'zncc', checkpoint_file=filename, n_codes=4),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.10),
+        ImagingSystemParams('Learned', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k8_mae')
+                            , freq_window=0.10),
+        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=16, pulse_width=1, freq_window=0.10),
+
+        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
     ]
-
-    # params['imaging_schemes'] = [
-    #     ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc',
-    #                         duty=1./12., freq_window=0.10, binomial=True, gated=True,
-    #                         total_laser_cycles=100_000),
-    #     ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-    #                         duty=1. / 30., freq_window=0.10, binomial=True, gated=True,
-    #                         total_laser_cycles=100_000),
-    #     ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1,
-    #                         binomial=True, gated=True, total_laser_cycles=100_000),
-    #     ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=sigma, n_gates=32,
-    #                         binomial=True, gated=True, total_laser_cycles=100_000)
-    # ]
-
 
 
     params['meanBeta'] = 1e-4
@@ -66,16 +44,16 @@ if __name__ == '__main__':
     print(f'max depth: {params["dMax"]} meters')
     print()
 
-    dSample = 0.15
+    dSample = 1.0
     depths = np.arange(dSample, params['dMax']-dSample, dSample)
     # depths = np.array([105.0])
 
     #Do either average photon count
-    photon_count =  10**3
-    sbr = 1.0
+    photon_count =  1000
+    sbr = 0.1
     #Or peak photon count
     peak_photon_count = None #100
-    ambient_count = 10
+    ambient_count = 5
 
     total_cycles = params['rep_freq'] * params['T']
 
