@@ -6,6 +6,7 @@ from IPython.core import debugger
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
+from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from plot_figures.plot_utils import *
 
 #matplotlib.use('QTkAgg')
@@ -24,36 +25,66 @@ if __name__ == '__main__':
     params['T'] = 0.1 #intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
+    #irf = np.genfromtxt(r'C:\Users\Patron\PycharmProjects\Flimera-Processing\irfs\pulse_10mhz.csv', delimiter=',')
+    irf=None
+
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 50, circ_shifted=True)
+    #irf = np.load(r'C:\Users\Patron\PycharmProjects\WISC-SinglePhoton3DData\system_irf\20190207_face_scanning_low_mu\ground_truth\irf_tres-8ps_tlen-17504ps.npy')
     params['imaging_schemes'] = [
         #ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-                            freq_window=0.10),
-        ImagingSystemParams('Learned', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k8_mae')
-                            , freq_window=0.10),
-        ImagingSystemParams('Greys', 'Gaussian', 'zncc', n_bits=16, pulse_width=1, freq_window=0.10),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=False,
+                            h_irf=irf),
+        #
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
+        #                    account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
+        #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
+        #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'version_10'),
+        #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'version_9'),
+        #                     account_irf=True, h_irf=irf),
 
-        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
+
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
+        #                     account_irf=True, h_irf=irf),
+        # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        # #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
+        # #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak03_counts1000'),
+        #                     h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+        #                     h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+
+        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', sigma=1, freq_window=0.05),
 
     ]
 
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 2000
+    params['trials'] = 1000
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
     print()
 
-    dSample = 1.0
-    depths = np.arange(dSample, params['dMax']-dSample, dSample)
+    dSample = 0.5
+    depths = np.arange(5.038, params['dMax']-5.0, dSample)
     # depths = np.array([105.0])
 
-    #Do either average photon count
     photon_count =  1000
-    sbr = 0.1
-    #Or peak photon count
-    peak_photon_count = None #100
-    ambient_count = 5
+    sbr = 1.0
+    peak_factor = 0.005
+
 
     total_cycles = params['rep_freq'] * params['T']
 
@@ -69,8 +100,6 @@ if __name__ == '__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    if peak_photon_count is not None:
-        print(f'Peak Photon count : {peak_photon_count}')
     init_coding_list(n_tbins, depths, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
@@ -83,17 +112,15 @@ if __name__ == '__main__':
         light_source = imaging_scheme.light_id
         rec_algo = imaging_scheme.rec_algo
 
-        if peak_photon_count is not None:
-            incident = light_obj.simulate_peak_photons(peak_photon_count, ambient_count)
-        else:
-            incident = light_obj.simulate_average_photons(photon_count, sbr)
+        incident = light_obj.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor)
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 
+        #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
 
         if coding_scheme in ['Identity']:
             assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-            decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
+            decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, imaging_scheme.pulse_width * tbin_depth_res,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
         else:
             decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res

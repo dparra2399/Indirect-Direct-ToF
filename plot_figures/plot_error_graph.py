@@ -7,8 +7,6 @@ from utils.file_utils import get_string_name
 
 from matplotlib import rc
 
-matplotlib.use('TkAgg')
-
 
 font = {'family': 'serif',
         'size': 12}
@@ -21,10 +19,10 @@ rc('font', **font)
 breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\paper figures'
-file = np.load('../data/results/ntbins_1024_monte_1000_exp_Learned005.npz', allow_pickle=True)
+file = np.load('../data/results/ntbins_1024_monte_1000_exp_Learned006.npz', allow_pickle=True)
 
-num = 7
-num2 = 4
+num = 4
+num2 = 1
 mae = file['results'][:, num2:-num, num2:-num]
 levels_one = file['levels_one'][num2:-num, num2:-num]
 levels_two = file['levels_two'][num2:-num, num2:-num]
@@ -76,8 +74,7 @@ for j in range(len(imaging_schemes)):
              pass
         continue
     elif imaging_schemes[j].coding_id == 'Learned':
-        if not imaging_schemes[j].checkpoint_file.startswith('version_7'):
-            continue
+        pass
 
 
     k = imaging_schemes[j].coding_obj.n_functions
@@ -96,7 +93,7 @@ ax.view_init(elev=20., azim=-60)
 
 #ax.set_zlabel('Mean Depth Error in (mm)')
 ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-ax.set_zlim(12, 60)
+#ax.set_zlim(12, 60)
 fig.tight_layout()
 #fig.savefig(os.path.join(save_folder, 'figure6a.svg'), bbox_inches='tight', dpi=3000)
 plt.show(block=True)

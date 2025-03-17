@@ -15,10 +15,10 @@ def init_coding_list(n_tbins, depths, params, t_domain=None):
     tau = params['rep_tau']
     for i in range(len(imaging_schemes)):
         current_coding_scheme = imaging_schemes[i]
-        current_coding_scheme.coding_obj = create_coding_obj(current_coding_scheme, n_tbins, tbin_res,
-                                                             t_domain=t_domain)
-        current_coding_scheme.light_obj = create_light_obj(current_coding_scheme, n_tbins, tbin_res, depths,
-                                                           t, tau, t_domain=t_domain)
+        current_coding_scheme.coding_obj = create_coding_obj(current_coding_scheme, n_tbins)
+        if depths is not None:
+            current_coding_scheme.light_obj = create_light_obj(current_coding_scheme, n_tbins, tbin_res, depths,
+                                                               t, tau, t_domain=t_domain)
 
 
 def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=None):
@@ -26,52 +26,52 @@ def create_light_obj(coding_system, n_tbins, tbin_res, depths, t, tau, t_domain=
     light_id = coding_system.light_id
 
     n_functions = coding_system.ktaps
-    pw = coding_system.pulse_width
+    pulse_width = coding_system.pulse_width
     binomial = coding_system.binomial
-    win_duty = coding_system.freq_window
     h_irf = coding_system.h_irf
     split = coding_system.split
     duty = coding_system.duty
 
     if light_id == 'KTapSinusoid':
-        light_obj = KTapSinusoidSource(modfs=h_irf, n_functions=n_functions, split=split,
-                                       t=t, rep_tau=tau, binomial=binomial, n_tbins=n_tbins, depths=depths)
+        light_obj = KTapSinusoidSource(n_functions=n_functions, split=split,
+                                       t=t, h_irf=h_irf,rep_tau=tau, binomial=binomial, n_tbins=n_tbins, depths=depths)
     elif light_id == 'HamiltonianK3':
-        light_obj = HamiltonianSource(modfs=h_irf, n_functions=3, duty=duty, split=split, binomial=binomial,
-                                      t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+        light_obj = HamiltonianSource(n_functions=3, duty=duty, split=split, binomial=binomial,
+                                      t=t, h_irf=h_irf, rep_tau=tau,  n_tbins=n_tbins, depths=depths)
     elif light_id == 'HamiltonianK4':
-        light_obj = HamiltonianSource(modfs=h_irf, n_functions=4, duty=duty, split=split, binomial=binomial,
-                                      t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+        light_obj = HamiltonianSource(n_functions=4, duty=duty, split=split, binomial=binomial,
+                                      t=t, h_irf=h_irf, rep_tau=tau, n_tbins=n_tbins, depths=depths)
     elif light_id == 'HamiltonianK5':
-        light_obj = HamiltonianSource(modfs=h_irf, n_functions=5, duty=duty, split=split, binomial=binomial,
-                                      t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+        light_obj = HamiltonianSource(n_functions=5, duty=duty, split=split, binomial=binomial,
+                                      t=t, h_irf=h_irf, rep_tau=tau,n_tbins=n_tbins, depths=depths)
     elif light_id == 'Gaussian':
-        if pw is None: pw = 1
-        light_obj = GaussianTIRF(tirf=h_irf, n_tbins=n_tbins, binomial=binomial, sigma=pw * tbin_res,
-                                 t=t, rep_tau=tau, depths=depths, t_domain=t_domain, win_duty=win_duty)
+        if pulse_width is None: pulse_width = 1
+        light_obj = GaussianTIRF(n_tbins=n_tbins, binomial=binomial, sigma=pulse_width * tbin_res,
+                                 t=t, h_irf=h_irf, rep_tau=tau, depths=depths, t_domain=t_domain, )
 
     elif light_id == 'Learned':
         model = coding_system.model
-        n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        try:
+            n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        except:
+            n_codes = 8
         light_obj = LearnedSource(model=model, n_functions=n_codes, split=split, binomial=binomial,
-                                      t=t, rep_tau=tau, win_duty=win_duty, n_tbins=n_tbins, depths=depths)
+                                      t=t, h_irf=h_irf,rep_tau=tau, n_tbins=n_tbins, depths=depths)
 
     return light_obj
 
 
-def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
+def create_coding_obj(coding_system, n_tbins):
     coding_obj = None
     coding_id = coding_system.coding_id
     ktaps = coding_system.ktaps
     n_gates = coding_system.n_gates
     n_bits = coding_system.n_bits
     laser_cycles = coding_system.total_laser_cycles
-    win_duty = coding_system.freq_window
     binomial = coding_system.binomial
     gated = coding_system.gated
     account_irf = coding_system.account_irf
     h_irf = coding_system.h_irf
-    pw = coding_system.pulse_width
     cw_tof = coding_system.cw_tof
     freq_idx = coding_system.freq_idx
     n_freqs = coding_system.n_freqs
@@ -81,68 +81,64 @@ def create_coding_obj(coding_system, n_tbins, tbin_res, t_domain=None):
         split = True
     else:
         split = coding_system.split
-    if pw is None: pw = 1
     duty = coding_system.duty
     if (coding_id == 'KTapSinusoid'):
         coding_obj = KTapSinusoidCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,
-                                        ktaps=ktaps, split=split, after=cw_tof, account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
+                                        ktaps=ktaps, split=split, after=cw_tof, account_irf=account_irf, h_irf=h_irf)
     elif (coding_id == 'HamiltonianK3'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,k=3,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
+                                                split=split, duty=duty, account_irf=account_irf,
+                                                h_irf=h_irf)
     elif (coding_id == 'HamiltonianK4'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=4,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
+                                                split=split, duty=duty, account_irf=account_irf,
+                                                h_irf=h_irf)
     elif (coding_id == 'HamiltonianK5'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=5,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
-    elif (coding_id == 'ModifiedHamiltonianK3'):
-        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial,k=3,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
-    elif (coding_id == 'ModifiedHamiltonianK4'):
-        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=4,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
-    elif (coding_id == 'ModifiedHamiltonianK5'):
-        coding_obj = ModifiedHamiltonianCoding(n_tbins=n_tbins, total_laser_cycles=laser_cycles, gated=gated, binomial=binomial, k=5,
-                                                split=split, duty=duty, win_duty=win_duty, account_irf=account_irf,
-                                                t_domain=t_domain, h_irf=h_irf)
+                                                split=split, duty=duty, account_irf=account_irf,
+                                                h_irf=h_irf)
     elif (coding_id == 'Identity'):
-        coding_obj = IdentityCoding(n_tbins=n_tbins, sigma=pw * tbin_res, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,
-                                            t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+        coding_obj = IdentityCoding(n_tbins=n_tbins, gated=gated, binomial=binomial, total_laser_cycles=laser_cycles, account_irf=account_irf,
+                                           h_irf=h_irf)
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
-        coding_obj = GatedCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
-                                         account_irf=False, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_gates=n_gates,
+                                         account_irf=account_irf,h_irf=h_irf)
     elif (coding_id == 'Greys'):
         assert n_bits != None, 'Need to declare number of bits for greys coding'
-        coding_obj = GrayCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_bits=n_bits,
-                                         account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+        coding_obj = GrayCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, total_laser_cycles=laser_cycles, n_bits=n_bits,
+                                         account_irf=account_irf, h_irf=h_irf)
     elif (coding_id == 'Fourier'):
-        coding_obj = FourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+        coding_obj = FourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, freq_idx=freq_idx, n_codes=n_codes,
-                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+                                account_irf=account_irf, h_irf=h_irf)
 
     elif (coding_id == 'TruncatedFourier'):
-        coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+        coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, n_freqs=n_freqs, n_codes=n_codes,
-                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf, win_duty=win_duty)
+                                account_irf=account_irf, h_irf=h_irf)
 
     elif (coding_id == 'GrayTruncatedFourier'):
-        coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, sigma=pw * tbin_res, binomial=binomial, gated=gated,
+        coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
                                 total_laser_cycles=laser_cycles, n_codes=n_codes,
-                                account_irf=account_irf, t_domain=t_domain, h_irf=h_irf)
-    elif (coding_id == 'Learned'):
+                                account_irf=account_irf, h_irf=h_irf)
+    elif (coding_id == 'LearnedImpulse'):
+        model = coding_system.model
+        try:
+            n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        except:
+            n_codes =  8
+        print(f'Learned With Impulse K={n_codes}')
+        coding_obj = LearnedImpulseCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
+                                   binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
+                                   account_irf=account_irf, h_irf=h_irf)
+    elif (coding_id == 'LearnedContinuous'):
         model = coding_system.model
         n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
-        print(f'Learned K={n_codes}')
-        coding_obj = LearnedCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
+        print(f'Learned With Continuous K={n_codes}')
+        coding_obj = LearnedContinuousCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
                                    binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
-                                   account_irf=False, t_domain=t_domain, h_irf=h_irf,
-                                   win_duty=win_duty)
+                                   account_irf=False, h_irf=h_irf)
     return coding_obj
 
 
@@ -192,7 +188,6 @@ class ImagingSystemParams:
     split: bool = False
     pulse_width: int = None
     duty: float = None
-    freq_window: float = None
     ktaps: int = None
     n_gates: int = None
     n_bits: int = None

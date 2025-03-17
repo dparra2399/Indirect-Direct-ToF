@@ -7,7 +7,6 @@ from IPython.core import debugger
 
 from plot_figures.plot_utils import get_scheme_color
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 import numpy as np
 from matplotlib import rc
@@ -40,14 +39,10 @@ if __name__ == '__main__':
     params['depth_res'] = 1000  ##Conver to MM
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', freq_window=0.15),
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True,
-                            freq_window=0.15),
-        ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.15),
-        # ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_charbonnier', freq_window=0.10),
-        # ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.10),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, freq_window=0.15),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True),
+        ImagingSystemParams('Learned', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k4_mae')),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, account_irf=True),
 
         # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
@@ -63,8 +58,8 @@ if __name__ == '__main__':
     #filename = 'veach-bidir_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'cbox_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'breakfast-hall_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    #filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     depth_image = np.load(os.path.join(depth_folder, filename))
     rgb_image = np.load(os.path.join(rgb_folder, filename))
     (nr, nc) = depth_image.shape
@@ -72,12 +67,9 @@ if __name__ == '__main__':
     print(f'Max Depth {depths.max()}')
 
     # Do either average photon count
-    peak_photon_counts = [500]
+    peak_photon_counts = [2000]
     ambient_counts = [0.1]
-    # Or peak photon count
-    #peak_photon_counts = [40]
-    peak_photon_count = None
-    #ambient_counts = [5]
+    peak_factor = 0.005
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -112,12 +104,11 @@ if __name__ == '__main__':
             light_source = imaging_scheme.light_id
             rec_algo = imaging_scheme.rec_algo
 
-            if peak_photon_count is not None:
-                incident = light_obj.simulate_peak_photons(photon_count, ambient)
-            else:
-                incident = light_obj.simulate_average_photons(photon_count, ambient)
+            incident = light_obj.simulate_average_photons(photon_count, ambient, peak_factor=peak_factor)
 
             coded_vals = coding_obj.encode(incident, trials).squeeze()
+
+            #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
 
             if coding_scheme in ['Identity']:
                 assert light_source in ['Gaussian'], 'Identity coding only available for IRF'

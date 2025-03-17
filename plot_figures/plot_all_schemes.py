@@ -4,6 +4,7 @@ from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils import tof_utils_felipe
 from utils.file_utils import get_string_name
 from plot_figures.plot_utils import *
+from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 import matplotlib.pyplot as plt
 
 
@@ -29,16 +30,15 @@ if __name__ == '__main__':
         params['T'] = 0.1  # intergration time [used for binomial]
         params['depth_res'] = 1000  ##Conver to MM
 
-        pulse_width = 8e-9
-        tbin_res = params['rep_tau'] / params['n_tbins']
-        sigma = int(pulse_width / tbin_res)
+        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
         params['imaging_schemes'] = [
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=3, pulse_width=1, account_irf=True,
-                                freq_window=0.15),
-            ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k3_mae', freq_window=0.15),
-            #ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_charbonnier', freq_window=0.10),
-            #ImagingSystemParams('Learned', 'Learned', 'zncc', model='n1024_k4_mae', freq_window=0.10),
+            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
+                                h_irf=irf),
+            # ImagingSystemParams('Learned', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k4_mae')
+            #                    , freq_window=0.05),
+            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
+                                account_irf=True),
 
             # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
@@ -111,15 +111,15 @@ if __name__ == '__main__':
             axs[i][2].set_xlabel('Time')
 
             if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys', 'Learned']:
-                axs[i][2].plot(coding_obj.correlations)
-                axs[i][3].imshow(coding_obj.correlations.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
+                axs[i][2].plot(coding_obj.decode_corrfs)
+                axs[i][3].imshow(coding_obj.decode_corrfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
             else:
                 axs[i][2].plot(coding_obj.demodfs)
                 axs[i][3].imshow(coding_obj.demodfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
-            first_zero_index = np.where(light_obj.light_source == 0)[0]
-            axs[i][1].plot(np.roll(light_obj.light_source, 100), color='blue')
+            first_zero_index = np.where(light_obj.filtered_light_source == 0)[0]
+            axs[i][1].plot(np.roll(light_obj.filtered_light_source, 100), color='blue')
             axs[i][0].set_axis_off()
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)

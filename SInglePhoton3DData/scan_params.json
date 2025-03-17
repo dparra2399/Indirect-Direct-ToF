@@ -1,0 +1,153 @@
+{
+    "laser_rep_freq": 10000000.0,
+    "dead_time": 50000.0,
+    "min_tbin_size": 8,
+    "scene_ids": [
+        "20190209_deer_high_mu/free",
+        "20190209_deer_high_mu/det",
+        "20190209_deer_high_mu/ext",
+        "20190209_deer_high_mu/ext_5%",
+        "20190207_face_scanning_low_mu/free",
+        "20190207_face_scanning_low_mu/det",
+        "20190207_face_scanning_low_mu/ground_truth",
+        "20190207_face_scanning_low_mu/ext_opt_filtering",
+        "20190207_face_scanning_low_mu/ext_5%",
+        "20181112_blocks/extreme_flux",
+        "20181112_blocks/high_flux",
+        "20181112_blocks/med_flux",
+        "20181112_blocks/low_flux",
+        "20181105_face/low_flux",
+        "20181105_face/opt_flux",
+        "20181105_tajmahal"
+    ],
+    "hist_preprocessing_params": {
+        "hist_start_time": 37000,
+        "hist_end_time": 54504,
+        "hist_shift_time": 800
+    },
+    "irf_params": {
+        "pulse_len": 850,
+        "second_pulse_offset": 1100
+    },
+    "scene_params": {
+        "default": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190207_face_scanning_low_mu/free": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190207_face_scanning_low_mu/ground_truth": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 850,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190207_face_scanning_low_mu/ext_opt_filtering": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": -21400
+        },
+        "20190207_face_scanning_low_mu/ext_5%": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": -21400
+        },
+        "20190209_deer_high_mu/free": {
+            "n_rows_fullres": 174,
+            "n_cols_fullres": 154,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100
+        },
+        "20181105_tajmahal": {
+            "n_rows_fullres": 110,
+            "n_cols_fullres": 152,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190209_deer_high_mu/ext": {
+            "n_rows_fullres": 174,
+            "n_cols_fullres": 154,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190209_deer_high_mu/ext_5%": {
+            "n_rows_fullres": 174,
+            "n_cols_fullres": 154,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190209_deer_high_mu/det": {
+            "n_rows_fullres": 174,
+            "n_cols_fullres": 154,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181112_blocks/low_flux": {
+            "n_rows_fullres": 123,
+            "n_cols_fullres": 183,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181112_blocks/med_flux": {
+            "n_rows_fullres": 123,
+            "n_cols_fullres": 183,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181112_blocks/high_flux": {
+            "n_rows_fullres": 123,
+            "n_cols_fullres": 183,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181112_blocks/extreme_flux": {
+            "n_rows_fullres": 123,
+            "n_cols_fullres": 183,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181105_face/low_flux": {
+            "n_rows_fullres": 240,
+            "n_cols_fullres": 150,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20181105_face/opt_flux": {
+            "n_rows_fullres": 240,
+            "n_cols_fullres": 150,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        },
+        "20190207_face_scanning_low_mu/det": {
+            "n_rows_fullres": 204,
+            "n_cols_fullres": 116,
+            "pulse_len": 480,
+            "second_pulse_offset": 1100,
+            "global_temporal_shift": 0
+        }
+    },
+    "fov_major_axis": 40
+}
