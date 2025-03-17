@@ -17,25 +17,24 @@ learned_folder = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\learned_c
 class Coding(ABC):
 
     def __init__(self, n_tbins, total_laser_cycles=None, binomial=False, gated=False,
-                 num_measures=None, t_domain=None, after=False, h_irf=None, account_irf=False,
-                 win_duty=None):
+                 num_measures=None, after=False, h_irf=None, account_irf=False):
 
         self.binomial = binomial
         self.after = after
         self.gated = gated
         self.n_tbins = n_tbins
-        self.win_duty = win_duty
-        self.update_irf(h_irf, t_domain, win_duty)
+        self.update_irf(h_irf)
         self.account_irf = account_irf
         self.set_laser_cycles(total_laser_cycles)
         if self.correlations is None: self.set_coding_scheme(n_tbins)
         self.update_C_derived_params()
         self.set_num_measures(num_measures)
 
+
     def update_C_derived_params(self):
         # Store how many codes there are
         (self.n_tbins, self.n_functions) = (self.correlations.shape[-2], self.correlations.shape[-1])
-        if (self.account_irf) or self.__class__.__name__.startswith('ContinuousWave'):
+        if (self.account_irf):
             # self.decoding_C = signalproc_ops.circular_conv(self.C, self.h_irf[:, np.newaxis], axis=0)
             # self.decoding_C = signalproc_ops.circular_corr(self.C, self.h_irf[:, np.newaxis], axis=0)
             self.decode_corrfs = signalproc_ops.circular_corr(self.h_irf[:, np.newaxis], self.correlations, axis=0)
@@ -62,15 +61,10 @@ class Coding(ABC):
         norm_int = norm_t(intensities, axis=-1)
         return np.matmul(self.norm_corrfs, norm_int[..., np.newaxis]).squeeze(-1)
 
-    def update_irf(self, h_irf=None, t_domain=None, win_duty=None):
+    def update_irf(self, h_irf=None):
         # If nothing is given set to gaussian
         if (h_irf is None):
-            print("hirf is NONE")
-            if (t_domain is not None):
-                self.h_irf = gaussian_pulse(t_domain, 0, self.sigma, circ_shifted=True)
-            else:
-                print('t_domain is None')
-                return
+            self.h_irf = gaussian_pulse(np.arange(0, self.n_tbins), 0, 1, circ_shifted=True)
         else:
             if h_irf.shape[0] == self.n_tbins:
                 self.h_irf = h_irf.squeeze()
@@ -81,10 +75,8 @@ class Coding(ABC):
                 new_x = np.linspace(x.min(), x.max(), new_length)
                 new_y = sp.interpolate.interp1d(x, w, kind='cubic')(new_x)
                 self.h_irf = new_y
+                self.h_irf = np.roll(self.h_irf, -np.argmax(self.h_irf))
 
-        if self.win_duty is not None:
-            dummy_var = np.zeros_like(np.expand_dims(self.h_irf, axis=-1))
-            (self.h_irf, _) = np.squeeze(smooth_codes(np.expand_dims(self.h_irf, axis=-1), dummy_var, window_duty=win_duty))
         self.h_irf = self.h_irf / self.h_irf.sum()
 
     ''' Felipe's Code'''
@@ -110,11 +102,10 @@ class Coding(ABC):
         lookup = self.reconstruction(intensities, rec_algo_id, **kwargs)
         return np.argmax(lookup, axis=-1)
 
-    ''' Felipe's Code'''
-
     def maxgauss_peak_decoding(self, intensities, gauss_sigma, rec_algo_id='zncc', **kwargs):
         lookup = self.reconstruction(intensities, rec_algo_id, **kwargs)
         return signalproc_ops.max_gaussian_center_of_mass_mle(lookup, sigma_tbins=gauss_sigma)
+
 
     def set_correlations(self, modfs, demodfs):
         self.correlations = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
@@ -170,6 +161,10 @@ class ContinuousWave(Coding):
 
         return intent
 
+    def encode_no_noise(self, incident):
+        intent = np.einsum('mqp,pq->mq', incident, self.demodfs)
+        return intent
+
     def encode_binomial(self, incident, trials):
         a = np.copy(incident)
         b = np.copy(self.demodfs)
@@ -210,6 +205,9 @@ class ImpulseCoding(Coding):
         intent = np.einsum('mnp,pq->mnq', a, b)
         return intent
 
+    def encode_no_noise(self, incident):
+        return np.einsum('mp,pq->mq', incident, self.correlations)
+
     def encode_binomial(self, incident, trials):
 
         rng = np.random.default_rng()
@@ -221,13 +219,24 @@ class ImpulseCoding(Coding):
 
         return c_vals
 
-class LearnedCoding(ContinuousWave):
+class LearnedImpulseCoding(ImpulseCoding):
     def __init__(self, n_tbins, n_codes, model, **kwargs):
         self.n_tbins = n_tbins
         self.model = model
         self.n_codes = n_codes
         self.correlations = None
-        self.sigma = 1
+        super().__init__(n_tbins=n_tbins, **kwargs)
+
+    def set_coding_scheme(self, n_tbins):
+        demods_filename = os.path.join(learned_folder,  self.model, 'coded_model.npy')
+        self.correlations = np.load(demods_filename)
+
+class LearnedContinuousCoding(ContinuousWave):
+    def __init__(self, n_tbins, n_codes, model, **kwargs):
+        self.n_tbins = n_tbins
+        self.model = model
+        self.n_codes = n_codes
+        self.correlations = None
         super().__init__(n_tbins=n_tbins, **kwargs)
 
     def set_coding_scheme(self, n_tbins):
@@ -235,14 +244,14 @@ class LearnedCoding(ContinuousWave):
         mods_filename = os.path.join(learned_folder, self.model, 'illum_model.npy')
 
         self.demodfs = np.load(demods_filename)
-        self.modfs = np.load(mods_filename)
+        self.modfs = np.reshape(np.load(mods_filename), (n_tbins, 1))
 
         self.modfs = np.repeat(self.modfs, self.n_codes, axis=-1)
 
-        if self.win_duty is not None:
-            (self.modfs, _) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
+        self.filtered_modfs = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], self.modfs, axis=0)
 
-        self.set_correlations(self.modfs, self.demodfs)
+        self.set_correlations(self.filtered_modfs, self.demodfs)
+
 
 
 class KTapSinusoidCoding(ContinuousWave):
@@ -251,7 +260,6 @@ class KTapSinusoidCoding(ContinuousWave):
         if (ktaps is None): ktaps = 3
         self.n_functions = ktaps
         self.correlations = None
-        self.sigma = 1
         super().__init__(**kwargs)
 
     def set_coding_scheme(self, n_tbins):
@@ -260,12 +268,10 @@ class KTapSinusoidCoding(ContinuousWave):
 
 
 class HamiltonianCoding(ContinuousWave):
-    def __init__(self, k, duty=None, win_duty=None, **kwargs):
+    def __init__(self, k, duty=None, **kwargs):
         self.n_functions = k
         self.set_duty(duty)
-        self.win_duty = win_duty
         self.correlations = None
-        self.sigma = 1
         super().__init__(**kwargs)
 
     def set_duty(self, duty):
@@ -308,60 +314,9 @@ class HamiltonianCoding(ContinuousWave):
         else:
             assert False
 
-        if self.win_duty is not None:
-            (self.modfs, self.demodfs) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
-
-        # if self.account_irf:
-        #     self.modfs = np.repeat(np.expand_dims(self.h_irf, axis=-1), k, axis=-1)
+        self.filtered_modfs = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], self.modfs, axis=0)
 
         self.set_correlations(self.modfs, self.demodfs)
-
-
-class ModifiedHamiltonianCoding(ContinuousWave):
-    def __init__(self, k, duty=None, win_duty=None, **kwargs):
-        self.n_functions = k
-        self.set_duty(duty)
-        self.win_duty = win_duty
-        self.correlations = None
-        self.sigma = 1
-        super().__init__(**kwargs)
-
-    def set_duty(self, duty):
-        if duty is None:
-            if self.n_functions == 3:
-                self.duty = 1. / 6.
-            elif self.n_functions == 4:
-                self.duty = 1. / 12.
-            elif self.n_functions == 5:
-                self.duty = 1. / 30.
-            else:
-                assert False
-        else:
-            self.duty = duty
-
-
-    def set_coding_scheme(self, n_tbins):
-        k = self.n_functions
-        if (k == 3):
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK3(n_tbins)
-        elif (k == 4):
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK4(n_tbins)
-        elif (k == 5):
-            (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetHamK5(n_tbins)
-        else:
-            assert False
-
-        if self.win_duty is not None:
-            (self.modfs, _) = signalproc_ops.smooth_codes(self.modfs, self.demodfs, window_duty=self.win_duty)
-
-        # if self.account_irf:
-        #     self.modfs = np.repeat(np.expand_dims(self.h_irf, axis=-1), k, axis=-1)
-
-        self.set_correlations(self.modfs, self.demodfs)
-        self.demodfs = np.exp(self.correlations)
-        (self.modfs, _) = CodingFunctionsFelipe.GetHamK3(n_tbins, modDuty=self.duty)
-        self.set_correlations(self.modfs, self.demodfs)
-
 
 
 class GatedCoding(Coding):
@@ -370,10 +325,9 @@ class GatedCoding(Coding):
         In the extreme case that we have a gate for every time bin then the C matrix is an (n_maxres x n_maxres) identity matrix
     '''
 
-    def __init__(self, sigma=1, n_gates=None, **kwargs):
+    def __init__(self, n_gates=None, **kwargs):
         self.n_gates = n_gates
         self.correlations = None
-        self.sigma = sigma
         super().__init__(**kwargs)
 
     def encode(self, incident, trials):
@@ -468,7 +422,7 @@ class IdentityCoding(GatedCoding):
 
 
 class GrayCoding(ImpulseCoding):
-    def __init__(self, n_tbins, sigma, n_bits, **kwargs):
+    def __init__(self, n_tbins, n_bits, **kwargs):
         self.max_n_bits = int(np.floor(np.log2(n_tbins)))
         self.n_bits = np.min((n_bits, self.max_n_bits))
         if (n_bits > self.max_n_bits):
@@ -476,7 +430,6 @@ class GrayCoding(ImpulseCoding):
                                                                                                     self.max_n_bits,
                                                                                                     n_tbins))
         self.correlations = None
-        self.sigma = sigma
         super().__init__(n_tbins=n_tbins, **kwargs)
 
     def np_gray_code(self, n_bits):
@@ -504,10 +457,9 @@ class GrayCoding(ImpulseCoding):
 
 
 class FourierCoding(ImpulseCoding):
-    def __init__(self, n_tbins, sigma, freq_idx=[0, 1], n_codes=None, **kwargs):
+    def __init__(self, n_tbins, freq_idx=[0, 1], n_codes=None, **kwargs):
         self.n_codes = n_codes
         self.freq_idx = freq_idx
-        self.sigma = sigma
         self.correlations = None
         super().__init__(n_tbins=n_tbins, **kwargs)
         self.lres_mode = False
@@ -575,13 +527,13 @@ class FourierCoding(ImpulseCoding):
 
 
 class TruncatedFourierCoding(FourierCoding):
-    def __init__(self, n_tbins, sigma, n_freqs=1, n_codes=None, include_zeroth_harmonic=False, **kwargs):
+    def __init__(self, n_tbins, n_freqs=1, n_codes=None, include_zeroth_harmonic=False, **kwargs):
         if (not (n_codes is None) and (n_codes > 1)): n_freqs = np.ceil(n_codes / 2)
         freq_idx = np.arange(0, n_freqs + 1)
         # Remove zeroth harmonic if needed.
         if (not include_zeroth_harmonic): freq_idx = freq_idx[1:]
         self.include_zeroth_harmonic = include_zeroth_harmonic
-        super().__init__(n_tbins=n_tbins, sigma=sigma, freq_idx=freq_idx, n_codes=n_codes, **kwargs)
+        super().__init__(n_tbins=n_tbins, freq_idx=freq_idx, n_codes=n_codes, **kwargs)
 
     def ifft_reconstruction(self, c_vec):
         phasors = self.construct_phasor(c_vec)
@@ -593,21 +545,20 @@ class TruncatedFourierCoding(FourierCoding):
 
 
 class GrayTruncatedFourierCoding(ImpulseCoding):
-    def __init__(self, n_tbins, sigma, n_codes, **kwargs):
+    def __init__(self, n_tbins, n_codes, **kwargs):
         # Create Gray coding obj
-        self.gray_coding_obj = GrayCoding(n_tbins, sigma, n_codes)
+        self.gray_coding_obj = GrayCoding(n_tbins, n_codes)
         self.n_gray_codes = self.gray_coding_obj.n_bits
         # Create Fourier Coding obj with remaining codes we want to use
         self.n_fourier_codes = n_codes - self.n_gray_codes
         self.n_freqs = int(np.ceil(float(self.n_fourier_codes) / 2.))
         if (self.n_freqs >= 1):
             self.truncfourier_coding_obj = TruncatedFourierCoding(n_tbins, n_freqs=self.n_freqs,
-                                                                  sigma=sigma, include_zeroth_harmonic=False)
+                                                                  include_zeroth_harmonic=False)
         else:
             self.truncfourier_coding_obj = None
         # Set coding mat by concat the matrices
         self.correlations = None
-        self.sigma = sigma
         super().__init__(n_tbins=n_tbins, **kwargs)
 
     def set_coding_scheme(self, n_tbins):
