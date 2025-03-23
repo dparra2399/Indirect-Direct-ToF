@@ -35,25 +35,24 @@ if __name__ == '__main__':
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
             ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
                                 h_irf=irf),
-            # ImagingSystemParams('Learned', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k4_mae')
-            #                    , freq_window=0.05),
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
-                                account_irf=True),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
+            #                     account_irf=True, h_irf=irf),
+            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
+                                account_irf=True, h_irf=irf),
+            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak005_counts1000'),
+                                h_irf=irf),
+            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak015_counts1000'),
+                                h_irf=irf),
+            # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
+            #                     account_irf=True),
 
             # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
         ]
-
-        # params['imaging_schemes'] = [
-        #     ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc',
-        #                          duty=1. / 4., freq_window=0.10),
-        #     ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc',
-        #                         duty=1. / 4., freq_window=0.10),
-        #     ImagingSystemParams('KTapSinusoid', 'KTapSinusoid', 'zncc',
-        #                         ktaps=3),
-        #     ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=6, pulse_width=sigma),
-        #
-        # ]
 
         params['meanBeta'] = 1e-4
         params['trials'] = 500
@@ -110,16 +109,24 @@ if __name__ == '__main__':
             axs[i][1].set_xlabel('Time')
             axs[i][2].set_xlabel('Time')
 
-            if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys', 'Learned']:
-                axs[i][2].plot(coding_obj.decode_corrfs)
-                axs[i][3].imshow(coding_obj.decode_corrfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
+            if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys', 'LearnedImpulse']:
+                axs[i][2].plot(coding_obj.decode_corrfs[:, 6], color='orange')
+                axs[i][2].plot(coding_obj.decode_corrfs[:, 2], color='purple')
+                #axs[i][2].set_ylim(-1, 1)
+                tmp = coding_obj.decode_corrfs.transpose()
+                #tmp[4, :] = 0
+                axs[i][3].imshow(tmp, aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
+                axs[i][3].set_axis_off()
+
 
             else:
                 axs[i][2].plot(coding_obj.demodfs)
                 axs[i][3].imshow(coding_obj.demodfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
 
             first_zero_index = np.where(light_obj.filtered_light_source == 0)[0]
-            axs[i][1].plot(np.roll(light_obj.filtered_light_source, 100), color='blue')
+            axs[i][1].plot(np.roll(light_obj.filtered_light_source, int(n_tbins // 2)), color='blue')
+            axs[i][1].set_xticks([int(n_tbins // 2)])
+            axs[i][1].set_xticklabels([0])
             axs[i][0].set_axis_off()
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)
@@ -156,6 +163,6 @@ if __name__ == '__main__':
             color='black', linewidth=1
         ))
 
-    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\supfigure1.svg', bbox_inches='tight')
+    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\overview_illum_coding.svg', bbox_inches='tight')
     plt.show()
 

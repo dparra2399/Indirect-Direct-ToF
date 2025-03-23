@@ -6,17 +6,14 @@ import os
 from math import comb
 from scipy.stats import binom, poisson
 
-save_folder = 'Z:\\Research_Users\\David\\paper figures'
 
-
-def plot_hist(detected):
+def plot_hist(detected, save_filename):
     font = {'family': 'normal',
             'weight': 'bold',
             'size': 10}
 
     matplotlib.rc('font', **font)
 
-    save_folder = 'Z:\\Research_Users\\David\\paper figures'
     fig, axs = plt.subplots()
 
     axs.set_xticks([])
@@ -25,87 +22,7 @@ def plot_hist(detected):
     axs.spines['right'].set_visible(False)
 
     axs.bar(np.arange(0, detected.shape[0]), detected, width=2.0, color='blue')
-    fig.savefig(os.path.join(save_folder, 'figure1b.svg'), bbox_inches='tight')
-    plt.show()
-
-
-def plot_modulation_function(modf, pulsed=False, filename=None):
-
-    fig, axs = plt.subplots()
-
-    axs.set_xticks([])
-    axs.set_yticks([])
-    axs.spines['top'].set_visible(False)
-    axs.spines['right'].set_visible(False)
-    axs.plot(modf, color='blue')
-    if pulsed is not False:
-        axs.plot(pulsed, color='red')
-    fig.savefig(os.path.join(save_folder, f'{filename}.svg'), bbox_inches='tight')
-    plt.show()
-
-
-def plot_modulation_function_with_histogram(modf, hist, filename=None):
-    font = {'family': 'serif',
-            'size': 10}
-
-    matplotlib.rc('font', **font)
-
-    fig, axs = plt.subplots()
-
-    axs.set_xticks([])
-    axs.set_yticks([])
-    axs.spines['top'].set_visible(False)
-    axs.spines['right'].set_visible(False)
-    #axs.set_ylim(0, 30)
-    #axs.set_title('Measured Histogram')
-    #axs.set_xlabel('Time Bins')
-    #axs.set_ylabel('Photon Count')
-    axs.bar(np.arange(0, hist.shape[0]), hist, edgecolor='black', linewidth=0.5, color='blue')
-    fig.savefig(os.path.join(save_folder, f'whatever.svg'), bbox_inches='tight')
-    plt.show()
-
-
-def plot_demodulation_functions(demodfs, filename=None):
-    font = {'family': 'serif',
-            'size': 10}
-
-    matplotlib.rc('font', **font)
-
-    fig, axs = plt.subplots()
-
-    axs.set_xticks([])
-    axs.set_yticks([])
-    axs.spines['top'].set_visible(False)
-    axs.spines['right'].set_visible(False)
-    #axs.set_title('Demodulation Functions')
-    #axs.set_xlabel('Time')
-    axs.plot(demodfs[:, 0], color='salmon')
-    axs.plot(demodfs[:, 1], color='limegreen')
-    axs.plot(demodfs[:, 2], color='violet')
-    fig.savefig(os.path.join(save_folder, f'{filename}.svg'), bbox_inches='tight')
-    plt.show()
-
-def plot_correlation_functions(correlation, b_vals, d_hat, filename=None):
-    font = {'family': 'serif',
-            'size': 10}
-
-    matplotlib.rc('font', **font)
-
-    fig, axs = plt.subplots()
-
-    axs.set_xticks([])
-    axs.set_yticks([])
-    axs.spines['top'].set_visible(False)
-    axs.spines['right'].set_visible(False)
-    axs.set_ylim(-2, 2)
-    axs.plot(correlation[:, 0], color='salmon')
-    axs.plot(correlation[:, 1], color='limegreen')
-    axs.plot(correlation[:, 2], color='violet')
-    axs.scatter(x=d_hat, y=b_vals[0], color='blue')
-    axs.scatter(x=d_hat, y=b_vals[1], color='blue')
-    axs.scatter(x=d_hat, y=b_vals[2], color='blue')
-    axs.axvline(x=d_hat, color='orange')
-    fig.savefig(os.path.join(save_folder, f'{filename}.svg'), bbox_inches='tight')
+    fig.savefig(save_filename, bbox_inches='tight')
     plt.show()
 
 
@@ -149,7 +66,7 @@ def get_scheme_color(coding_scheme, k, cw_tof=False):
     elif coding_scheme.startswith('Greys'):
             color = '#d62728'
     elif coding_scheme.startswith('Learned'):
-            color = 'purple'
+            color = '#1f77b4'
     return color
 
 

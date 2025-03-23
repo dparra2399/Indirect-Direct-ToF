@@ -126,7 +126,10 @@ class SinglePhotonSource(LightSource):
             scaled_modfs[:, i] *= (total_photons / np.sum(self.filtered_light_source[:, i]))
             incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
         if peak_factor is not None:
-             incident = np.clip(incident, 0, (peak_factor * total_photons) + (total_amb_photons / self.n_tbins))
+            #peak_val = np.max(incident)
+            incident = np.clip(incident, 0, (peak_factor * total_photons) + (total_amb_photons / self.n_tbins))
+            if self.h_irf is not None:
+                incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
         return incident
 
     def simulate_peak_photons_n_cycles(self, peak_photons, ambient_photons):

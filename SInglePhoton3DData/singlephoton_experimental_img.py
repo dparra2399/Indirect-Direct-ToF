@@ -47,20 +47,23 @@ def get_ground_truth(scene_id):
 
 if __name__=='__main__':
 
-    depths = get_ground_truth('20190207_face_scanning_low_mu/ground_truth')
     ## Load parameters shared by all
     scan_data_params = load_json('scan_params.json')
     io_dirpaths = load_json('io_dirpaths.json')
     hist_img_base_dirpath = io_dirpaths["preprocessed_hist_data_base_dirpath"]
 
     ## Load processed scene:
-    # scene_id = '20190209_deer_high_mu/free'
+    #scene_id = '20190209_deer_high_mu/free'
     scene_id = '20190207_face_scanning_low_mu/free'
     #scene_id = '20190207_face_scanning_low_mu/ground_truth'
 
     #scene_id = '20181105_face/opt_flux'
 
     #scene_id = '20190207_face_scanning_low_mu/ground_truth'
+    #depths = get_ground_truth('20190207_face_scanning_low_mu/ground_truth')
+    depths = get_ground_truth(scene_id)
+
+
     assert (scene_id in scan_data_params['scene_ids']), "{} not in scene_ids".format(scene_id)
     hist_dirpath = os.path.join(hist_img_base_dirpath, scene_id)
 
@@ -102,12 +105,18 @@ if __name__=='__main__':
     params['depth_res'] = 1000  ##Conver to MM
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-                            h_irf=irf),
+        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
+        #                    h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'version_1'),
+        #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
                             model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
                             account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_1'),
+                            account_irf=True, h_irf=irf),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
     ]
@@ -134,6 +143,7 @@ if __name__=='__main__':
     imaging_schemes = params['imaging_schemes']
 
     depth_images = np.zeros((nr, nc, len(params['imaging_schemes'])))
+    error_maps = np.zeros((nr, nc, len(params['imaging_schemes'])))
     byte_sizes = np.zeros((len(params['imaging_schemes'])))
     rmse = np.zeros((len(params['imaging_schemes'])))
     mae = np.zeros((len(params['imaging_schemes'])))
@@ -153,16 +163,24 @@ if __name__=='__main__':
 
         decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * time2depth(hist_tbin_size * 1e-12)
 
-        if 'face' in scene_id:
+        if 'face_scanning' in scene_id:
             mask = plt.imread(io_dirpaths['hist_mask_path'])
             mask = np.logical_not(mask)
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
 
-        depth_images[:, :, i] = np.reshape(decoded_depths, (nr, nc))
+        normalized_decoded_depths = np.copy(decoded_depths)
+        normalized_decoded_depths[normalized_decoded_depths == 0] = np.nan
+        vmin = np.nanmean(normalized_decoded_depths) - 1
+        vmax = np.nanmean(normalized_decoded_depths) + 1
+        normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
+        normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
+        # normalized_decoded_depths = (normalized_decoded_depths - np.nanmean(normalized_decoded_depths)) / np.nanstd(normalized_decoded_depths)
+        error_maps[:, :, i] = np.abs(np.reshape(normalized_decoded_depths, (nr, nc)) - depths)
+        depth_images[:, :, i] = np.reshape(normalized_decoded_depths, (nr, nc)) * 10
         byte_sizes[i] = np.squeeze(coded_vals).size * np.squeeze(coded_vals).itemsize
-        errors = np.abs(decoded_depths - depths.flatten()[np.newaxis, :]) * depth_res
-        error_metrix = calc_error_metrics(errors)
+        errors = np.abs(normalized_decoded_depths - depths.flatten()[np.newaxis, :]) * depth_res
+        error_metrix = calc_error_metrics(errors[~np.isnan(errors)])
 
 
         rmse[i] = error_metrix['rmse']
@@ -184,16 +202,15 @@ if __name__=='__main__':
         # depth_map[depth_map < 1/2*np.min(depth_image)] = np.nan
         # depth_map[depth_map > 2*np.max(depth_image)] = np.nan
 
-        error_map = np.abs(depth_map - depths)
+        error_map = error_maps[:, :, i] * 10
 
-        depth_im = axs[0][i].imshow(depth_map)
-                                           #vmin=1.5*np.min(depth_map), vmax=0.5*np.max(depth_map))
-
+        depth_im = axs[0][i].imshow(depth_map,
+                                           vmin=np.nanmin(depth_images), vmax=np.nanmax(depth_images))
         for spine in axs[0][i].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
             spine.set_linewidth(4)
 
-        error_im = axs[1][i].imshow(error_map, vmin=0, vmax=0.5)
+        error_im = axs[1][i].imshow(error_map, vmin=0, vmax=2)
 
         for spine in axs[1][i].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
@@ -205,19 +222,40 @@ if __name__=='__main__':
         axs[1][i].get_yaxis().set_ticks([])
         #if counter == 2:
         axs[1][i].set_xlabel(f'RMSE: {rmse[i] / 10: .2f} cm \n MAE: {mae[i] / 10:.2f} cm')
-        axs[0][i].set_title(scheme.coding_id)
+
+        str_name = ''
+        if imaging_schemes[i].coding_id.startswith('TruncatedFourier'):
+            str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[i].n_codes}'
+        elif imaging_schemes[i].coding_id.startswith('Gated'):
+            str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[i].n_gates}'
+        elif imaging_schemes[i].coding_id.startswith('Hamiltonian'):
+            str_name = f'SiP Hamiltonian K={imaging_schemes[i].coding_id[-1]}'
+        elif imaging_schemes[i].coding_id == 'Identity':
+            str_name = 'Full-Res. Hist.'
+        elif imaging_schemes[i].coding_id.startswith('KTapSin'):
+            if imaging_schemes[i].cw_tof is True:
+                str_name = 'i-ToF Sinusoid'
+            else:
+                str_name = 'CoWSiP-ToF Sinusoid'
+
+        elif imaging_schemes[i].coding_id == 'Greys':
+            str_name = 'Greys'
+        elif imaging_schemes[i].coding_id.startswith('Learned'):
+            str_name = 'Learned'
+
+        axs[0][i].set_title(str_name)
         print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[i] / 10: .2f} cm, MAE: {mae[i] / 10:.2f} cm')
 
     axs[0, -1].axis('off')
     axs[1, -1].axis('off')
-    cbar_im = fig.colorbar(depth_im, ax=axs[0, -1], orientation='vertical', label='Depth (meters)')
-    cbar_error = fig.colorbar(error_im, ax=axs[1, -1], orientation='vertical', label='Error (meters)')
+    cbar_im = fig.colorbar(depth_im, ax=axs[0, -1], orientation='vertical', label='Depth (cm)')
+    cbar_error = fig.colorbar(error_im, ax=axs[1, -1], orientation='vertical', label='Error (cm)')
 
     axs[0, -1].legend()
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig('Z:\\Research_Users\\David\\paper figures\\figure6a.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\experimental_results.svg', bbox_inches='tight')
     plt.show()
     print(scan_data_params)
 
