@@ -119,8 +119,8 @@ if __name__ == '__main__':
 
             filtered_illum = np.roll(incident[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
 
-            line1, = ax[i][j].plot(delta_illum, color='darkorange', linewidth=2, alpha=0.7, label=r'$\Phi_{sig}$' + f'={int(np.sum(delta_illum))}')
-            line2, = ax[i][j].plot(filtered_illum, color='blue', linewidth=2, alpha=0.7, label=r'$\Phi_{sig}$' + f'={int(np.sum(filtered_illum))}')
+            line1, = ax[i][j].plot(delta_illum, color='darkorange', linewidth=2, alpha=0.7, label=r'$\Phi^{sig}$' + f'={int(np.sum(delta_illum))}')
+            line2, = ax[i][j].plot(filtered_illum, color='blue', linewidth=2, alpha=0.7, label=r'$\Phi^{sig}$' + f'={int(np.sum(filtered_illum))}')
 
             print(f'delta_illum: {np.sum(delta_illum)}')
             print(f'illum: {np.sum(filtered_illum)}')

@@ -44,13 +44,11 @@ if __name__ == '__main__':
     params['imaging_schemes'] = [
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
         ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
-        #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-                            account_irf=True, h_irf=irf),
-        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
+                           account_irf=True, h_irf=irf),
 
+        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
 
@@ -67,16 +65,17 @@ if __name__ == '__main__':
     #filename = 'cbox_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'breakfast-hall_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #depth_image = np.load(os.path.join(depth_folder, filename))
-    # rgb_image = np.load(os.path.join(rgb_folder, filename))
-    depth_image = np.load(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse2_depth_map.npy')
+    filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    depth_image = np.load(os.path.join(depth_folder, filename))
+    rgb_image = np.load(os.path.join(rgb_folder, filename))
+    #filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
+    #depth_image = np.load(filename)
     (nr, nc) = depth_image.shape
     depths = depth_image.flatten()
     print(f'Max Depth {depths.max()}')
 
     # Do either average photon count
-    peak_photon_counts = [500]
+    peak_photon_counts = [300]
     ambient_counts = [0.1]
     peak_factor = None #0.015
 
@@ -129,21 +128,33 @@ if __name__ == '__main__':
                 decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
 
+            if 'cow' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
+                mask = plt.imread(r'./data/cow.png')
+                mask = mask[..., -1]
+                depths_masked = mask.flatten() * depths
+                decoded_depths = mask.flatten() * decoded_depths
+            elif 'horse' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
+                mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse.png')
+                mask = mask[..., -1]
+                depths_masked = mask.flatten() * depths
+                decoded_depths = mask.flatten() * decoded_depths
+            else:
+                depths_masked = depths
 
             normalized_decoded_depths = np.copy(decoded_depths)
             normalized_decoded_depths[normalized_decoded_depths == 0] = np.nan
-            # vmin = np.nanmean(normalized_decoded_depths) - 30
-            # vmax = np.nanmean(normalized_decoded_depths) + 30
-            vmin = depths.min() - 20
-            vmax = depths.max() + 20
+            # # vmin = np.nanmean(normalized_decoded_depths) - 30
+            # # vmax = np.nanmean(normalized_decoded_depths) + 30
+            vmin = 4#depths.min() - 20
+            vmax = 12 #depths.max() + 20
             normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
             normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
 
 
-            error_maps[j, :, :, i] = np.abs(np.reshape(decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
+            error_maps[j, :, :, i] = np.abs(np.reshape(normalized_decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
             depth_images[j, :, :, i] = np.reshape(normalized_decoded_depths, (nr, nc))
-            errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
-            error_metrix = calc_error_metrics(errors)
+            errors = np.abs(normalized_decoded_depths - depths_masked.flatten()[np.newaxis, :]) * depth_res
+            error_metrix = calc_error_metrics(errors[~np.isnan(errors)])
 
 
             rmse[j, i] = error_metrix['rmse']
@@ -151,21 +162,20 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes'])+1, squeeze=False)
-    plt.subplots_adjust(hspace=0.05, wspace=0.05)
+    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(12, 5))
 
     counter1 = 0
     counter2 = 1
 
     axs[0][0].set_ylabel('Depth Map')
-    axs[1][0].set_ylabel('Depth Errors (mm)')
 
     for j in range(0, len(peak_photon_counts)):
         for i in range(len(params['imaging_schemes'])):
 
             scheme = params['imaging_schemes'][i]
             depth_map = depth_images[j, :, :, i]
-            depth_map[np.isnan(depth_map)] = 0
+            tmp = np.copy(depth_map)
+            tmp[np.isnan(tmp)] = 0
 
 
             #depth_map[depth_map < 1/2*np.min(depth_image)] = np.nan
@@ -174,20 +184,25 @@ if __name__ == '__main__':
             error_map = error_maps[j, :, :, i] * 10
 
 
-            depth_map_small = depth_map[:50, :30]
-            depth_im = axs[counter1][i].imshow(depth_map,
+            depth_map_small = tmp[120:170, 120:170]
+            depth_im = axs[counter1][i].imshow(tmp,
                                                vmin=np.nanmin(depth_images), vmax=np.nanmax(depth_images))
+
+            rect = matplotlib.patches.Rectangle((120, 120), 50, 50, linewidth=2, edgecolor='red', facecolor='none')
+            axs[counter1][i].add_patch(rect)
 
             for spine in axs[counter1][i].spines.values():
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
-                spine.set_linewidth(4)
+                spine.set_linewidth(2)
 
             depth_im_small = axs[counter2][i].imshow(depth_map_small,
-                                               vmin=np.nanmin(depth_images), vmax=np.nanmax(depth_images))
+                                                vmin=np.nanmin(depth_images), vmax=np.nanmax(depth_images))
+            #depth_im_small = axs[counter2][i].imshow(error_map,
+            #                                   vmin=0, vmax=5)
 
             for spine in axs[counter2][i].spines.values():
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
-                spine.set_linewidth(4)
+                spine.set_linewidth(2)
 
             axs[counter1][i].get_xaxis().set_ticks([])
             axs[counter1][i].get_yaxis().set_ticks([])
@@ -195,21 +210,38 @@ if __name__ == '__main__':
             axs[counter2][i].get_yaxis().set_ticks([])
             #if counter == 2:
             axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm \n MAE: {mae[j, i] / 10:.2f} cm')
-            axs[0][i].set_title(scheme.coding_id)
+            str_name = ''
+            if imaging_schemes[i].coding_id.startswith('TruncatedFourier'):
+                str_name = 'Trunc. Fourier'
+            elif imaging_schemes[i].coding_id.startswith('Gated'):
+                str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[i].n_gates}'
+            elif imaging_schemes[i].coding_id.startswith('Hamiltonian'):
+                str_name = f'SiP Hamiltonian K={imaging_schemes[i].coding_id[-1]}'
+            elif imaging_schemes[i].coding_id == 'Identity':
+                str_name = 'Full-Res. Hist.'
+            elif imaging_schemes[i].coding_id.startswith('KTapSin'):
+                if imaging_schemes[i].cw_tof is True:
+                    str_name = 'i-ToF Sinusoid'
+                else:
+                    str_name = 'CoWSiP-ToF Sinusoid'
+
+            elif imaging_schemes[i].coding_id == 'Greys':
+                str_name = 'Greys'
+            elif imaging_schemes[i].coding_id.startswith('Learned'):
+                str_name = 'Learned'
+
+            axs[0][i].set_title(str_name)
             print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[j, i] / 10: .2f} cm, MAE: {mae[j, i] / 10:.2f} cm')
         counter1 += 2
         counter2 += 2
 
     axs[0, -1].axis('off')
     axs[1, -1].axis('off')
-    cbar_im = fig.colorbar(depth_im, ax=axs[0, -1], orientation='vertical', label='Depth (meters)')
-    cbar_error = fig.colorbar(depth_im_small, ax=axs[1, -1], orientation='vertical', label='Error (meters)')
-
+    cbar_im = fig.colorbar(depth_im, ax=axs.flatten(), orientation='vertical', label='Depth (meters)')
     axs[0, -1].legend()
-    axs[1, -1].legend()
-    #fig.tight_layout()
-    plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\teaser_figure_sim_results.svg', bbox_inches='tight', dpi=3000)
+    fig.subplots_adjust(hspace=0.05, wspace=0.05)
+
+    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\bandlimited_depth_map.svg', bbox_inches='tight', dpi=3000)
     plt.show()
     print()
 print('YAYYY')

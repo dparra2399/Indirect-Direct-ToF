@@ -1,4 +1,5 @@
 from IPython.core import debugger
+from IPython.core.pylabtools import figsize
 
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils import tof_utils_felipe
@@ -30,25 +31,25 @@ if __name__ == '__main__':
         params['T'] = 0.1  # intergration time [used for binomial]
         params['depth_res'] = 1000  ##Conver to MM
 
-        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)
         params['imaging_schemes'] = [
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-                                h_irf=irf),
+            # ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
+            #                     h_irf=irf),
             # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
             #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
             #                     account_irf=True, h_irf=irf),
             ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
                                 model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
                                 account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak005_counts1000'),
+            #                     h_irf=irf),
             ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak005_counts1000'),
+                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma1t_peak015_counts1000'),
                                 h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak015_counts1000'),
-                                h_irf=irf),
-            # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
-            #                     account_irf=True),
+            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
+                                account_irf=True),
 
             # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
 
@@ -79,7 +80,7 @@ if __name__ == '__main__':
         init_coding_list(n_tbins, depths, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
 
-        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4)
+        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4, figsize=(12, 4))
 
         axs[0][1].set_title('Emitted S(t)')
         axs[0][2].set_title('Coding Functions D(t)')
@@ -163,6 +164,6 @@ if __name__ == '__main__':
             color='black', linewidth=1
         ))
 
-    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\overview_illum_coding.svg', bbox_inches='tight')
+    fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\overview_illum_coding.svg', bbox_inches='tight')
     plt.show()
 
