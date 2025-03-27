@@ -70,7 +70,8 @@ if __name__ == '__main__':
     #filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #depth_image = np.load(os.path.join(depth_folder, filename))
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
-    depth_image = np.load(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy')
+    filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
+    depth_image = np.load(filename)
     (nr, nc) = depth_image.shape
     depths = depth_image.flatten()
     print(f'Max Depth {depths.max()}')
@@ -128,7 +129,7 @@ if __name__ == '__main__':
             else:
                 decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
-            if False:
+            if 'cow2' in filename:
                 mask = plt.imread(r'/data/cow.png')
                 mask = mask[..., -1]
                 depths = mask.flatten() * depths

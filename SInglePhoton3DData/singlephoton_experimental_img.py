@@ -115,7 +115,10 @@ if __name__=='__main__':
                             model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
                             account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_1'),
+                            model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
+                            account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_0'),
                             account_irf=True, h_irf=irf),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
@@ -208,13 +211,13 @@ if __name__=='__main__':
                                            vmin=np.nanmin(depth_images), vmax=np.nanmax(depth_images))
         for spine in axs[0][i].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
-            spine.set_linewidth(4)
+            spine.set_linewidth(2)
 
         error_im = axs[1][i].imshow(error_map, vmin=0, vmax=2)
 
         for spine in axs[1][i].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
-            spine.set_linewidth(4)
+            spine.set_linewidth(2)
 
         axs[0][i].get_xaxis().set_ticks([])
         axs[0][i].get_yaxis().set_ticks([])
@@ -255,7 +258,7 @@ if __name__=='__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\experimental_results.svg', bbox_inches='tight')
+    #fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\experimental_results.svg', bbox_inches='tight')
     plt.show()
     print(scan_data_params)
 

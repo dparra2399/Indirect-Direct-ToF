@@ -20,10 +20,13 @@ rc('font', **font)
 breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\Learned Coding Functions Paper'
-file = np.load('../data/results/bandlimit_peak_simulation/ntbins_1024_monte_1000_exp_Learned_sigma5_peak030.npz', allow_pickle=True)
+file = np.load('../data/results/bandlimit_simulation/ntbins_1024_monte_1000_exp_Learned_sigma30_rmse.npz', allow_pickle=True)
+file = np.load('../data/results/bandlimit_peak_simulation/ntbins_1024_monte_1000_exp_Learned_sigma10_peak015_rmse.npz', allow_pickle=True)
 
-num = 2
-num2 = 2
+
+
+num = 1
+num2 = 1
 grid_size = 5
 mae = file['results'][:, num2:-num, num2:-num]
 levels_one = file['levels_one'][num2:-num, num2:-num]
@@ -99,7 +102,7 @@ ax.set_yticklabels(np.round(np.linspace(np.min(np.log10(levels_two)), np.max(np.
 
 #ax.set_zlabel('Mean Depth Error in (mm)')
 ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-#ax.set_zlim(0, 350)
+ax.set_zlim(0, 350)
 fig.tight_layout()
 #fig.savefig(os.path.join(save_folder, 'sigma10_peak005_results.svg'), bbox_inches='tight', dpi=3000)
 plt.show(block=True)
