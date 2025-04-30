@@ -61,6 +61,10 @@ def get_string_name(imaging_scheme):
     elif imaging_scheme.coding_id == 'Greys':
         k = imaging_scheme.n_bits
         str_name = r'Continuous Greys' + f'\n K={k}'
-    else:
-        str_name = f'{imaging_scheme.coding_id}'
+    elif 'Learned' in imaging_scheme.coding_id:
+        try:
+            k = int(imaging_scheme.model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
+        except:
+            k= 4
+        str_name = r'Optimized' + f'\n K={k}'
     return str_name

@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib import rc
 import matplotlib
 
+from utils.file_utils import get_string_name
 
 font = {'family': 'serif',
         'weight': 'bold',
@@ -40,18 +41,19 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 20, circ_shifted=True)
     params['imaging_schemes'] = [
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
-        #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-                            account_irf=True, h_irf=irf),
-        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k4_sigma30'),
+        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        # #                     account_irf=True, h_irf=irf),
+        # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        # #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+        # #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, account_irf=True, h_irf=irf),
+        #
+        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
 
     ]
@@ -66,19 +68,19 @@ if __name__ == '__main__':
     #filename = 'veach-bidir_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'cbox_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'breakfast-hall_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    #depth_image = np.load(os.path.join(depth_folder, filename))
+    depth_image = np.load(os.path.join(depth_folder, filename))
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
-    filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
-    depth_image = np.load(filename)
+    # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
+    # depth_image = np.load(filename)
     (nr, nc) = depth_image.shape
     depths = depth_image.flatten()
     print(f'Max Depth {depths.max()}')
 
     # Do either average photon count
     peak_photon_counts = [500]
-    ambient_counts = [0.1]
+    ambient_counts = [1.0]
     peak_factor = None #0.015
 
     n_tbins = params['n_tbins']
@@ -129,11 +131,18 @@ if __name__ == '__main__':
             else:
                 decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
-            if 'cow2' in filename:
-                mask = plt.imread(r'/data/cow.png')
+            if 'cow' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
+                mask = plt.imread(r'./data/cow.png')
                 mask = mask[..., -1]
-                depths = mask.flatten() * depths
+                depths_masked = mask.flatten() * depths
                 decoded_depths = mask.flatten() * decoded_depths
+            elif 'horse' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
+                mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse.png')
+                mask = mask[..., -1]
+                depths_masked = mask.flatten() * depths
+                decoded_depths = mask.flatten() * decoded_depths
+            else:
+                depths_masked = depths
 
 
             normalized_decoded_depths = np.copy(decoded_depths)
@@ -157,14 +166,12 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes'])+1, squeeze=False)
+    fig, axs = plt.subplots(len(peak_photon_counts)*2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(16, 5))
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
     counter1 = 0
     counter2 = 1
 
-    axs[0][0].set_ylabel('Depth Map')
-    axs[1][0].set_ylabel('Depth Errors (mm)')
 
     for j in range(0, len(peak_photon_counts)):
         for i in range(len(params['imaging_schemes'])):
@@ -185,7 +192,7 @@ if __name__ == '__main__':
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
                 spine.set_linewidth(4)
 
-            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=1)
+            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=3)
 
             for spine in axs[counter2][i].spines.values():
                 spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
@@ -197,7 +204,7 @@ if __name__ == '__main__':
             axs[counter2][i].get_yaxis().set_ticks([])
             #if counter == 2:
             axs[counter2][i].set_xlabel(f'RMSE: {rmse[j, i] / 10: .2f} cm \n MAE: {mae[j, i] / 10:.2f} cm')
-            axs[0][i].set_title(scheme.coding_id)
+            axs[0][i].set_title(get_string_name(scheme))
             print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[j, i] / 10: .2f} cm, MAE: {mae[j, i] / 10:.2f} cm')
         counter1 += 2
         counter2 += 2
@@ -211,7 +218,7 @@ if __name__ == '__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\teaser_figure_sim_results.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_k4_sigma20_high.svg', bbox_inches='tight', dpi=3000)
     plt.show()
     print()
 print('YAYYY')
