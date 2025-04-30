@@ -10,7 +10,7 @@ from matplotlib import rc
 
 
 font = {'family': 'serif',
-        'size': 12}
+        'size': 10}
 
 rc('font', **font)
 
@@ -20,91 +20,135 @@ rc('font', **font)
 breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\Learned Coding Functions Paper'
-file = np.load('../data/results/bandlimit_simulation/ntbins_1024_monte_1000_exp_Learned_sigma30_rmse.npz', allow_pickle=True)
-file = np.load('../data/results/bandlimit_peak_simulation/ntbins_1024_monte_1000_exp_Learned_sigma10_peak015_rmse.npz', allow_pickle=True)
+filenames = [
+            # '../data/results/bandlimit_simulation/ntbins_1024_monte_1000_exp_Learned_sigma10_mae.npz',
+            # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz',
+            # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
+            # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
+            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
+            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
+
+            ]
+# filenames = [
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
+#              '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak030_rmse.npz',
+#              '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak030_rmse.npz'
+#               ]
+
+fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 5), squeeze=False)
+
+num = 8 #high SBR
+num2 = 2 #Low Photon count
+num3 = 1 #Low SBR
+num4 = 1 #High photon count
+grid_size = 4
+
+for i, filename in enumerate(filenames):
+    file = np.load(filename, allow_pickle=True)
+
+    mae = file['results'][:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
+    levels_one = file['levels_one'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    print(np.min(levels_one))
+    levels_two = file['levels_two'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    params = file['params'].item()
+    imaging_schemes = params['imaging_schemes']
+    tbin_res = params['rep_tau'] / params['n_tbins']
+    tbin_depth_res = tof_utils_felipe.time2depth(tbin_res)
 
 
+    for j in range(len(imaging_schemes)):
+        tmp = mae[j, :, :]
+        #tmp[tmp > 500] = np.nan
+        # if imaging_schemes[j].coding_id == 'GrayTruncatedFourier':
+        #     continue
 
-num = 1
-num2 = 1
-grid_size = 5
-mae = file['results'][:, num2:-num, num2:-num]
-levels_one = file['levels_one'][num2:-num, num2:-num]
-levels_two = file['levels_two'][num2:-num, num2:-num]
-params = file['params'].item()
-imaging_schemes = params['imaging_schemes']
-tbin_res = params['rep_tau'] / params['n_tbins']
-tbin_depth_res = tof_utils_felipe.time2depth(tbin_res)
-
-
-fig = plt.figure()
-ax = plt.axes(projection='3d')
-
-arr = []
-
-for j in range(len(imaging_schemes)):
-    tmp = mae[j, :, :]
-    #tmp[tmp > 500] = np.nan
-    # if imaging_schemes[j].coding_id == 'GrayTruncatedFourier':
-    #     continue
-
-    str_name = ''
-    if imaging_schemes[j].coding_id.startswith('TruncatedFourier'):
-        str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[j].n_codes}'
-        if imaging_schemes[j].n_codes == 6:
-            continue
-    elif imaging_schemes[j].coding_id.startswith('Gated'):
-        str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[j].n_gates}'
-        if imaging_schemes[j].pulse_width == 1:
+        str_name = ''
+        if imaging_schemes[j].coding_id.startswith('TruncatedFourier'):
+            str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[j].n_codes}'
+            if imaging_schemes[j].n_codes == 6:
+                continue
+        elif imaging_schemes[j].coding_id.startswith('Gated'):
+            str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[j].n_gates}'
+            if imaging_schemes[j].pulse_width == 1:
+                pass
+        elif imaging_schemes[j].coding_id.startswith('Hamiltonian'):
+            if imaging_schemes[j].coding_id.endswith('3') or imaging_schemes[j].coding_id.endswith('5'):
+                continue
+            str_name = f'SiP Hamiltonian K={imaging_schemes[j].coding_id[-1]}'
+        elif imaging_schemes[j].coding_id == 'Identity':
+            if imaging_schemes[j].pulse_width == 1:
+                str_name = 'Full-Res. Hist. (Narrow)'
+            else:
+                str_name = 'Full-Res. Hist. (Wide)'
             pass
-    elif imaging_schemes[j].coding_id.startswith('Hamiltonian'):
-        if imaging_schemes[j].coding_id.endswith('3') or imaging_schemes[j].coding_id.endswith('5'):
-            continue
-        str_name = f'SiP Hamiltonian K={imaging_schemes[j].coding_id[-1]}'
-    elif imaging_schemes[j].coding_id == 'Identity':
-        if imaging_schemes[j].pulse_width == 1:
-            str_name = 'Full-Res. Hist. (Narrow)'
-        else:
-            str_name = 'Full-Res. Hist. (Wide)'
-        pass
-    elif imaging_schemes[j].coding_id.startswith('KTapSin'):
-        if imaging_schemes[j].cw_tof is True:
-            str_name = 'i-ToF Sinusoid'
-        else:
-            str_name = 'CoWSiP-ToF Sinusoid'
+        elif imaging_schemes[j].coding_id.startswith('KTapSin'):
+            if imaging_schemes[j].cw_tof is True:
+                str_name = 'i-ToF Sinusoid'
+            else:
+                str_name = 'CoWSiP-ToF Sinusoid'
 
-    elif imaging_schemes[j].coding_id == 'Greys':
-        str_name = 'Count. Greys'
-        if imaging_schemes[j].n_bits != 5:
-             pass
-        pass
-    elif imaging_schemes[j].coding_id == 'Learned':
-        pass
+        elif imaging_schemes[j].coding_id == 'Greys':
+            str_name = 'Count. Greys'
+            if imaging_schemes[j].n_bits != 5:
+                 pass
+            pass
+        elif imaging_schemes[j].coding_id == 'Learned':
+            pass
 
 
-    k = imaging_schemes[j].coding_obj.n_functions
-    surf = ax.plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
-                           label=get_string_name(imaging_schemes[j]), alpha=0.8,
-                           edgecolors='k', lw=0.5, shade=False, antialiased=True,
-                           color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
-    surf._edgecolors2d = surf._edgecolor3d
-    surf._facecolors2d = surf._facecolor3d
+        #k = imaging_schemes[j].coding_obj.n_functions
+        k = 4
 
-ax.view_init(elev=15., azim=-45)
-ax.set_xticks(np.round(np.linspace(np.min(np.log10(levels_one)), np.max(np.log10(levels_one)), num=grid_size), 1))  # Set x-axis ticks
-ax.set_yticks(np.round(np.linspace(np.min(np.log10(levels_two)), np.max(np.log10(levels_two)), num=grid_size), 1))  # Set y-axis ticks
+        label = get_string_name(imaging_schemes[j])
+        surf = axs[0][i].plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
+                               label=label, alpha=0.8,
+                               edgecolors='k', lw=0.5, shade=False, antialiased=True,
+                               color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
+        surf._edgecolors2d = surf._edgecolor3d
+        surf._facecolors2d = surf._facecolor3d
 
-# Optionally, customize tick labels
-ax.set_xticklabels(np.round(np.linspace(np.min(np.log10(levels_one)), np.max(np.log10(levels_one)), num=grid_size), 1), fontsize=12)
-ax.set_yticklabels(np.round(np.linspace(np.min(np.log10(levels_two)), np.max(np.log10(levels_two)), num=grid_size), 1), fontsize=12)
-#plt.ylabel(f'Average Ambient Photon per Bin', labelpad=10)
-#plt.xlabel(f'Peak Photon Count')
+    axs[0][i].view_init(elev=15., azim=-45)
+    axs[0][i].set_xticks(np.round(np.linspace(np.min(np.log10(levels_one)), np.max(np.log10(levels_one)), num=grid_size), 1))  # Set x-axis ticks
+    axs[0][i].set_yticks(np.round(np.linspace(np.min(np.log10(levels_two)), np.max(np.log10(levels_two)), num=grid_size), 1))  # Set y-axis ticks
 
-#ax.set_zlabel('Mean Depth Error in (mm)')
-ax.legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-ax.set_zlim(0, 350)
+    # Optionally, customize tick labels
+    axs[0][i].set_xticklabels(np.round(np.linspace(np.min(np.log10(levels_one)), np.max(np.log10(levels_one)), num=grid_size), 1), fontsize=12)
+    axs[0][i].set_yticklabels(np.round(np.linspace(np.min(np.log10(levels_two)), np.max(np.log10(levels_two)), num=grid_size), 1), fontsize=12)
+    axs[0][i].set_ylabel(f'Log SBR')
+    axs[0][i].set_xlabel(f'Log Photon Count')
+
+    if 'rmse' in filename:
+        axs[0][i].set_zlabel('Root Mean Sq. Error (cm)')
+        # if 'photonstarved' in filename:
+        #     axs[0][i].set_zlim(0, 300)
+        # else:
+        #     axs[0][i].set_zlim(0, 15)
+    else:
+        axs[0][i].set_zlabel('Mean Abs. Error (cm)')
+        # if 'photonstarved' in filename:
+        #     axs[0][i].set_zlim(0, 250)
+        # else:
+        #     axs[0][i].set_zlim(0, 12)
+
+    #axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
+
+    if 'peak030' in filename:
+        axs[0][i].set_zlim(0, 50)
+    elif 'peak015' in filename:
+        axs[0][i].set_zlim(0, 120)
+    elif 'peak005' in filename:
+        axs[0][i].set_zlim(0, 400)
+
 fig.tight_layout()
-#fig.savefig(os.path.join(save_folder, 'sigma10_peak005_results.svg'), bbox_inches='tight', dpi=3000)
+
+#fig.savefig(os.path.join(save_folder, 'sigma30_results_rmse_photonstarved.svg'), bbox_inches='tight', dpi=3000)
+#fig.savefig(os.path.join(save_folder, 'sigma10_20_30_results_rmse.svg'), bbox_inches='tight', dpi=3000)
+#fig.savefig(os.path.join(save_folder, 'sigma10_results_rmse_mae.svg'), bbox_inches='tight', dpi=3000)
+
+#fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
+
+fig.savefig(os.path.join(save_folder, 'supp.svg'), bbox_inches='tight', dpi=3000)
+
 plt.show(block=True)
 
 # fig = go.Figure(data=arr)

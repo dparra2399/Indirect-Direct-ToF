@@ -9,6 +9,9 @@ from spad_toflib.coding_schemes import IdentityCoding
 import matplotlib.pyplot as plt
 from plot_figures.plot_utils import get_scheme_color
 
+global_shift = 0
+downsamp_factor = 1  # Spatial downsample factor
+hist_tbin_factor = 1.0  # increase tbin size to make histogramming faster
 
 def get_ground_truth(scene_id):
     scan_data_params = load_json('scan_params.json')
@@ -18,8 +21,7 @@ def get_ground_truth(scene_id):
     hist_dirpath = os.path.join(hist_img_base_dirpath, scene_id)
 
     ## Histogram image params
-    downsamp_factor = 1  # Spatial downsample factor
-    hist_tbin_factor = 1.0  # increase tbin size to make histogramming faster
+
     n_rows_fullres = scan_data_params['scene_params'][scene_id]['n_rows_fullres']
     n_cols_fullres = scan_data_params['scene_params'][scene_id]['n_cols_fullres']
     (nr, nc) = (n_rows_fullres // downsamp_factor, n_cols_fullres // downsamp_factor)  # dims for face_scanning scene
@@ -35,7 +37,6 @@ def get_ground_truth(scene_id):
     hist_img = np.load(hist_img_fpath)
 
     ## Shift histogram image if needed
-    global_shift = 0
     hist_img = np.roll(hist_img, global_shift, axis=-1)
 
     irf = get_scene_irf(scene_id, nt, tlen=hist_img_tau, is_unimodal=False)
@@ -53,8 +54,8 @@ if __name__=='__main__':
     hist_img_base_dirpath = io_dirpaths["preprocessed_hist_data_base_dirpath"]
 
     ## Load processed scene:
-    #scene_id = '20190209_deer_high_mu/free'
-    scene_id = '20190207_face_scanning_low_mu/free'
+    scene_id = '20190209_deer_high_mu/free'
+    #scene_id = '20190207_face_scanning_low_mu/free'
     #scene_id = '20190207_face_scanning_low_mu/ground_truth'
 
     #scene_id = '20181105_face/opt_flux'
@@ -68,8 +69,6 @@ if __name__=='__main__':
     hist_dirpath = os.path.join(hist_img_base_dirpath, scene_id)
 
     ## Histogram image params
-    downsamp_factor = 1  # Spatial downsample factor
-    hist_tbin_factor = 1.0  # increase tbin size to make histogramming faster
     n_rows_fullres = scan_data_params['scene_params'][scene_id]['n_rows_fullres']
     n_cols_fullres = scan_data_params['scene_params'][scene_id]['n_cols_fullres']
     (nr, nc) = (n_rows_fullres // downsamp_factor, n_cols_fullres // downsamp_factor)  # dims for face_scanning scene
@@ -85,7 +84,6 @@ if __name__=='__main__':
     hist_img = np.load(hist_img_fpath)
 
     ## Shift histogram image if needed
-    global_shift = 0
     hist_img = np.roll(hist_img, global_shift, axis=-1)
 
     denoised_hist_img = gaussian_filter(hist_img, sigma=0.75, mode='wrap', truncate=1)
@@ -104,25 +102,28 @@ if __name__=='__main__':
     params['T'] = 0.1 #intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    params['imaging_schemes'] = [
-        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-        #                    h_irf=irf),
+    params['imaging_schemes'] = list(reversed([
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=10, pulse_width=1,  account_irf=False,
+                            h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_1'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
+        #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
+        #                     account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
+                            model=os.path.join('bandlimited_models', 'version_4_v2'),
                             account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
-                            account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_0'),
-                            account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'version_4_v3'),
+        #                     account_irf=True, h_irf=irf),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
-    ]
+    ]))
 
 
     params['meanBeta'] = 1e-4
@@ -171,18 +172,31 @@ if __name__=='__main__':
             mask = np.logical_not(mask)
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
+        elif 'deer' in scene_id:
+            mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\SInglePhoton3DData\deer.png')[..., 0]
+            mask[mask > 0] = 1
+            depths = mask * depths
+            decoded_depths = mask.flatten() * decoded_depths
 
         normalized_decoded_depths = np.copy(decoded_depths)
         normalized_decoded_depths[normalized_decoded_depths == 0] = np.nan
-        vmin = np.nanmean(normalized_decoded_depths) - 1
-        vmax = np.nanmean(normalized_decoded_depths) + 1
+        # vmin = np.nanmean(normalized_decoded_depths) - 1
+        # vmax = np.nanmean(normalized_decoded_depths) + 1
+
+        #porcleain_face
+        # vmin = 0.04
+        # vmax = 1.0
+
+        #dear
+        vmin = 0.05
+        vmax = 1.2
         normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
         normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
         # normalized_decoded_depths = (normalized_decoded_depths - np.nanmean(normalized_decoded_depths)) / np.nanstd(normalized_decoded_depths)
-        error_maps[:, :, i] = np.abs(np.reshape(normalized_decoded_depths, (nr, nc)) - depths)
-        depth_images[:, :, i] = np.reshape(normalized_decoded_depths, (nr, nc)) * 10
+        error_maps[:, :, i] = np.abs(np.reshape(decoded_depths, (nr, nc)) - depths)
+        depth_images[:, :, i] = np.reshape(normalized_decoded_depths, (nr, nc))
         byte_sizes[i] = np.squeeze(coded_vals).size * np.squeeze(coded_vals).itemsize
-        errors = np.abs(normalized_decoded_depths - depths.flatten()[np.newaxis, :]) * depth_res
+        errors = np.abs(decoded_depths - depths.flatten()[np.newaxis, :]) * depth_res
         error_metrix = calc_error_metrics(errors[~np.isnan(errors)])
 
 
@@ -190,7 +204,7 @@ if __name__=='__main__':
         mae[i] = error_metrix['mae']
 
 
-    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+1, squeeze=False)
+    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(10, 5))
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
 
@@ -224,11 +238,11 @@ if __name__=='__main__':
         axs[1][i].get_xaxis().set_ticks([])
         axs[1][i].get_yaxis().set_ticks([])
         #if counter == 2:
-        axs[1][i].set_xlabel(f'RMSE: {rmse[i] / 10: .2f} cm \n MAE: {mae[i] / 10:.2f} cm')
+        axs[1][i].set_xlabel(f'RMSE:{rmse[i]/10:.2f} cm \n MAE:{mae[i] / 10:.2f} cm')
 
         str_name = ''
         if imaging_schemes[i].coding_id.startswith('TruncatedFourier'):
-            str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[i].n_codes}'
+            str_name = 'Truncated Fourier'
         elif imaging_schemes[i].coding_id.startswith('Gated'):
             str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[i].n_gates}'
         elif imaging_schemes[i].coding_id.startswith('Hamiltonian'):
@@ -244,7 +258,7 @@ if __name__=='__main__':
         elif imaging_schemes[i].coding_id == 'Greys':
             str_name = 'Greys'
         elif imaging_schemes[i].coding_id.startswith('Learned'):
-            str_name = 'Learned'
+            str_name = 'Optimized'
 
         axs[0][i].set_title(str_name)
         print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[i] / 10: .2f} cm, MAE: {mae[i] / 10:.2f} cm')
@@ -258,7 +272,7 @@ if __name__=='__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\experimental_results.svg', bbox_inches='tight')
+    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_exp.svg', bbox_inches='tight')
     plt.show()
     print(scan_data_params)
 

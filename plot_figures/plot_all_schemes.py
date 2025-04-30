@@ -7,6 +7,7 @@ from utils.file_utils import get_string_name
 from plot_figures.plot_utils import *
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 font = {'family': 'serif',
@@ -31,27 +32,48 @@ if __name__ == '__main__':
         params['T'] = 0.1  # intergration time [used for binomial]
         params['depth_res'] = 1000  ##Conver to MM
 
-        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)
+        sigma = 1
+        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
         params['imaging_schemes'] = [
+            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+
             # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-            # ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-            #                     h_irf=irf),
+            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=False,
+                                h_irf=irf),
+            #
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
+            #                    account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', 'version_2'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', 'version_10'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_models', 'version_9'),
+            #                     account_irf=True, h_irf=irf),
+
             # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
             #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
             #                     account_irf=True, h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
-                                account_irf=True, h_irf=irf),
-            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak005_counts1000'),
+            # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            # #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
+            # #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak030_counts1000'),
             #                     h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma1t_peak015_counts1000'),
-                                h_irf=irf),
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, h_irf=irf,
-                                account_irf=True),
-
-            # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, freq_window=0.05),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+            #                     h_irf=irf),
 
         ]
 
@@ -80,11 +102,11 @@ if __name__ == '__main__':
         init_coding_list(n_tbins, depths, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
 
-        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4, figsize=(12, 4))
+        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4, figsize=(8, 4))
 
-        axs[0][1].set_title('Emitted S(t)')
-        axs[0][2].set_title('Coding Functions D(t)')
-        axs[0][3].set_title('Coding Matrix D')
+        axs[0][1].set_title('Input Illumination f(t)')
+        axs[0][3].set_title('Rows 2 and 7 of D')
+        axs[0][2].set_title('Coding Matrix D')
         for i in range(len(imaging_schemes)):
             imaging_scheme = imaging_schemes[i]
             coding_obj = imaging_scheme.coding_obj
@@ -101,38 +123,36 @@ if __name__ == '__main__':
             axs[i][3].set_yticks([])
             axs[i][1].spines['top'].set_visible(False)
             axs[i][1].spines['right'].set_visible(False)
-            axs[i][2].spines['top'].set_visible(False)
-            axs[i][2].spines['right'].set_visible(False)
-            axs[i][3].spines['top'].set_visible(False)
-            axs[i][3].spines['right'].set_visible(False)
 
             axs[i][1].set_ylabel('Intensity')
             axs[i][1].set_xlabel('Time')
-            axs[i][2].set_xlabel('Time')
+            axs[i][3].set_xlabel('Time')
 
-            if coding_scheme in ['TruncatedFourier', 'Identity', 'Gated', 'Greys', 'LearnedImpulse']:
-                axs[i][2].plot(coding_obj.decode_corrfs[:, 6], color='orange')
-                axs[i][2].plot(coding_obj.decode_corrfs[:, 2], color='purple')
-                #axs[i][2].set_ylim(-1, 1)
-                tmp = coding_obj.decode_corrfs.transpose()
-                #tmp[4, :] = 0
-                axs[i][3].imshow(tmp, aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
-                axs[i][3].set_axis_off()
+            axs[i][3].plot(coding_obj.decode_corrfs[:, 6], color='orange')
+            axs[i][3].plot(coding_obj.decode_corrfs[:, 2], color='purple')
+            #axs[i][2].set_ylim(-1, 1)
+            tmp = coding_obj.decode_corrfs.transpose()
+            #tmp[4, :] = 0
 
+            img = np.repeat(coding_obj.decode_corrfs.transpose(), 100, axis=0)
+            axs[i][2].imshow(img, cmap='gray', aspect='auto')
 
-            else:
-                axs[i][2].plot(coding_obj.demodfs)
-                axs[i][3].imshow(coding_obj.demodfs.transpose(), aspect='auto', cmap=plt.cm.get_cmap('binary').reversed())
+            rect = patches.Rectangle((0, 1 * 100), img.shape[1], 100, linewidth=2, edgecolor='orange', facecolor='none')
+            axs[i][2].add_patch(rect)
+
+            rect = patches.Rectangle((0, 6 * 100), img.shape[1], 100, linewidth=2, edgecolor='purple', facecolor='none')
+            axs[i][2].add_patch(rect)
+
+            axs[i][2].set_axis_off()
 
             first_zero_index = np.where(light_obj.filtered_light_source == 0)[0]
             axs[i][1].plot(np.roll(light_obj.filtered_light_source, int(n_tbins // 2)), color='blue')
-            axs[i][1].set_xticks([int(n_tbins // 2)])
-            axs[i][1].set_xticklabels([0])
+            axs[i][1].set_xticks([])
             axs[i][0].set_axis_off()
             axs[i][0].text(0.0, 0.5, f'{get_string_name(imaging_scheme)}')
     #fig.text(0.04, 0.25, 'Hamiltonian', va='center', rotation='vertical', fontsize=7)
 
-    fig.suptitle('Coding Scheme Tested', fontsize=12,  fontweight="bold")
+    fig.suptitle(f'Coding Scheme with IRF width $\sigma$={sigma}$\Delta$', fontsize=12,  fontweight="bold")
     fig.tight_layout()  # Adjust the rect to make space for the common labels
 
 
@@ -141,7 +161,7 @@ if __name__ == '__main__':
 
         # Add horizontal line
         fig.add_artist(plt.Line2D(
-            [0, 1], [row_bottom-0.035, row_bottom-0.035], transform=fig.transFigure,
+            [0, 1], [row_bottom-0.04, row_bottom-0.04], transform=fig.transFigure,
             color='black', linewidth=1
         ))
 
@@ -149,11 +169,11 @@ if __name__ == '__main__':
 
     # Add horizontal line
     fig.add_artist(plt.Line2D(
-        [0, 1], [row_top+0.05, row_top+0.05], transform=fig.transFigure,
+        [0, 1], [row_top+0.08, row_top+0.08], transform=fig.transFigure,
         color='black', linewidth=1
     ))
 
-    for j in range(len(axs[0])):
+    for j in range(len(axs[0]) - 1):
         col_left = axs[0, j].get_position().x1
         if j > 0:
             col_left += 0.02
@@ -164,6 +184,6 @@ if __name__ == '__main__':
             color='black', linewidth=1
         ))
 
-    fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\overview_illum_coding.svg', bbox_inches='tight')
+    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_sigma{sigma}_coding.png', bbox_inches='tight', dpi=300)
     plt.show()
 

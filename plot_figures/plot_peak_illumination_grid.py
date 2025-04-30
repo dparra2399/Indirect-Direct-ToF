@@ -122,6 +122,7 @@ if __name__ == '__main__':
             line1, = ax[i][j].plot(delta_illum, color='darkorange', linewidth=2, alpha=0.7, label=r'$\Phi^{sig}$' + f'={int(np.sum(delta_illum))}')
             line2, = ax[i][j].plot(filtered_illum, color='blue', linewidth=2, alpha=0.7, label=r'$\Phi^{sig}$' + f'={int(np.sum(filtered_illum))}')
 
+
             print(f'delta_illum: {np.sum(delta_illum)}')
             print(f'illum: {np.sum(filtered_illum)}')
 
@@ -158,7 +159,7 @@ if __name__ == '__main__':
 
     #fig.tight_layout()
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
-    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\illum_peaks_grid.svg', bbox_inches='tight')
+    #fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\illum_peaks_grid.svg', bbox_inches='tight')
     plt.show(block=True)
 
 print()
