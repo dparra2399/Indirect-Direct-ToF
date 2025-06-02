@@ -1,3 +1,5 @@
+from IPython.core.pylabtools import figsize
+
 from felipe_utils.research_utils.io_ops import load_json
 from felipe_utils.scan_data_utils import *
 from felipe_utils import tof_utils_felipe
@@ -8,6 +10,16 @@ from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error
 from spad_toflib.coding_schemes import IdentityCoding
 import matplotlib.pyplot as plt
 from plot_figures.plot_utils import get_scheme_color
+from matplotlib import rc
+import matplotlib
+
+from utils.file_utils import get_string_name
+
+font = {'family': 'serif',
+        'weight': 'bold',
+        'size': 12}
+
+rc('font', **font)
 
 global_shift = 0
 downsamp_factor = 1  # Spatial downsample factor
@@ -54,8 +66,8 @@ if __name__=='__main__':
     hist_img_base_dirpath = io_dirpaths["preprocessed_hist_data_base_dirpath"]
 
     ## Load processed scene:
-    scene_id = '20190209_deer_high_mu/free'
-    #scene_id = '20190207_face_scanning_low_mu/free'
+    #scene_id = '20190209_deer_high_mu/free'
+    scene_id = '20190207_face_scanning_low_mu/free'
     #scene_id = '20190207_face_scanning_low_mu/ground_truth'
 
     #scene_id = '20181105_face/opt_flux'
@@ -86,11 +98,14 @@ if __name__=='__main__':
     ## Shift histogram image if needed
     hist_img = np.roll(hist_img, global_shift, axis=-1)
 
-    denoised_hist_img = gaussian_filter(hist_img, sigma=0.75, mode='wrap', truncate=1)
+    denoised_hist_img = gaussian_filter(hist_img, sigma=2.5, mode='wrap', truncate=1)
     (tbins, tbin_edges) = get_hist_bins(hist_img_tau, hist_tbin_size)
+
 
     irf_tres = scan_data_params['min_tbin_size']  # in picosecs
     irf = get_scene_irf(scene_id, nt, tlen=hist_img_tau, is_unimodal=False)
+
+
 
     params = {}
     params['n_tbins'] = tbins.shape[-1]
@@ -103,12 +118,12 @@ if __name__=='__main__':
     params['depth_res'] = 1000  ##Conver to MM
 
     params['imaging_schemes'] = list(reversed([
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=10, pulse_width=1,  account_irf=False,
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=False,
                             h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_1'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
         #                     account_irf=True, h_irf=irf),
@@ -143,7 +158,7 @@ if __name__=='__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, None, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     depth_images = np.zeros((nr, nc, len(params['imaging_schemes'])))
@@ -151,6 +166,28 @@ if __name__=='__main__':
     byte_sizes = np.zeros((len(params['imaging_schemes'])))
     rmse = np.zeros((len(params['imaging_schemes'])))
     mae = np.zeros((len(params['imaging_schemes'])))
+
+    if True:
+        fig, axs = plt.subplots(2, 1, figsize=(5, 5))
+        axs[0].plot(np.roll(irf, 400)[100:900], color='blue')
+        axs[0].set_yticks([])
+        axs[0].set_xticks((np.linspace(0, 800, 8)))
+        axs[0].set_xticklabels([])
+        axs[1].plot(denoised_hist_img[150, 95, 100:900], color='blue')
+        axs[1].set_yticks([])
+        axs[1].set_ylabel('Counts')
+        axs[1].set_xticks((np.linspace(0, 800, 8)))
+        axs[1].set_xticklabels(np.round(np.linspace(100, 900, 8) * tbin_res * 1e9, 1))
+        axs[1].set_xlabel('Time (ns)')
+        axs[0].spines['right'].set_visible(False)
+        axs[0].spines['top'].set_visible(False)
+        axs[1].spines['right'].set_visible(False)
+        axs[1].spines['top'].set_visible(False)
+        plt.subplots_adjust(hspace=0.05, wspace=0.05)
+        fig.savefig(
+            f'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper\\exp_irf.svg',
+            bbox_inches='tight', dpi=1000)
+        plt.show(block=True)
 
 
     for i in range(len(imaging_schemes)):
@@ -173,7 +210,7 @@ if __name__=='__main__':
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
         elif 'deer' in scene_id:
-            mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\SInglePhoton3DData\deer.png')[..., 0]
+            mask = plt.imread(r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\SInglePhoton3DData\deer.png')[..., 0]
             mask[mask > 0] = 1
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
@@ -184,12 +221,12 @@ if __name__=='__main__':
         # vmax = np.nanmean(normalized_decoded_depths) + 1
 
         #porcleain_face
-        # vmin = 0.04
-        # vmax = 1.0
+        vmin = 0.04
+        vmax = 1.0
 
         #dear
-        vmin = 0.05
-        vmax = 1.2
+        # vmin = 0.05
+        # vmax = 1.2
         normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
         normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
         # normalized_decoded_depths = (normalized_decoded_depths - np.nanmean(normalized_decoded_depths)) / np.nanstd(normalized_decoded_depths)
@@ -256,7 +293,7 @@ if __name__=='__main__':
                 str_name = 'CoWSiP-ToF Sinusoid'
 
         elif imaging_schemes[i].coding_id == 'Greys':
-            str_name = 'Greys'
+            str_name = 'Cont. Gray'
         elif imaging_schemes[i].coding_id.startswith('Learned'):
             str_name = 'Optimized'
 
@@ -272,7 +309,7 @@ if __name__=='__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_exp.svg', bbox_inches='tight')
+    fig.savefig(f'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper\\supp_exp.svg', bbox_inches='tight', dpi=1000)
     plt.show()
     print(scan_data_params)
 

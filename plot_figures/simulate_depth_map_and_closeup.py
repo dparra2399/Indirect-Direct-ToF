@@ -68,7 +68,7 @@ if __name__ == '__main__':
     # filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     # depth_image = np.load(os.path.join(depth_folder, filename))
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
-    filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\cow_depth_map.npy'
+    filename = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\data\cow_depth_map.npy'
     depth_image = np.load(filename)
     (nr, nc) = depth_image.shape
     depths = depth_image.flatten()
@@ -129,12 +129,12 @@ if __name__ == '__main__':
 
 
             if 'cow' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
-                mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\cow.png')
+                mask = plt.imread(r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\data\cow.png')
                 mask = mask[..., -1]
                 depths_masked = mask.flatten() * depths
                 decoded_depths = mask.flatten() * decoded_depths
             elif 'horse' == filename.split('.')[-2].split("_")[0].split(os.path.sep)[-1]:
-                mask = plt.imread(r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse.png')
+                mask = plt.imread(r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\data\horse.png')
                 mask = mask[..., -1]
                 depths_masked = mask.flatten() * depths
                 decoded_depths = mask.flatten() * decoded_depths
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     axs[0, -1].legend()
     fig.subplots_adjust(hspace=0.05, wspace=0.05)
 
-    fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\cow_tease.svg', bbox_inches='tight', dpi=3000)
+    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\cow_tease.svg', bbox_inches='tight', dpi=3000)
     plt.show()
     print()
 print('YAYYY')

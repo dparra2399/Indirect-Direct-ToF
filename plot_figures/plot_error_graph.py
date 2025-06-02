@@ -19,21 +19,24 @@ rc('font', **font)
 
 breakpoint = debugger.set_trace
 
-save_folder = 'Z:\\Research_Users\\David\\Learned Coding Functions Paper'
+save_folder = 'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper'
 filenames = [
             # '../data/results/bandlimit_simulation/ntbins_1024_monte_1000_exp_Learned_sigma10_mae.npz',
             # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz',
             # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
-            # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
+            #'../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
+            #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
+            #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
 
             ]
-# filenames = [
+filenames = [
 #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
 #              '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak030_rmse.npz',
-#              '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak030_rmse.npz'
-#               ]
+    '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
+
+    #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
+
+               ]
 
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 5), squeeze=False)
 
@@ -101,11 +104,12 @@ for i, filename in enumerate(filenames):
 
         label = get_string_name(imaging_schemes[j])
         surf = axs[0][i].plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
-                               label=label, alpha=0.8,
+                               label=label, alpha=0.6,
                                edgecolors='k', lw=0.5, shade=False, antialiased=True,
                                color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
         surf._edgecolors2d = surf._edgecolor3d
         surf._facecolors2d = surf._facecolor3d
+
 
     axs[0][i].view_init(elev=15., azim=-45)
     axs[0][i].set_xticks(np.round(np.linspace(np.min(np.log10(levels_one)), np.max(np.log10(levels_one)), num=grid_size), 1))  # Set x-axis ticks
@@ -135,7 +139,7 @@ for i, filename in enumerate(filenames):
     if 'peak030' in filename:
         axs[0][i].set_zlim(0, 50)
     elif 'peak015' in filename:
-        axs[0][i].set_zlim(0, 120)
+        axs[0][i].set_zlim(0, 60)
     elif 'peak005' in filename:
         axs[0][i].set_zlim(0, 400)
 
@@ -147,7 +151,7 @@ fig.tight_layout()
 
 #fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
 
-fig.savefig(os.path.join(save_folder, 'supp.svg'), bbox_inches='tight', dpi=3000)
+#fig.savefig(os.path.join(save_folder, 'supp.svg'), bbox_inches='tight', dpi=3000)
 
 plt.show(block=True)
 

@@ -60,7 +60,7 @@ def get_string_name(imaging_scheme):
         str_name = r'Truncated Fourier' + f'\n K={k}'
     elif imaging_scheme.coding_id == 'Greys':
         k = imaging_scheme.n_bits
-        str_name = r'Continuous Greys' + f'\n K={k}'
+        str_name = r'Continuous Gray' + f'\n K={k}'
     elif 'Learned' in imaging_scheme.coding_id:
         try:
             k = int(imaging_scheme.model.split(os.path.sep)[-1].split('_')[1].split('k')[1])

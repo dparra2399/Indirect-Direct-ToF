@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 #### Local imports
 
-irf_dirpath = "C:\\Users\\Patron\\PycharmProjects\\WISC-SinglePhoton3DData\\system_irf"
+irf_dirpath = "C:\\Users\\elian\\PycharmProjects\\WISC-SinglePhoton3DData\\system_irf"
 
 def verify_hist_tau(hist_img_tau, hist_tbin_size):
 	if((hist_img_tau % hist_tbin_size) != 0):
@@ -138,7 +138,7 @@ def get_depth_lims(scene_id):
 	# if(scene_id == '20190207_face_scanning_low_mu/ground_truth'): (min_d, max_d) = (2300, 3600) 
 	# elif(scene_id == '20190207_face_scanning_low_mu/free'): (min_d, max_d) = (3200, 4500) 
 	# else: (min_d, max_d) = (1000, 4250)
-	if(scene_id == '20190207_face_scanning_low_mu/ground_truth'): (min_d, max_d) = (1100, 2400) 
+	if(scene_id == '20190207_face_scanning_low_mu/ground_truth'): (min_d, max_d) = (1100, 2400)
 	elif(scene_id == '20190207_face_scanning_low_mu/free'): (min_d, max_d) = (2000, 3300) 
 	else: (min_d, max_d) = (300, 2600)
 	return (min_d, max_d)
