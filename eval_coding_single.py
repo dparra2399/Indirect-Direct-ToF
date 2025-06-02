@@ -28,20 +28,21 @@ if __name__ == '__main__':
     #irf = np.genfromtxt(r'C:\Users\Patron\PycharmProjects\Flimera-Processing\irfs\pulse_10mhz.csv', delimiter=',')
     irf=None
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+
     #irf = np.load(r'C:\Users\Patron\PycharmProjects\WISC-SinglePhoton3DData\system_irf\20190207_face_scanning_low_mu\ground_truth\irf_tres-8ps_tlen-17504ps.npy')
     params['imaging_schemes'] = [
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
 
-        #ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=4, pulse_width=1,  account_irf=False,
-                            h_irf=irf),
+        # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=100,  account_irf=True,
+                            h_irf=irf, quant=False),
         #
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
         #                    account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', pulse_width=1,
-                            model=os.path.join('bandlimited_models', 'n1024_k4_sigma30'),
-                            account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', pulse_width=1,
+        #                    model=os.path.join('bandlimited_models', 'version_1'),
+        #                    account_irf=True, h_irf=irf, quant=False),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30_photonstarved_v2'),
         #                     account_irf=True, h_irf=irf),
@@ -59,9 +60,9 @@ if __name__ == '__main__':
         #                     account_irf=True, h_irf=irf),
 
 
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
-        #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                             model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
+                             account_irf=True, h_irf=irf),
         # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         # #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
         # #                     account_irf=True, h_irf=irf),
@@ -71,6 +72,7 @@ if __name__ == '__main__':
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
         #                     h_irf=irf),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=100, account_irf=True, h_irf=irf),
 
     ]
 
@@ -86,9 +88,9 @@ if __name__ == '__main__':
     depths = np.arange(1.0, params['dMax']-1.0, dSample)
     # depths = np.array([105.0])
 
-    photon_count =  500
+    photon_count =  250
     sbr = 0.1
-    peak_factor =  0.015
+    peak_factor = 0.005
 
 
     total_cycles = params['rep_freq'] * params['T']
@@ -105,7 +107,7 @@ if __name__ == '__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     for i in range(len(imaging_schemes)):
@@ -117,7 +119,9 @@ if __name__ == '__main__':
         light_source = imaging_scheme.light_id
         rec_algo = imaging_scheme.rec_algo
 
-        incident = light_obj.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor)
+        incident = light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)
+
+        print(f'photon_count : {np.sum(incident[0, 0, :] - ((photon_count / sbr) / n_tbins))}')
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 

@@ -95,3 +95,29 @@ def ncc_reconstruction(intensities, corrs):
     norm_int = norm_t(intensities, axis=-1)
     norm_corrs = norm_t(corrs, axis=-1)
     return np.matmul(norm_corrs, norm_int[..., np.newaxis]).squeeze(-1)
+
+def compute_scale(beta, alpha, beta_q, alpha_q):
+	return (float(beta) - float(alpha)) / (float(beta_q) - float(alpha_q))
+	# return ((beta) - (alpha)) / ((beta_q) - (alpha_q))
+
+def compute_zero_point(scale, alpha, alpha_q):
+	## Cast everything to float first to make sure that we dont input torch.tensors to zero point
+	return round(-1*((float(alpha)/float(scale)) - float(alpha_q)))
+
+
+def quantize_qint8_numpy(X, X_range=None):
+	if(X_range is None):
+		(X_min, X_max) = (X.min(), X.max())
+	else:
+		X_min = X_range[0]
+		X_max = X_range[1]
+		assert(X_min <= X.min()), "minimum should be contained in range"
+		assert(X_max >= X.max()), "maximum should be contained in range"
+	print("manual min: {}".format(X_min))
+	print("manual max: {}".format(X_max))
+	(min_q, max_q) = (-128, 127)
+	scale = compute_scale(X_max, X_min, max_q, min_q)
+	zero_point = compute_zero_point(scale, X_min, min_q)
+	qX = (X / scale) + zero_point
+	qX_int8  = np.round(qX).astype(np.int8)
+	return  (qX_int8, scale, zero_point)

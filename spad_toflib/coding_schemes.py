@@ -12,17 +12,18 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_co
 from spad_toflib.spad_tof_utils import *
 import scipy as sp
 
-learned_folder = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class Coding(ABC):
 
     def __init__(self, n_tbins, total_laser_cycles=None, binomial=False, gated=False,
-                 num_measures=None, after=False, h_irf=None, account_irf=False):
+                 num_measures=None, after=False, h_irf=None, account_irf=False, quant=False):
 
         self.binomial = binomial
         self.after = after
         self.gated = gated
         self.n_tbins = n_tbins
+        self.quant = quant
         self.update_irf(h_irf)
         self.account_irf = account_irf
         self.set_laser_cycles(total_laser_cycles)
@@ -34,14 +35,25 @@ class Coding(ABC):
     def update_C_derived_params(self):
         # Store how many codes there are
         (self.n_tbins, self.n_functions) = (self.correlations.shape[-2], self.correlations.shape[-1])
+
+
         if (self.account_irf):
             # self.decoding_C = signalproc_ops.circular_conv(self.C, self.h_irf[:, np.newaxis], axis=0)
             # self.decoding_C = signalproc_ops.circular_corr(self.C, self.h_irf[:, np.newaxis], axis=0)
             self.decode_corrfs = signalproc_ops.circular_corr(self.h_irf[:, np.newaxis], self.correlations, axis=0)
         else:
             self.decode_corrfs = self.correlations
-        self.zero_norm_corrfs = zero_norm_t(self.decode_corrfs)
-        self.norm_corrfs = norm_t(self.decode_corrfs)
+
+        if self.quant:
+            #self.decode_corrfs = quantize_qint8_numpy(self.decode_corrfs)[0]
+            self.zero_norm_corrfs = quantize_qint8_numpy(zero_norm_t(self.decode_corrfs))[0]
+            self.norm_corrfs = quantize_qint8_numpy(norm_t(self.decode_corrfs))[0]
+        else:
+            self.zero_norm_corrfs = zero_norm_t(self.decode_corrfs)
+            self.norm_corrfs = norm_t(self.decode_corrfs)
+
+        if self.quant:
+            self.correlations = quantize_qint8_numpy(self.correlations)[0]
 
     @abstractmethod
     def set_coding_scheme(self, n_tbins):
@@ -367,6 +379,21 @@ class GatedCoding(Coding):
         assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
         #inc = transient_img[18, :]
         transient_img = poisson_noise_array(transient_img, trials)
+        #detected = np.squeeze(transient_img[100, 18, :])
+        #hist = transient_img[100, 18, :]
+        c_vals = np.array(transient_img[..., 0::self.gate_len])
+        for i in range(self.gate_len - 1):
+            start_idx = i + 1
+            c_vals += transient_img[..., start_idx::self.gate_len]
+        return c_vals
+
+    def encode_no_noise(self, transient_img):
+        '''
+        Encode the transient image using the n_codes inside the self.C matrix
+        For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
+        '''
+        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+        #inc = transient_img[18, :]
         #detected = np.squeeze(transient_img[100, 18, :])
         #hist = transient_img[100, 18, :]
         c_vals = np.array(transient_img[..., 0::self.gate_len])

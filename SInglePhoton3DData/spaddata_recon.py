@@ -84,21 +84,21 @@ params['T'] = 0.1  # intergration time [used for binomial]
 params['depth_res'] = 1000  ##Conver to MM
 
 params['imaging_schemes'] = [
-    #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=10, pulse_width=1,  account_irf=True,
+    #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
     #                   h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
     #                     model=os.path.join('bandlimited_models', 'version_1'),
     #                     account_irf=True, h_irf=irf),
-    #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
+    ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
     #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
     #                     account_irf=True, h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
     #                    model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
     #                    account_irf=True, h_irf=irf),
-    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                        model=os.path.join('bandlimited_models', 'version_4_v2'),
-                        account_irf=True, h_irf=irf)
+    # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+    #                     model=os.path.join('bandlimited_models', 'version_4_v2'),
+    #                     account_irf=True, h_irf=irf)
     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
 ]
@@ -119,7 +119,7 @@ trials = params['trials']
 print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
 print()
 
-init_coding_list(n_tbins, None, params, t_domain=t_domain)
+init_coding_list(n_tbins, params, t_domain=t_domain)
 imaging_schemes = params['imaging_schemes']
 
 depth_images = np.zeros((nr, nc, len(params['imaging_schemes'])))
@@ -151,7 +151,7 @@ for i in range(len(imaging_schemes)):
     #vmin = np.nanmean(normalized_decoded_depths) - 1
     #vmax = np.nanmean(normalized_decoded_depths) + 1
     vmin = 0.04
-    vmax = 0.5
+    vmax = 1.0
     #vim = 0.0
     normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
     normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan

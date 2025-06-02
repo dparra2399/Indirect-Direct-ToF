@@ -3,23 +3,24 @@
 ## Library Imports
 import numpy as np
 from IPython.core import debugger
-import torch
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 
 def norm_t(C, axis=-1):
-	'''
-		Divide by standard deviation across given axis
-	'''
-	return C / (torch.norm(C, p=2, dim=axis, keepdim=True) + EPSILON)
+    '''
+        Divide by standard deviation across given axis
+    '''
+    norm = np.linalg.norm(C, ord=2, axis=axis, keepdims=True)
+    return C / (norm + EPSILON)
 
 def zero_norm_t(C, axis=-1):
-	'''
-		Apply zero norm transform to give axis
-		This performs exactly the same as the old zero_norm_t_old, but in the old version denominator is scale by a factor of (1/sqrt(K)) which is part of the standard deviation formula
-	'''
-	return norm_t(C - C.mean(dim=axis, keepdim=True), axis=axis)
+    '''
+        Apply zero norm transform to given axis
+    '''
+    mean = np.mean(C, axis=axis, keepdims=True)
+    return norm_t(C - mean, axis=axis)
+
 
 
 breakpoint = debugger.set_trace

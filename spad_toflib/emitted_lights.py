@@ -17,13 +17,12 @@ TotalEnergyDefault = 1.
 TauDefault = 1.
 AveragePowerDefault = TotalEnergyDefault / TauDefault
 
-learned_folder = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class LightSource(ABC):
 
-    def __init__(self, light_source, depths, t, h_irf=None, rep_tau=None, num_measures=None):
+    def __init__(self, light_source, t, h_irf=None, rep_tau=None, num_measures=None):
         self.light_source = light_source
-        self.depths = depths
         self.set_tau(rep_tau)
         self.set_num_measures(num_measures)
         self.set_integration_time(t)
@@ -106,24 +105,33 @@ class SinglePhotonSource(LightSource):
         v_out[v_out < 0] = 0
         return self.phase_shifted(v_out)
 
-    def simulate_average_photons(self, total_photons, sbr, peak_factor=None):
+    def simulate_average_photons(self, total_photons, sbr, depths, peak_factor=None):
+
         if self.binomial:
             laser_cycles = (1. / self.tau) * self.t
             v_out = self.simulate_average_photons_n_cycles(total_photons, sbr, peak_factor=peak_factor) / laser_cycles
         else:
             v_out = self.simulate_average_photons_n_cycles(total_photons, sbr, peak_factor=peak_factor)
         v_out[v_out < 0] = 0
-        return self.phase_shifted(v_out)
+        return self.phase_shifted(v_out, depths)
 
     def simulate_average_photons_n_cycles(self, total_photons, sbr, peak_factor=None):
         incident = np.zeros(self.filtered_light_source.shape)
 
+        # decay = 100.0
+        # k = np.exp(-np.arange(self.n_tbins) / decay)
+        # k /= k.sum()
+        # indirect = np.convolve(self.filtered_light_source[:, 0] / np.sum(self.filtered_light_source[:, 0]), k, mode='full')
+        # A = 0.5
+        # light_source = self.filtered_light_source + A*indirect[:self.n_tbins, np.newaxis]
+        #
+        light_source = self.filtered_light_source
         if self.split: total_photons = total_photons / self.n_functions
 
         total_amb_photons = total_photons / sbr
-        scaled_modfs = np.copy(self.filtered_light_source)
-        for i in range(0, self.filtered_light_source.shape[-1]):
-            scaled_modfs[:, i] *= (total_photons / np.sum(self.filtered_light_source[:, i]))
+        scaled_modfs = np.copy(light_source)
+        for i in range(0, light_source.shape[-1]):
+            scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
             incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
         if peak_factor is not None:
             #peak_val = np.max(incident)
@@ -145,12 +153,12 @@ class SinglePhotonSource(LightSource):
             incident[:, k] = peak_modfs[:, k] + ambient_photons
         return incident
 
-    def phase_shifted(self, modfs):
-        shifted_modfs = np.zeros((self.depths.shape[0], modfs.shape[1], modfs.shape[0]))
+    def phase_shifted(self, modfs, depths):
+        shifted_modfs = np.zeros((depths.shape[0], modfs.shape[1], modfs.shape[0]))
         tbin_depth_res = time2depth(self.tau / modfs.shape[0])
-        for d in range(0, self.depths.shape[0]):
+        for d in range(0, depths.shape[0]):
             for i in range(0, modfs.shape[-1]):
-                shifted_modfs[d, i, :] = np.roll(modfs[:, i], int(self.depths[d] / tbin_depth_res))
+                shifted_modfs[d, i, :] = np.roll(modfs[:, i], int(depths[d] / tbin_depth_res))
         return shifted_modfs
 
 
