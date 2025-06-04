@@ -9,6 +9,7 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_co
 from felipe_utils.tof_utils_felipe import *
 from felipe_utils.research_utils import signalproc_ops, np_utils
 import numpy as np
+import matplotlib.pyplot as plt
 
 import math
 import scipy as sp
@@ -17,7 +18,7 @@ TotalEnergyDefault = 1.
 TauDefault = 1.
 AveragePowerDefault = TotalEnergyDefault / TauDefault
 
-learned_folder = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class LightSource(ABC):
 
@@ -118,14 +119,21 @@ class SinglePhotonSource(LightSource):
     def simulate_average_photons_n_cycles(self, total_photons, sbr, peak_factor=None):
         incident = np.zeros(self.filtered_light_source.shape)
 
-        # decay = 100.0
+        # decay = 200.0
         # k = np.exp(-np.arange(self.n_tbins) / decay)
         # k /= k.sum()
         # indirect = np.convolve(self.filtered_light_source[:, 0] / np.sum(self.filtered_light_source[:, 0]), k, mode='full')
-        # A = 0.5
+        # A = 1.0
         # light_source = self.filtered_light_source + A*indirect[:self.n_tbins, np.newaxis]
-        #
-        light_source = self.filtered_light_source
+        # light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], light_source, axis=0)
+
+        k = np.zeros((self.n_tbins))
+        k[0] = 1
+        k[250] = 0.02
+        indirect = np.convolve(k, self.filtered_light_source[:, 0] / np.sum(self.filtered_light_source[:, 0]), mode='full')
+        light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], indirect[:self.n_tbins, np.newaxis], axis=0)
+
+        #light_source = self.filtered_light_source
         if self.split: total_photons = total_photons / self.n_functions
 
         total_amb_photons = total_photons / sbr
@@ -139,6 +147,42 @@ class SinglePhotonSource(LightSource):
             if self.h_irf is not None:
                 incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
         return incident
+
+    def simulate_constant_pulse_energy(self, total_photons, sbr, depths, peak_factor=None):
+        incident = np.zeros(self.filtered_light_source.shape)
+
+        light_source = self.filtered_light_source
+        total_amb_photons = total_photons / sbr
+
+        if self.split: total_photons = total_photons / self.n_functions
+
+        scaled_modfs = np.copy(light_source)
+        for i in range(0, light_source.shape[-1]):
+            sigma = 1
+            while True:
+                irf = gaussian_pulse(np.arange(self.n_tbins), 0, sigma, circ_shifted=True)
+                new_light_source = signalproc_ops.circular_conv(irf[:, np.newaxis], light_source[:, i], axis=-1)
+                new_light_source *= (total_photons/np.sum(new_light_source))
+                if peak_factor is not None:
+                    # peak_val = np.max(incident)
+                    new_light_source = np.clip(new_light_source, 0, (peak_factor * total_photons))
+                    new_light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], new_light_source, axis=0)
+
+                new_total_photons = np.sum(new_light_source)
+                if abs(new_total_photons - total_photons) < 5:
+                    break
+                sigma += 1
+            #new_light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], new_light_source, axis=0)
+            scaled_modfs[:, i] = new_light_source.squeeze()
+            incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
+
+        if peak_factor is not None:
+            #peak_val = np.max(incident)
+            incident = np.clip(incident, 0, (peak_factor * total_photons) + (total_amb_photons / self.n_tbins))
+            if self.h_irf is not None:
+                incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
+        incident[incident<0]=0
+        return self.phase_shifted(incident, depths)
 
     def simulate_peak_photons_n_cycles(self, peak_photons, ambient_photons):
         incident = np.zeros(self.filtered_light_source.shape)

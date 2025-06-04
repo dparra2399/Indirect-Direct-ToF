@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 #### Local imports
 
-irf_dirpath = "C:\\Users\\elian\\PycharmProjects\\WISC-SinglePhoton3DData\\system_irf"
+irf_dirpath = "C:\\Users\\clwalker4\\PycharmProjects\\WISC-SinglePhoton3DData\\system_irf"
 
 def verify_hist_tau(hist_img_tau, hist_tbin_size):
 	if((hist_img_tau % hist_tbin_size) != 0):
