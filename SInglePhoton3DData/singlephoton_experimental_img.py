@@ -118,24 +118,15 @@ if __name__=='__main__':
     params['depth_res'] = 1000  ##Conver to MM
 
     params['imaging_schemes'] = list(reversed([
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=False,
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=10, pulse_width=1,  account_irf=False,
                             h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_models', 'version_1'),
+        #                     model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
-        #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_4_v2'),
+                            model=os.path.join('bandlimited_models', 'n2188_k10_spaddata'),
                             account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_models', 'version_4_v3'),
-        #                     account_irf=True, h_irf=irf),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
     ]))
@@ -167,7 +158,7 @@ if __name__=='__main__':
     rmse = np.zeros((len(params['imaging_schemes'])))
     mae = np.zeros((len(params['imaging_schemes'])))
 
-    if True:
+    if False:
         fig, axs = plt.subplots(2, 1, figsize=(5, 5))
         axs[0].plot(np.roll(irf, 400)[100:900], color='blue')
         axs[0].set_yticks([])
@@ -184,9 +175,9 @@ if __name__=='__main__':
         axs[1].spines['right'].set_visible(False)
         axs[1].spines['top'].set_visible(False)
         plt.subplots_adjust(hspace=0.05, wspace=0.05)
-        fig.savefig(
-            f'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper\\exp_irf.svg',
-            bbox_inches='tight', dpi=1000)
+        # fig.savefig(
+        #     f'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper\\exp_irf.svg',
+        #     bbox_inches='tight', dpi=1000)
         plt.show(block=True)
 
 
@@ -210,7 +201,7 @@ if __name__=='__main__':
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
         elif 'deer' in scene_id:
-            mask = plt.imread(r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\SInglePhoton3DData\deer.png')[..., 0]
+            mask = plt.imread(r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\SInglePhoton3DData\deer.png')[..., 0]
             mask[mask > 0] = 1
             depths = mask * depths
             decoded_depths = mask.flatten() * decoded_depths
@@ -241,7 +232,7 @@ if __name__=='__main__':
         mae[i] = error_metrix['mae']
 
 
-    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(10, 5))
+    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(10, 10))
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
 

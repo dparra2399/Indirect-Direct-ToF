@@ -79,7 +79,7 @@ render_params_str = 'nr-{}_nc-{}_nt-{}_samples-{}'.format(n_rows, n_cols, n_tbin
 if __name__ == '__main__':
 
 
-    scene_id = 'living-room-2'
+    scene_id = 'bathroom2'
     scene_filename = r'{}_{}_view-0'.format(scene_id, render_params_str)
     print("Loading: {}".format(scene_filename))
     gt_depths_img = np.load(r'{}\{}.npy'.format(gt_depths_data_dirpath, scene_filename))
@@ -104,14 +104,15 @@ if __name__ == '__main__':
     irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
     params['imaging_schemes'] = [
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'version_1'),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=10, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
                              pulse_width=1, account_irf=True, h_irf=irf),
-        # #                     account_irf=True, h_irf=irf),
-        # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        # #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-        # #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'version_2'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+        #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
         #
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
@@ -153,7 +154,7 @@ if __name__ == '__main__':
 
     tic = time.perf_counter()
 
-    depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
+    #depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
 
     for i in range(len(imaging_schemes)):
         imaging_scheme = imaging_schemes[i]
@@ -166,7 +167,10 @@ if __name__ == '__main__':
         incident = np.zeros((nr * nc, n_tbins))
         tmp = np.reshape(hist_img, (nr * nc, n_tbins))
 
-        tmp = signalproc_ops.circular_corr(irf[np.newaxis, :], tmp, axis=-1)
+        filt = light_obj.filtered_light_source.squeeze()
+        filt /= filt.sum()
+
+        tmp = signalproc_ops.circular_corr(filt[np.newaxis, ...], tmp, axis=-1)
         tmp[tmp < 0] = 0
 
         total_amb_photons = photon_counts / sbr
@@ -265,7 +269,7 @@ if __name__ == '__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_k4_sigma20_high.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_k4_sigma20_high.svg', bbox_inches='tight', dpi=3000)
     plt.show(block=True)
     print()
 print('YAYYY')

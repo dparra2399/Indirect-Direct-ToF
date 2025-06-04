@@ -12,7 +12,7 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_co
 from spad_toflib.spad_tof_utils import *
 import scipy as sp
 
-learned_folder = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
 
 class Coding(ABC):
 
@@ -44,7 +44,7 @@ class Coding(ABC):
         else:
             self.decode_corrfs = self.correlations
 
-        if self.quant:
+        if self.quant and False:
             #self.decode_corrfs = quantize_qint8_numpy(self.decode_corrfs)[0]
             self.zero_norm_corrfs = quantize_qint8_numpy(zero_norm_t(self.decode_corrfs))[0]
             self.norm_corrfs = quantize_qint8_numpy(norm_t(self.decode_corrfs))[0]

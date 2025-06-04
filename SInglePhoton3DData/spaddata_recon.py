@@ -87,9 +87,9 @@ params['imaging_schemes'] = [
     #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
     #                   h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-    #                     model=os.path.join('bandlimited_models', 'version_1'),
+    #                     model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
     #                     account_irf=True, h_irf=irf),
-    ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+    ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
     #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
     #                     account_irf=True, h_irf=irf),
@@ -97,7 +97,7 @@ params['imaging_schemes'] = [
     #                    model=os.path.join('bandlimited_models', 'n2188_k8_spaddata_v2'),
     #                    account_irf=True, h_irf=irf),
     # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-    #                     model=os.path.join('bandlimited_models', 'version_4_v2'),
+    #                     model=os.path.join('bandlimited_models', 'n2188_k10_spaddata'),
     #                     account_irf=True, h_irf=irf)
     #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
@@ -188,7 +188,7 @@ pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.
 
 pcd.orient_normals_consistent_tangent_plane(k=100)
 
-pcd.normals = o3d.utility.Vector3dVector(-np.asarray(pcd.normals))
+#pcd.normals = o3d.utility.Vector3dVector(-np.asarray(pcd.normals))
 
 mesh, densities = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=8)
 
