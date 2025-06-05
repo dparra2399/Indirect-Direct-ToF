@@ -198,3 +198,4 @@ class ImagingSystemParams:
     mean_absolute_error: float = None
     model: str = None
     quant: bool = False
+    constant_pulse_energy: bool = False

@@ -218,7 +218,7 @@ class ImpulseCoding(Coding):
         return intent
 
     def encode_no_noise(self, incident):
-        return np.einsum('mp,pq->mq', incident, self.correlations)
+        return np.einsum('mp,pq->mq', incident.squeeze(), self.correlations)
 
     def encode_binomial(self, incident, trials):
 

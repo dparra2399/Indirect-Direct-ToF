@@ -42,7 +42,7 @@ def calculate_poisson_prob(theta_bkg, theta_max):
     prob_poisson = 1-(not_prob_poison**500)
     return prob_poisson
 
-def get_scheme_color(coding_scheme, k, cw_tof=False):
+def get_scheme_color(coding_scheme, k, cw_tof=False, constant_pulse_energy=False):
     color = None
     if coding_scheme.startswith('TruncatedFourier'):
         if k==6:
@@ -57,7 +57,10 @@ def get_scheme_color(coding_scheme, k, cw_tof=False):
         elif k==4:
             color = '#1f77b4'
     elif coding_scheme == 'Identity':
-        color = '#e377c2'
+        if constant_pulse_energy:
+            color = 'indigo'
+        else:
+            color = '#e377c2'
     elif coding_scheme.startswith('KTapSinusoid'):
         if cw_tof:
             color = '#ff7f0eff'

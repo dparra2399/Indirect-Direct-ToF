@@ -28,7 +28,7 @@ if __name__ == '__main__':
     #irf = np.genfromtxt(r'C:\Users\Patron\PycharmProjects\Flimera-Processing\irfs\pulse_10mhz.csv', delimiter=',')
     irf=None
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
 
     #irf = np.load(r'C:\Users\Patron\PycharmProjects\WISC-SinglePhoton3DData\system_irf\20190207_face_scanning_low_mu\ground_truth\irf_tres-8ps_tlen-17504ps.npy')
     params['imaging_schemes'] = [
@@ -49,9 +49,12 @@ if __name__ == '__main__':
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_2'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-                             model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
-                            account_irf=True, h_irf=irf, quant=False),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                      model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
+        #                     account_irf=True, h_irf=irf, quant=True),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
+        #                     account_irf=True, h_irf=irf, quant=False),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_10'),
         #                     account_irf=True, h_irf=irf),
@@ -60,9 +63,9 @@ if __name__ == '__main__':
         #                     account_irf=True, h_irf=irf),
 
 
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                      model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-        #                      account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                             model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
+                             account_irf=True, h_irf=irf),
         # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         # #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
         # #                     account_irf=True, h_irf=irf),
@@ -72,7 +75,7 @@ if __name__ == '__main__':
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
         #                     h_irf=irf),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
     ]
@@ -89,11 +92,10 @@ if __name__ == '__main__':
     depths = np.arange(1.0, params['dMax']-1.0, dSample)
     # depths = np.array([105.0])
 
-    photon_count =  500
+    photon_count =  100
     sbr = 0.1
-    peak_factor = None #0.015
+    peak_factor = 0.015
 
-    #flags_tmp = [False, False, False, False, True]
     total_cycles = params['rep_freq'] * params['T']
 
     n_tbins = params['n_tbins']
@@ -120,20 +122,23 @@ if __name__ == '__main__':
         light_source = imaging_scheme.light_id
         rec_algo = imaging_scheme.rec_algo
 
-        if False:
-            incident = light_obj.simulate_constant_pulse_energy(photon_count, sbr, depths, peak_factor=peak_factor)
+        if imaging_scheme.constant_pulse_energy:
+            incident, tmp_irf = light_obj.simulate_constant_pulse_energy(photon_count, sbr, depths, peak_factor=peak_factor)
         else:
-            incident = light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)
+            incident, tmp_irf = light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)
 
         print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbr) / n_tbins))}')
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 
+        coding_obj.update_irf(tmp_irf)
+        coding_obj.update_C_derived_params()
+
         #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
 
-        if coding_scheme in ['Identity']:
+        if coding_scheme in ['wIdentity']:
             #assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-            decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, 30 * tbin_depth_res,
+            decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma * tbin_depth_res,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
         else:
             decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
