@@ -21,24 +21,25 @@ breakpoint = debugger.set_trace
 
 save_folder = 'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper'
 filenames = [
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_quant.npz',
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_quant.npz',
+            '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_mae_quant.npz',
+            '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_rmse_quant.npz',
             # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
 
             ]
-# filenames = [
-# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
-# #              '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak030_rmse.npz',
-#     '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
-#
-#     #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
+filenames = [
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
+            '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_mae_constant_pulse_energy.npz',
+            '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
 
-#               ]
+            #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae_quant.npz',
+            #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse_quant.npz',
 
-fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 5), squeeze=False)
+]
+
+fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
 num = 8 #high SBR
 num2 = 2 #Low Photon count
@@ -106,7 +107,8 @@ for i, filename in enumerate(filenames):
         surf = axs[0][i].plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
                                label=label, alpha=0.6,
                                edgecolors='k', lw=0.5, shade=False, antialiased=True,
-                               color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof))
+                               color=get_scheme_color(imaging_schemes[j].coding_id, k, cw_tof=imaging_schemes[j].cw_tof,
+                                                      constant_pulse_energy=imaging_schemes[j].constant_pulse_energy))
         surf._edgecolors2d = surf._edgecolor3d
         surf._facecolors2d = surf._facecolor3d
 
@@ -129,6 +131,7 @@ for i, filename in enumerate(filenames):
         #     axs[0][i].set_zlim(0, 15)
     else:
         axs[0][i].set_zlabel('Mean Abs. Error (cm)')
+        axs[0][i].set_zlim(0, 15)
         # if 'photonstarved' in filename:
         #     axs[0][i].set_zlim(0, 250)
         # else:
@@ -151,7 +154,7 @@ fig.tight_layout()
 
 #fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
 
-#fig.savefig(os.path.join(save_folder, 'supp.svg'), bbox_inches='tight', dpi=3000)
+fig.savefig(os.path.join(save_folder, 'band_quant.svg'), bbox_inches='tight', dpi=3000)
 
 plt.show(block=True)
 
