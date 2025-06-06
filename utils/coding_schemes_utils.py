@@ -76,6 +76,7 @@ def create_coding_obj(coding_system, n_tbins):
     n_freqs = coding_system.n_freqs
     n_codes = coding_system.n_codes
     quant = coding_system.quant
+    fourier_coeff = coding_system.fourier_coeff
 
     if gated is True:
         split = True
@@ -129,14 +130,14 @@ def create_coding_obj(coding_system, n_tbins):
         except:
             n_codes =  8
         print(f'Learned With Impulse K={n_codes}')
-        coding_obj = LearnedImpulseCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
+        coding_obj = LearnedImpulseCoding(n_tbins=n_tbins, n_codes=n_codes, model=model, fourier_coeff=fourier_coeff,
                                    binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
                                    account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'LearnedContinuous'):
         model = coding_system.model
         n_codes = int(model.split(os.path.sep)[-1].split('_')[1].split('k')[1])
         print(f'Learned With Continuous K={n_codes}')
-        coding_obj = LearnedContinuousCoding(n_tbins=n_tbins, n_codes=n_codes, model=model,
+        coding_obj = LearnedContinuousCoding(n_tbins=n_tbins, n_codes=n_codes, model=model, fourier_coeff=fourier_coeff,
                                    binomial=binomial, gated=gated, total_laser_cycles=laser_cycles,
                                    account_irf=False, h_irf=h_irf, quant=quant,)
     return coding_obj
@@ -197,5 +198,6 @@ class ImagingSystemParams:
     total_laser_cycles: int = None
     mean_absolute_error: float = None
     model: str = None
-    quant: bool = False
+    quant: int = None
     constant_pulse_energy: bool = False
+    fourier_coeff: int = None

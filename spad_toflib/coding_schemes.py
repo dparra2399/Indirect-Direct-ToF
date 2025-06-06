@@ -17,7 +17,7 @@ learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learne
 class Coding(ABC):
 
     def __init__(self, n_tbins, total_laser_cycles=None, binomial=False, gated=False,
-                 num_measures=None, after=False, h_irf=None, account_irf=False, quant=False):
+                 num_measures=None, after=False, h_irf=None, account_irf=False, quant=None):
 
         self.binomial = binomial
         self.after = after
@@ -28,6 +28,10 @@ class Coding(ABC):
         self.account_irf = account_irf
         self.set_laser_cycles(total_laser_cycles)
         if self.correlations is None: self.set_coding_scheme(n_tbins)
+
+        if self.quant is not None:
+            self.correlations = quantize_any_bits_numpy(self.correlations, bits=self.quant)[0]
+
         self.update_C_derived_params()
         self.set_num_measures(num_measures)
 
@@ -38,22 +42,13 @@ class Coding(ABC):
 
 
         if (self.account_irf):
-            # self.decoding_C = signalproc_ops.circular_conv(self.C, self.h_irf[:, np.newaxis], axis=0)
-            # self.decoding_C = signalproc_ops.circular_corr(self.C, self.h_irf[:, np.newaxis], axis=0)
-            self.decode_corrfs = signalproc_ops.circular_corr(self.h_irf[:, np.newaxis], self.correlations, axis=0)
+            self.decode_corrfs = signalproc_ops.circular_corr(self.tmp_irf[:, np.newaxis], self.correlations, axis=0)
         else:
             self.decode_corrfs = self.correlations
 
-        if self.quant and False:
-            #self.decode_corrfs = quantize_qint8_numpy(self.decode_corrfs)[0]
-            self.zero_norm_corrfs = quantize_qint8_numpy(zero_norm_t(self.decode_corrfs))[0]
-            self.norm_corrfs = quantize_qint8_numpy(norm_t(self.decode_corrfs))[0]
-        else:
-            self.zero_norm_corrfs = zero_norm_t(self.decode_corrfs)
-            self.norm_corrfs = norm_t(self.decode_corrfs)
 
-        if self.quant:
-            self.correlations = quantize_qint8_numpy(self.correlations)[0]
+        self.zero_norm_corrfs = zero_norm_t(self.decode_corrfs)
+        self.norm_corrfs = norm_t(self.decode_corrfs)
 
     @abstractmethod
     def set_coding_scheme(self, n_tbins):
@@ -73,6 +68,25 @@ class Coding(ABC):
         norm_int = norm_t(intensities, axis=-1)
         return np.matmul(self.norm_corrfs, norm_int[..., np.newaxis]).squeeze(-1)
 
+    def update_tmp_irf(self, tmp_irf=None):
+        # If nothing is given set to gaussian
+        if (tmp_irf is None):
+            self.tmp_irf = gaussian_pulse(np.arange(0, self.n_tbins), 0, 1, circ_shifted=True)
+        else:
+            if tmp_irf.shape[0] == self.n_tbins:
+                self.tmp_irf = tmp_irf.squeeze()
+            else:
+                w = tmp_irf
+                x = np.arange(w.size)
+                new_length = self.n_tbins
+                new_x = np.linspace(x.min(), x.max(), new_length)
+                new_y = sp.interpolate.interp1d(x, w, kind='cubic')(new_x)
+                self.tmp_irf = new_y
+                self.tmp_irf = np.roll(self.tmp_irf, -np.argmax(self.tmp_irf))
+
+        self.tmp_irf = self.tmp_irf / self.tmp_irf.sum()
+
+
     def update_irf(self, h_irf=None):
         # If nothing is given set to gaussian
         if (h_irf is None):
@@ -90,6 +104,7 @@ class Coding(ABC):
                 self.h_irf = np.roll(self.h_irf, -np.argmax(self.h_irf))
 
         self.h_irf = self.h_irf / self.h_irf.sum()
+        self.update_tmp_irf(self.h_irf)
 
     ''' Felipe's Code'''
 
@@ -232,8 +247,9 @@ class ImpulseCoding(Coding):
         return c_vals
 
 class LearnedImpulseCoding(ImpulseCoding):
-    def __init__(self, n_tbins, n_codes, model, **kwargs):
+    def __init__(self, n_tbins, n_codes, model, fourier_coeff, **kwargs):
         self.n_tbins = n_tbins
+        self.fourier_coeff = fourier_coeff
         self.model = model
         self.n_codes = n_codes
         self.correlations = None
@@ -242,6 +258,8 @@ class LearnedImpulseCoding(ImpulseCoding):
     def set_coding_scheme(self, n_tbins):
         demods_filename = os.path.join(learned_folder,  self.model, 'coded_model.npy')
         self.correlations = np.load(demods_filename)
+        if self.fourier_coeff is not None:
+            self.correlations = reconstruct_and_get_code_global_top_n(self.correlations, self.fourier_coeff)
 
 class LearnedCoding(ImpulseCoding):
     def __init__(self, n_tbins, n_codes, model, **kwargs):
@@ -254,28 +272,6 @@ class LearnedCoding(ImpulseCoding):
     def set_coding_scheme(self, n_tbins):
         demods_filename = os.path.join(learned_folder,  self.model, 'coded_model.npy')
         self.correlations = np.load(demods_filename)
-
-class LearnedContinuousCoding(ContinuousWave):
-    def __init__(self, n_tbins, n_codes, model, **kwargs):
-        self.n_tbins = n_tbins
-        self.model = model
-        self.n_codes = n_codes
-        self.correlations = None
-        super().__init__(n_tbins=n_tbins, **kwargs)
-
-    def set_coding_scheme(self, n_tbins):
-        demods_filename = os.path.join(learned_folder,  self.model, 'coded_model.npy')
-        mods_filename = os.path.join(learned_folder, self.model, 'illum_model.npy')
-
-        self.demodfs = np.load(demods_filename)
-        self.modfs = np.reshape(np.load(mods_filename), (n_tbins, 1))
-
-        self.modfs = np.repeat(self.modfs, self.n_codes, axis=-1)
-
-        self.filtered_modfs = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], self.modfs, axis=0)
-
-        self.set_correlations(self.filtered_modfs, self.demodfs)
-
 
 
 class KTapSinusoidCoding(ContinuousWave):
@@ -424,7 +420,7 @@ class GatedCoding(Coding):
         return photon_counts
 
     def matchfilt_reconstruction(self, c_vals):
-        template = self.h_irf
+        template = self.tmp_irf
         zn_template = zero_norm_t(template, axis=-1)
         zn_c_vals = zero_norm_t(c_vals, axis=-1)
         shifts = signalproc_ops.circular_matched_filter(zn_c_vals, zn_template)

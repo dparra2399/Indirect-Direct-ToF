@@ -18,6 +18,9 @@ font = {'family': 'serif',
         }
 matplotlib.rc('font', **font)
 
+"""
+ChatGPT helped me code this sorry :(
+"""
 def reconstruct_and_get_code_global_top_n(coding_matrix, num_coefficients_to_keep):
     """
     Performs Fourier transform on the entire coding matrix and keeps only the
@@ -85,7 +88,7 @@ if __name__ == "__main__":
         #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=8),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
-                            model=os.path.join('bandlimited_models', f'n1024_k8_sigma10'),
+                            model=os.path.join('bandlimited_models', f'n1024_k8_sigma30'),
                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
         #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma20'),
@@ -93,9 +96,9 @@ if __name__ == "__main__":
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
         #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma30'),
         #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                            model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma1_peak030_counts1000'),
-                            h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                     model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma1_peak030_counts1000'),
+        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
 
     ]
 
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     coding_matrices = []
@@ -134,7 +137,7 @@ if __name__ == "__main__":
     labels = [1, 5, 10]
 
     plot_coeff = np.arange(1, max_coefficients + 1, 20)
-    fig, axs = plt.subplots(plot_coeff.shape[0]+1, len(coding_matrices), figsize=(30, 16))
+    fig, axs = plt.subplots(plot_coeff.shape[0]+1, len(coding_matrices), figsize=(30, 16), squeeze=False)
 
     for i, coding_matrix in enumerate(coding_matrices):
         axs[0, i].plot(coding_matrix)
@@ -158,7 +161,7 @@ if __name__ == "__main__":
                 counter += 1
 
     fig.subplots_adjust(wspace=0.05, hspace=0.35)
-    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\bandlimited-peak-fourier2.png',
-                bbox_inches='tight', dpi=300)
+    # fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\bandlimited-peak-fourier2.png',
+    #             bbox_inches='tight', dpi=300)
 
-   # plt.show()
+    plt.show()

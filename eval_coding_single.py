@@ -32,11 +32,14 @@ if __name__ == '__main__':
 
     #irf = np.load(r'C:\Users\Patron\PycharmProjects\WISC-SinglePhoton3DData\system_irf\20190207_face_scanning_low_mu\ground_truth\irf_tres-8ps_tlen-17504ps.npy')
     params['imaging_schemes'] = [
+        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
         ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
 
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
+        # ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
+        #                     h_irf=irf, quant=False, constant_pulse_energy=True),
         ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-                            h_irf=irf, quant=False),
+                            h_irf=irf),
         #
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
         #                    account_irf=True, h_irf=irf),
@@ -54,18 +57,26 @@ if __name__ == '__main__':
         #                     account_irf=True, h_irf=irf, quant=True),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
-        #                     account_irf=True, h_irf=irf, quant=False),
+        #                     account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
+        #                     account_irf=True, h_irf=irf, fourier_coeff=1000),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_10'),
         #                     account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_models', 'version_9'),
         #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+                            h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+        #                     h_irf=irf, fourier_coeff=150),
 
-
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                             model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
-                             account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                      model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
+        #                      account_irf=True, h_irf=irf),
         # # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         # #                     model=os.path.join('bandlimited_models', 'n2188_k8_spaddata'),
         # #                     account_irf=True, h_irf=irf),
@@ -75,14 +86,14 @@ if __name__ == '__main__':
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
         #                     h_irf=irf),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
+        #ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
     ]
 
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 1000
+    params['trials'] = 5000
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
@@ -92,7 +103,7 @@ if __name__ == '__main__':
     depths = np.arange(1.0, params['dMax']-1.0, dSample)
     # depths = np.array([105.0])
 
-    photon_count =  100
+    photon_count =  500
     sbr = 0.1
     peak_factor = 0.015
 
@@ -131,7 +142,7 @@ if __name__ == '__main__':
 
         coded_vals = coding_obj.encode(incident, trials).squeeze()
 
-        coding_obj.update_irf(tmp_irf)
+        coding_obj.update_tmp_irf(tmp_irf)
         coding_obj.update_C_derived_params()
 
         #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
