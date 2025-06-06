@@ -105,19 +105,70 @@ def compute_zero_point(scale, alpha, alpha_q):
 	return round(-1*((float(alpha)/float(scale)) - float(alpha_q)))
 
 
-def quantize_qint8_numpy(X, X_range=None):
-	if(X_range is None):
-		(X_min, X_max) = (X.min(), X.max())
-	else:
-		X_min = X_range[0]
-		X_max = X_range[1]
-		assert(X_min <= X.min()), "minimum should be contained in range"
-		assert(X_max >= X.max()), "maximum should be contained in range"
-	print("manual min: {}".format(X_min))
-	print("manual max: {}".format(X_max))
-	(min_q, max_q) = (-128, 127)
-	scale = compute_scale(X_max, X_min, max_q, min_q)
-	zero_point = compute_zero_point(scale, X_min, min_q)
-	qX = (X / scale) + zero_point
-	qX_int8  = np.round(qX).astype(np.int8)
-	return  (qX_int8, scale, zero_point)
+
+def quantize_any_bits_numpy(X, bits, X_range=None):
+    """
+    Quantize `X` into signed integers of `bits` bits.
+    Returns (qX_int, scale, zero_point).
+    """
+    if X_range is None:
+        x_min, x_max = X.min(), X.max()
+    else:
+        x_min, x_max = X_range[0], X_range[1]
+        assert x_min <= X.min(), "X_range[0] must be ≤ X.min()"
+        assert x_max >= X.max(), "X_range[1] must be ≥ X.max()"
+    min_q = - (2 ** (bits - 1))
+    max_q =   2 ** (bits - 1) - 1
+    scale = compute_scale(x_max, x_min, max_q, min_q)
+    zero_point = compute_zero_point(scale, x_min, min_q)
+    qX = (X / scale) + zero_point
+    qX_clamped = np.clip(np.round(qX), min_q, max_q)
+    if bits <= 8:
+        out_dtype = np.int8
+    elif bits <= 16:
+        out_dtype = np.int16
+    elif bits <= 32:
+        out_dtype = np.int32
+    else:
+        out_dtype = np.int64
+    qX_int = qX_clamped.astype(out_dtype)
+    return qX_int, scale, zero_point
+
+"""
+Not my code from CHATGPT 
+"""
+def reconstruct_and_get_code_global_top_n(coding_matrix, num_coefficients_to_keep):
+    """
+    Performs Fourier transform on the entire coding matrix and keeps only the
+    largest N magnitude coefficients across all columns for reconstruction.
+
+    Args:
+        coding_matrix (numpy.ndarray): A 2D numpy array representing the coding matrix (rows, cols).
+        num_coefficients_to_keep (int): The total number of largest magnitude coefficients to keep across the entire matrix.
+
+    Returns:
+        numpy.ndarray: The reconstructed coding matrix.
+    """
+    fourier_coeffs = np.fft.fft(coding_matrix, axis=0)
+    magnitudes = np.abs(fourier_coeffs)
+
+    # Flatten the magnitude array to find the top N indices globally
+    magnitudes_flat = magnitudes.flatten()
+    ind_sorted_flat = np.argsort(magnitudes_flat)[::-1]
+    top_n_indices_flat = ind_sorted_flat[:num_coefficients_to_keep]
+
+    # Create a mask for the Fourier coefficients
+    mask = np.zeros_like(fourier_coeffs, dtype=bool)
+    rows, cols = coding_matrix.shape
+    row_indices, col_indices = np.unravel_index(top_n_indices_flat, (rows, cols))
+
+    # Set the mask to True for the top N coefficients
+    mask[row_indices, col_indices] = True
+
+    # Apply the mask to zero out the smaller coefficients
+    modified_fourier_coeffs = np.where(mask, fourier_coeffs, 0)
+
+    # Perform inverse Fourier transform
+    reconstructed_matrix = np.fft.ifft(modified_fourier_coeffs, axis=0).real
+    return reconstructed_matrix
+

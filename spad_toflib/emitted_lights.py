@@ -150,7 +150,6 @@ class SinglePhotonSource(LightSource):
             if self.h_irf is not None:
                 incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
                 tmp_irf = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
-                self.update_irf(tmp_irf)
         return (incident, tmp_irf)
 
     def simulate_constant_pulse_energy(self, total_photons, sbr, depths, peak_factor=None):
@@ -189,7 +188,6 @@ class SinglePhotonSource(LightSource):
             if self.h_irf is not None:
                 incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
                 tmp_irf = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
-                self.update_irf(tmp_irf)
         incident[incident<0]=0
         return self.phase_shifted(incident, depths), tmp_irf
 

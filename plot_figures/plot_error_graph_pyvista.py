@@ -4,13 +4,14 @@ from felipe_utils import tof_utils_felipe
 from utils.file_utils import get_string_name
 from plot_figures.plot_utils import get_scheme_color
 
+from vtkmodules.vtkRenderingAnnotation import vtkAxesActor
 
 
 if __name__ == '__main__':
     # File setup
     filenames = [
-        '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
-        '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
+        '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_mae.npz',
+        #'../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_rmse.npz',
     ]
 
     num = 8 # high SBR
@@ -57,9 +58,20 @@ if __name__ == '__main__':
             plotter.add_mesh(grid, name=label,
                              color=color,
                              show_edges=True)
-            plotter.show_bounds(location='origin')
-
-        plotter.add_axes()
+        plotter.show_bounds(font_size=20)
+        plotter.show_grid(font_size=16)
+        plotter.add_point_labels(
+            points=[
+                [1.1, 0, 0],  # tip of X
+                [0, 1.1, 0],  # tip of Y
+                [0, 0, 1.1],  # tip of Z
+            ],
+            labels=["X", "Y", "Z"],
+            font_size=20,
+            text_color="black",
+            point_color="white",
+            shape=None  # remove background box
+        )
         #plotter.add_text("RMSE" if 'rmse' in filename else "MAE", font_size=12)
         zlim = (0, 60) if 'peak015' in filename else (0, 50)
         # plotter.show_bounds(axes_ranges=[np.min(levels_one), np.max(levels_one), np.min(levels_two), np.max(levels_two),
@@ -67,8 +79,14 @@ if __name__ == '__main__':
         # plotter.set_xlabel("Log Photon Count")
         # plotter.set_ylabel("Log SBR")
         # plotter.set_zlabel("Error (cm)")
+    #plotter.show_axes()
+    # axes_actor = plotter.axes_actor
+    #
+    # axes_actor.GetXAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(16)
+    # axes_actor.GetYAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(16)
+    # axes_actor.GetZAxisCaptionActor2D().GetCaptionTextProperty().SetFontSize(16)
 
     plotter.link_views()
-    plotter.view_vector([10, -30, 10], [0, 0, 1])
+    plotter.view_vector([20, -30, 10], [0, 0, 1])
 
     plotter.show()
