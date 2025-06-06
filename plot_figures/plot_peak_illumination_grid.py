@@ -89,7 +89,7 @@ if __name__ == '__main__':
         ax[0][j].spines['top'].set_visible(False)
         ax[0][j].spines['right'].set_visible(False)
 
-        init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+        init_coding_list(n_tbins, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
         imaging_scheme_pulse = imaging_schemes[0]
         coding_obj_pulse = imaging_scheme_pulse.coding_obj
@@ -111,9 +111,9 @@ if __name__ == '__main__':
                 peak_factor = 1.0
                 #pass
 
-            incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor))
+            incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)[0])
 
-            incident_pulse = np.squeeze(light_obj_pulse.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor))
+            incident_pulse = np.squeeze(light_obj_pulse.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)[0])
 
             delta_illum = np.roll(incident_pulse[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
 

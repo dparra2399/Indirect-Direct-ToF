@@ -58,8 +58,7 @@ def simple_tonemap(rgb_img):
 
 
 
-trans_folder = r'Z:\Research_Users\David\sample_transient_images-20240724T164104Z-001\sample_transient_images\transient_images_240x320_nt-2000'
-rgb_folder =  r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\rgb_images_240x320_nt-2000'
+
 # Press the green button in the gutter to run the script.
 
 n_rows = 240
@@ -79,6 +78,7 @@ render_params_str = 'nr-{}_nc-{}_nt-{}_samples-{}'.format(n_rows, n_cols, n_tbin
 if __name__ == '__main__':
 
 
+    scene_id = 'bedroom'
     scene_id = 'living-room-2'
     scene_filename = r'{}_{}_view-0'.format(scene_id, render_params_str)
     print("Loading: {}".format(scene_filename))
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
     # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
     # depth_image = np.load(filename)
-    hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    #hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
     (nr, nc, n_tbins) = hist_img.shape
     depths = gt_depths_img.flatten()
 
@@ -102,22 +102,31 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
     params['imaging_schemes'] = [
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
-        #                      pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-        #                     model=os.path.join('bandlimited_models', 'version_5'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=16, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
+                             pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_3'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_4'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_5'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_6'),
+                            pulse_width=1, account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
+        #                     account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k12_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
         ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
@@ -197,7 +206,7 @@ if __name__ == '__main__':
             if irf is not None:
                 incident = np.transpose(signalproc_ops.circular_conv(irf[:, np.newaxis], np.transpose(incident), axis=0))
                 tmp_irf = signalproc_ops.circular_conv(irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
-                coding_obj.update_irf(tmp_irf)
+                coding_obj.update_tmp_irf(tmp_irf)
                 coding_obj.update_C_derived_params()
 
         tmp2 = np.reshape(incident, (nr, nc, n_tbins))
