@@ -2,14 +2,18 @@
 # Library imports
 import time
 
+import numpy as np
 from IPython.core import debugger
-from IPython.core.pylabtools import figsize
-
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils import tof_utils_felipe
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from plot_figures.plot_utils import *
+from matplotlib.lines import Line2D
+import matplotlib.gridspec as gridspec
+import matplotlib.patches as patches
+
+
 
 #matplotlib.use('QTkAgg')
 breakpoint = debugger.set_trace
@@ -31,18 +35,24 @@ if __name__ == '__main__':
     params['trials'] = 5000
     params['freq_idx'] = [1]
 
-
     print(f'max depth: {params["dMax"]} meters')
     print()
 
     dSample = 0.5
-    depths = np.arange(1.0, params['dMax']-1.0, dSample)
+    depths = np.arange(0, params['dMax'], dSample)
     # depths = np.array([105.0])
 
     photon_count =  500
     sbrs = [0.1, 1.0]
-    fourier_coeffs = np.arange(0, 160, 10)
-    peak_factor = 0.015
+    fourier_coeffs = np.arange(10, 190, 10)
+
+    peak_factors = [0.005, 0.015, 0.03]
+    #peak_factors = [None]
+    sigmas = [1, 5, 10]
+    #sigmas = [10, 20, 30]
+
+
+    total_cycles = params['rep_freq'] * params['T']
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -57,162 +67,76 @@ if __name__ == '__main__':
     print()
 
 
-    error_arr_bandlimited = np.zeros((fourier_coeffs.shape[0], len(sbrs), 2))
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+    errors_all = np.zeros(((len(peak_factors), len(sigmas), fourier_coeffs.shape[0], 2, 2)))
+    for i in range(len(peak_factors)):
+        for j in range(len(sigmas)):
+            sigma = sigmas[j]
+            if peak_factors[i] is not None:
+                peak_name =  f"{peak_factors[i]:.3f}".split(".")[-1]
 
-    for j in range(fourier_coeffs.shape[0]):
-        fourier_coeff = fourier_coeffs[j]
-        params['imaging_schemes'] = [
-            #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+            for k in range(fourier_coeffs.shape[0]):
+                fourier_coeff = fourier_coeffs[k]
 
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-                                h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                 model=os.path.join('bandlimited_models', 'n1024_k8_sigma10'),
-                                account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
-        ]
+                irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
+                params['imaging_schemes'] = [
+                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                        account_irf=True,
+                                        h_irf=irf),
+                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                        model=os.path.join('bandlimited_peak_models',
+                                                           f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
+                                        account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
 
-
-
-        init_coding_list(n_tbins, params, t_domain=t_domain)
-        imaging_schemes = params['imaging_schemes']
-
-        for k in range(len(sbrs)):
-            for i in range(len(imaging_schemes)):
-                imaging_scheme = imaging_schemes[i]
-                coding_obj = imaging_scheme.coding_obj
-                coding_scheme = imaging_scheme.coding_id
-                light_obj = imaging_scheme.light_obj
-                light_source = imaging_scheme.light_id
-                rec_algo = imaging_scheme.rec_algo
-
-                if imaging_scheme.constant_pulse_energy:
-                    incident, tmp_irf = light_obj.simulate_constant_pulse_energy(photon_count, sbrs[k], depths)
-                else:
-                    incident, tmp_irf = light_obj.simulate_average_photons(photon_count, sbrs[k], depths)
-
-                print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbrs[k]) / n_tbins))}')
-
-                coded_vals = coding_obj.encode(incident, trials).squeeze()
-
-                #coding_obj.update_irf(tmp_irf)
-                #coding_obj.update_C_derived_params()
-
-                #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
-
-                if coding_scheme in ['wIdentity']:
-                    #assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-                    decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma * tbin_depth_res,
-                                                                       rec_algo_id=rec_algo) * tbin_depth_res
-                else:
-                    decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
-
-                errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
-                all_error = np.reshape((decoded_depths - depths[np.newaxis, :]) * depth_res, (errors.size))
-                error_metrix = calc_error_metrics(errors)
-
-                error_arr_bandlimited[j, k, i] = error_metrix['rmse']
-
-    error_arr_peaklimited = np.zeros((fourier_coeffs.shape[0], len(sbrs), 3))
-    for j in range(fourier_coeffs.shape[0]):
-        fourier_coeff = fourier_coeffs[j]
-        params['imaging_schemes'] = [
-            #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-                                h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                                model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-                                h_irf=irf, fourier_coeff=fourier_coeff),
-        ]
-
-        init_coding_list(n_tbins, params, t_domain=t_domain)
-        imaging_schemes = params['imaging_schemes']
-
-        for k in range(len(sbrs)):
-            for i in range(len(imaging_schemes)):
-                imaging_scheme = imaging_schemes[i]
-                coding_obj = imaging_scheme.coding_obj
-                coding_scheme = imaging_scheme.coding_id
-                light_obj = imaging_scheme.light_obj
-                light_source = imaging_scheme.light_id
-                rec_algo = imaging_scheme.rec_algo
-
-                if imaging_scheme.constant_pulse_energy:
-                    incident, tmp_irf = light_obj.simulate_constant_pulse_energy(photon_count, sbrs[k], depths, peak_factor=peak_factor)
-                else:
-                    incident, tmp_irf = light_obj.simulate_average_photons(photon_count, sbrs[k], depths, peak_factor=peak_factor)
-
-                print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbrs[k]) / n_tbins))}')
-
-                coded_vals = coding_obj.encode(incident, trials).squeeze()
-
-                coding_obj.update_irf(tmp_irf)
-                coding_obj.update_C_derived_params()
-
-                #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
-
-                if coding_scheme in ['wIdentity']:
-                    #assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-                    decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma * tbin_depth_res,
-                                                                       rec_algo_id=rec_algo) * tbin_depth_res
-                else:
-                    decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
-
-                errors = np.abs(decoded_depths - depths[np.newaxis, :]) * depth_res
-                all_error = np.reshape((decoded_depths - depths[np.newaxis, :]) * depth_res, (errors.size))
-                error_metrix = calc_error_metrics(errors)
-
-                error_arr_peaklimited[j, k, i] = error_metrix['rmse']
-
-    fig, axs = plt.subplots(2, len(sbrs), squeeze=False, figsize=(10, 10), sharex=True, sharey=True)
-    for i in range(len(sbrs)):
-        for j in range(3):
-
-            if imaging_schemes[j].coding_id.startswith('TruncatedFourier'):
-                str_name = 'Truncated Fourier'
-            elif imaging_schemes[j].coding_id == 'Identity':
-                str_name = 'FRH'
-            elif imaging_schemes[j].coding_id == 'Greys':
-                str_name = 'Count. Gray'
-            elif imaging_schemes[j].coding_id.startswith('Learned'):
-                str_name = 'Optimized'
+                    # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                    #                      model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
+                    #                     account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
 
 
-            axs[0, i].plot(error_arr_bandlimited[:, i, j] / 10, marker='o', linestyle='-', label=str_name,
-                           color=get_scheme_color(imaging_schemes[j].coding_id, 8, cw_tof=imaging_schemes[j].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes[j].constant_pulse_energy))
-            axs[1, i].plot(error_arr_peaklimited[:, i, j] / 10, marker='o', linestyle='-', label=str_name,
-                           color=get_scheme_color(imaging_schemes[j].coding_id, 8, cw_tof=imaging_schemes[j].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes[j].constant_pulse_energy))
+                ]
 
-            axs[0, i].set_xticks(np.arange(fourier_coeffs.shape[0])[::2])
-            axs[0, i].set_xticklabels(fourier_coeffs[::2])
-            #axs[0, i].set_xlabel('Bit Size')
+                init_coding_list(n_tbins, params, t_domain=t_domain)
+                imaging_schemes = params['imaging_schemes']
+
+                for l in range(len(imaging_schemes)):
+                    imaging_scheme = imaging_schemes[l]
+                    coding_obj = imaging_scheme.coding_obj
+                    coding_scheme = imaging_scheme.coding_id
+                    light_obj = imaging_scheme.light_obj
+                    light_source = imaging_scheme.light_id
+                    rec_algo = imaging_scheme.rec_algo
+
+                    try:
+                        #filename = imaging_schemes.model
+                        filename = imaging_scheme.model
+                        peak_factor = int(filename.split('_')[-2].split('peak')[-1]) * (1/1000)
+                    except:
+                        peak_factor = 1.0
+                        #pass
 
 
-            axs[0, 0].set_ylabel('MAE (cm)')
+                    incident_low, tmp_irf = light_obj.simulate_average_photons(photon_count, sbrs[0], depths, peak_factor=peak_factor)
 
-            axs[1, i].set_xticks(np.arange(fourier_coeffs.shape[0])[::2])
-            axs[1, i].set_xticklabels(fourier_coeffs[::2])
-            axs[1, i].set_xlabel('Number of Fourier Coefficients')
+                    incident_high, _ = light_obj.simulate_average_photons(photon_count, sbrs[1], depths, peak_factor=peak_factor)
 
-            axs[1, 0].set_ylabel('MAE (cm)')
+                    coded_vals_low = coding_obj.encode(incident_low, trials).squeeze()
+                    coded_vals_high = coding_obj.encode(incident_high, trials).squeeze()
 
-            axs[0, i].legend()
-            axs[1, i].legend()
+                    coding_obj.update_tmp_irf(tmp_irf)
+                    coding_obj.update_C_derived_params()
 
-            if sbrs[i] <= 0.5:
-                axs[0, i].set_title('Low SBR')
-            else:
-                axs[0, i].set_title('High SBR')
+                    decoded_depths_low = coding_obj.max_peak_decoding(coded_vals_low, rec_algo_id=rec_algo) * tbin_depth_res
+                    decoded_depths_high = coding_obj.max_peak_decoding(coded_vals_high, rec_algo_id=rec_algo) * tbin_depth_res
 
-            axs[0, i].grid(True)
-            axs[1, i].grid(True)
+                    errors_low = np.abs(decoded_depths_low - depths[np.newaxis, :]) * depth_res
+                    error_metrix_low = calc_error_metrics(errors_low)
 
-    fig.subplots_adjust(wspace=0.05, hspace=0.05)
-    fig.savefig(f'fourier_analysis.svg', bbox_inches='tight')
-    plt.show(block=True)
+                    errors_high = np.abs(decoded_depths_high - depths[np.newaxis, :]) * depth_res
+                    error_metrix_high = calc_error_metrics(errors_high)
 
-print()
-print('YAYYY')
+                    errors_all[i, j, k, l, 0] = error_metrix_low['rmse']
+                    errors_all[i, j, k, l, 1] = error_metrix_high['rmse']
+
+            filename = 'fourier_performance_peak.npz'
+            outfile = '.\\data\\results\\fourier_performance\\' + filename
+
+            np.savez(outfile, params=params, results=errors_all, fourier_coeffs=fourier_coeffs)

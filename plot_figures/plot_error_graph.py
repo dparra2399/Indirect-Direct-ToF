@@ -34,7 +34,7 @@ filenames = [
 #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_mae_constant_pulse_energy.npz',
 #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
 
-            '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_100_exp_Learned_sigma10_peak030_mae.npz',
+            '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak030_mae.npz',
             #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak005_rmse.npz',
 
 ]
@@ -42,18 +42,18 @@ filenames = [
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
 num = 1 #high SBR
-num2 = 2 #Low Photon count
-num3 = 1 #Low SBR
+num2 = 1 #Low Photon count
+num3 = 0 #Low SBR
 num4 = 1 #High photon count
 grid_size = 4
 
 for i, filename in enumerate(filenames):
     file = np.load(filename, allow_pickle=True)
 
-    mae = file['results'][:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
-    levels_one = file['levels_one'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    mae = file['results']#[:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
+    levels_one = file['levels_one']#[num3:-num, num2:-num4]#[num2:-num, num2:-num]
     print(np.min(levels_one))
-    levels_two = file['levels_two'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    levels_two = file['levels_two']#[num3:-num, num2:-num4]#[num2:-num, num2:-num]
     params = file['params'].item()
     imaging_schemes = params['imaging_schemes']
     tbin_res = params['rep_tau'] / params['n_tbins']

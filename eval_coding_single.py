@@ -28,12 +28,12 @@ if __name__ == '__main__':
     #irf = np.genfromtxt(r'C:\Users\Patron\PycharmProjects\Flimera-Processing\irfs\pulse_10mhz.csv', delimiter=',')
     irf=None
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)
 
     #irf = np.load(r'C:\Users\Patron\PycharmProjects\WISC-SinglePhoton3DData\system_irf\20190207_face_scanning_low_mu\ground_truth\irf_tres-8ps_tlen-17504ps.npy')
     params['imaging_schemes'] = [
         #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
 
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
         # ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
@@ -68,7 +68,10 @@ if __name__ == '__main__':
         #                     model=os.path.join('bandlimited_models', 'version_9'),
         #                     account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma1_peak015_counts1000'),
+                            h_irf=irf, fourier_coeff=80),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma1_peak015_counts1000'),
                             h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
