@@ -18,8 +18,8 @@ TotalEnergyDefault = 1.
 TauDefault = 1.
 AveragePowerDefault = TotalEnergyDefault / TauDefault
 
-learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
-
+#learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = '/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes'
 class LightSource(ABC):
 
     def __init__(self, light_source, t, h_irf=None, rep_tau=None, num_measures=None):
@@ -116,22 +116,73 @@ class SinglePhotonSource(LightSource):
         v_out[v_out < 0] = 0
         return self.phase_shifted(v_out, depths), tmp_irf
 
+
+    def simulate_average_photons_sparse_indirect_reflections(self, total_photons, sbr,
+                                                      total_photons_indirect, position, depths, peak_factor=None):
+        incident = np.zeros(self.filtered_light_source.shape)
+        light_source = self.filtered_light_source
+        if self.split: total_photons = total_photons / self.n_functions
+
+        total_amb_photons = total_photons / sbr
+        scaled_modfs = np.copy(light_source)
+        tmp_irf = np.copy(self.h_irf)
+        #tmp_irf = np.copy(self.filtered_light_source.squeeze())
+        for i in range(0, light_source.shape[-1]):
+            scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
+            tmp_irf *= (total_photons / np.sum(self.h_irf))
+            incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
+        if peak_factor is not None:
+            #peak_val = np.max(incident)
+            incident = np.clip(incident, 0, (peak_factor * total_photons) + (total_amb_photons / self.n_tbins))
+            tmp_irf = np.clip(tmp_irf, 0, (peak_factor * total_photons))
+            if self.h_irf is not None:
+                incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
+                tmp_irf = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
+
+        k = np.zeros((self.n_tbins))
+        k[position] = 1
+        indirect = signalproc_ops.circular_conv(k, self.filtered_light_source[:, 0])
+        indirect *= (total_photons_indirect / np.sum(indirect))
+        incident += indirect[:, np.newaxis]
+
+        incident[incident < 0] = 0
+        return self.phase_shifted(incident, depths), tmp_irf
+
+    def simulate_average_photons_dense_indirect_reflections(self, total_photons, sbr,
+                                                      decay, A, depths, peak_factor=None):
+        incident = np.zeros(self.filtered_light_source.shape)
+        light_source = self.filtered_light_source
+        if self.split: total_photons = total_photons / self.n_functions
+
+        total_amb_photons = total_photons / sbr
+        scaled_modfs = np.copy(light_source)
+        tmp_irf = np.copy(self.h_irf)
+        #tmp_irf = np.copy(self.filtered_light_source.squeeze())
+        for i in range(0, light_source.shape[-1]):
+            scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
+            tmp_irf *= (total_photons / np.sum(self.h_irf))
+            incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
+        if peak_factor is not None:
+            #peak_val = np.max(incident)
+            incident = np.clip(incident, 0, (peak_factor * total_photons) + (total_amb_photons / self.n_tbins))
+            tmp_irf = np.clip(tmp_irf, 0, (peak_factor * total_photons))
+            if self.h_irf is not None:
+                incident = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], incident, axis=0)
+                tmp_irf = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
+
+        k = np.exp(-np.arange(self.n_tbins) / decay)
+        k /= k.sum()
+        indirect = signalproc_ops.circular_conv(k, self.filtered_light_source[:, 0])
+        indirect *= (total_photons / np.sum(indirect))
+        incident += A * indirect[:, np.newaxis]
+        incident = np.roll(incident, -np.argmax(indirect), axis=-1)
+
+
+        incident[incident < 0] = 0
+        return self.phase_shifted(incident, depths), tmp_irf
+
     def simulate_average_photons_n_cycles(self, total_photons, sbr, peak_factor=None):
         incident = np.zeros(self.filtered_light_source.shape)
-
-        # decay = 200.0
-        # k = np.exp(-np.arange(self.n_tbins) / decay)
-        # k /= k.sum()
-        # indirect = np.convolve(self.filtered_light_source[:, 0] / np.sum(self.filtered_light_source[:, 0]), k, mode='full')
-        # A = 1.0
-        # light_source = self.filtered_light_source + A*indirect[:self.n_tbins, np.newaxis]
-        # light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], light_source, axis=0)
-
-        # k = np.zeros((self.n_tbins))
-        # k[0] = 1
-        # k[400] = 0.5
-        # indirect = np.convolve(k, self.filtered_light_source[:, 0] / np.sum(self.filtered_light_source[:, 0]), mode='full')
-        # light_source = signalproc_ops.circular_conv(self.h_irf[:, np.newaxis], indirect[:self.n_tbins, np.newaxis], axis=0)
 
         light_source = self.filtered_light_source
         if self.split: total_photons = total_photons / self.n_functions
@@ -139,6 +190,7 @@ class SinglePhotonSource(LightSource):
         total_amb_photons = total_photons / sbr
         scaled_modfs = np.copy(light_source)
         tmp_irf = np.copy(self.h_irf)
+        #tmp_irf = np.copy(self.filtered_light_source.squeeze())
         for i in range(0, light_source.shape[-1]):
             scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
             tmp_irf *= (total_photons / np.sum(self.h_irf))

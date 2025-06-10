@@ -201,6 +201,7 @@ if __name__ == '__main__':
 
             axs[0, 0].set_ylabel('RMSE (cm)')
 
+
             axs[1, i].set_xticks(np.arange(len(quants)))
             axs[1, i].set_xticklabels(quants)
             axs[1, i].set_xlabel('Bit Size')

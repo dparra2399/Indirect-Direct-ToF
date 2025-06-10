@@ -19,41 +19,55 @@ rc('font', **font)
 
 breakpoint = debugger.set_trace
 
-save_folder = 'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper'
+save_folder = '/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/Learned Coding Functions Paper'
 filenames = [
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_mae_quant.npz',
-            '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma30_rmse_quant.npz',
-            # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
+            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k10_sigma30_mae.npz',
+            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k12_sigma30_mae.npz',
+            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k14_sigma30_mae.npz',
+
+    # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
             #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
 
             ]
-filenames = [
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_mae_constant_pulse_energy.npz',
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
+# filenames = [
+# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
+# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_mae_constant_pulse_energy.npz',
+# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
+#
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak015_mae.npz',
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak015_mae.npz',
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
+#
+#     #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
+#
+# ]
 
-            '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak030_mae.npz',
-            #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak005_rmse.npz',
-
-]
+# filenames = [
+#              '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
+#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
+#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
+#
+#     #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
+#
+# ]
 
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
-num = 1 #high SBR
-num2 = 1 #Low Photon count
-num3 = 0 #Low SBR
+num = 8 #high SBR
+num2 = 11 #Low Photon count
+num3 = 1 #Low SBR
 num4 = 1 #High photon count
 grid_size = 4
 
 for i, filename in enumerate(filenames):
     file = np.load(filename, allow_pickle=True)
 
-    mae = file['results']#[:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
-    levels_one = file['levels_one']#[num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    mae = file['results'][:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
+    levels_one = file['levels_one'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
     print(np.min(levels_one))
-    levels_two = file['levels_two']#[num3:-num, num2:-num4]#[num2:-num, num2:-num]
+    levels_two = file['levels_two'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
     params = file['params'].item()
     imaging_schemes = params['imaging_schemes']
     tbin_res = params['rep_tau'] / params['n_tbins']
@@ -67,10 +81,20 @@ for i, filename in enumerate(filenames):
         #     continue
 
         str_name = ''
+        # if i == 0 and (j == 7 or j == 8):
+        #     continue
+        # if i == 1 and (j == 6 or j == 8):
+        #     continue
+        # if i == 2 and (j == 7 or j == 6):
+        #     continue
+        # if i == 0 and (j == 2 or j == 3):
+        #     continue
+        # if i == 1 and (j == 1 or j == 3):
+        #     continue
+        # if i == 2 and (j == 1 or j == 2):
+        #     continue
         if imaging_schemes[j].coding_id.startswith('TruncatedFourier'):
             str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[j].n_codes}'
-            if imaging_schemes[j].n_codes == 6:
-                continue
         elif imaging_schemes[j].coding_id.startswith('Gated'):
             str_name = 'Coarse Hist. (Wide)' + f'K={imaging_schemes[j].n_gates}'
             if imaging_schemes[j].pulse_width == 1:
@@ -93,9 +117,6 @@ for i, filename in enumerate(filenames):
 
         elif imaging_schemes[j].coding_id == 'Greys':
             str_name = 'Count. Greys'
-            if imaging_schemes[j].n_bits != 5:
-                 pass
-            pass
         elif imaging_schemes[j].coding_id == 'Learned':
             pass
 
@@ -123,28 +144,28 @@ for i, filename in enumerate(filenames):
     axs[0][i].set_ylabel(f'Log SBR')
     axs[0][i].set_xlabel(f'Log Photon Count')
 
-    # if 'rmse' in filename:
-    #     axs[0][i].set_zlabel('Root Mean Sq. Error (cm)')
-    #     # if 'photonstarved' in filename:
-    #     #     axs[0][i].set_zlim(0, 300)
-    #     # else:
-    #     #     axs[0][i].set_zlim(0, 15)
-    # else:
-    #     axs[0][i].set_zlabel('Mean Abs. Error (cm)')
-    #     axs[0][i].set_zlim(0, 15)
-    #     # if 'photonstarved' in filename:
-    #     #     axs[0][i].set_zlim(0, 250)
-    #     # else:
-    #     #     axs[0][i].set_zlim(0, 12)
-    #
-    # #axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
-    #
-    # if 'peak030' in filename:
-    #     axs[0][i].set_zlim(0, 50)
-    # elif 'peak015' in filename:
-    #     axs[0][i].set_zlim(0, 60)
-    # elif 'peak005' in filename:
-    #     axs[0][i].set_zlim(0, 400)
+    if 'rmse' in filename:
+        axs[0][i].set_zlabel('Root Mean Sq. Error (cm)')
+        # if 'photonstarved' in filename:
+        #     axs[0][i].set_zlim(0, 300)
+        # else:
+        #     axs[0][i].set_zlim(0, 15)
+    else:
+        axs[0][i].set_zlabel('Mean Abs. Error (cm)')
+        axs[0][i].set_zlim(0, 12)
+        # if 'photonstarved' in filename:
+        #     axs[0][i].set_zlim(0, 250)
+        # else:
+        #     axs[0][i].set_zlim(0, 12)
+
+    #axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
+
+    if 'peak030' in filename:
+        axs[0][i].set_zlim(0, 30)
+    elif 'peak015' in filename:
+        axs[0][i].set_zlim(0, 60)
+    elif 'peak005' in filename:
+        axs[0][i].set_zlim(0, 400)
 
 fig.tight_layout()
 
@@ -154,7 +175,7 @@ fig.tight_layout()
 
 #fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
 
-#fig.savefig(os.path.join(save_folder, 'band_quant.svg'), bbox_inches='tight', dpi=3000)
+fig.savefig(os.path.join(save_folder, 'tmp.svg'), bbox_inches='tight', dpi=3000)
 
 plt.show(block=True)
 

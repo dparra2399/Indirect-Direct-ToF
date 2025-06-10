@@ -6,6 +6,7 @@ import os
 from IPython.core import debugger
 
 from felipe_utils.tof_utils_felipe import time2depth
+from plot_figures.plot_mtisuba_grid import data_dirpath
 from plot_figures.plot_utils import get_scheme_color
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
 from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
@@ -66,10 +67,11 @@ n_cols = 320
 n_tbins = 2000
 n_samples = 2048
 
-data_dirpath = r'Z:\Research_Users\David\sample_transient_images-20240724T164104Z-001\sample_transient_images'
-transient_data_dirpath = r'{}\transient_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
-rgb_data_dirpath = r'{}\rgb_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
-gt_depths_data_dirpath = r'{}\depth_images_{}x{}_nt-{}'.format(data_dirpath,n_rows, n_cols, n_tbins, )
+#data_dirpath = 'Z:\Research_Users\David\sample_transient_images-20240724T164104Z-001\sample_transient_images'
+data_dirpath = '/Volumes/velten/Research_Users/David/sample_transient_images-20240724T164104Z-001/sample_transient_images'
+transient_data_dirpath = r'{}/transient_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
+rgb_data_dirpath = r'{}/rgb_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
+gt_depths_data_dirpath = r'{}/depth_images_{}x{}_nt-{}'.format(data_dirpath,n_rows, n_cols, n_tbins, )
 
 
 
@@ -77,18 +79,17 @@ render_params_str = 'nr-{}_nc-{}_nt-{}_samples-{}'.format(n_rows, n_cols, n_tbin
 
 if __name__ == '__main__':
 
-
-    scene_id = 'bedroom'
+    #scene_id = 'bedroom'
     scene_id = 'living-room-2'
     scene_filename = r'{}_{}_view-0'.format(scene_id, render_params_str)
     print("Loading: {}".format(scene_filename))
-    gt_depths_img = np.load(r'{}\{}.npy'.format(gt_depths_data_dirpath, scene_filename))
-    rgb_img = np.load(r'{}\{}.npy'.format(rgb_data_dirpath, scene_filename))
-    hist_img = np.load(r'{}\{}.npz'.format(transient_data_dirpath, scene_filename))['arr_0']
+    gt_depths_img = np.load(r'{}/{}.npy'.format(gt_depths_data_dirpath, scene_filename))
+    rgb_img = np.load(r'{}/{}.npy'.format(rgb_data_dirpath, scene_filename))
+    hist_img = np.load(r'{}/{}.npz'.format(transient_data_dirpath, scene_filename))['arr_0']
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
     # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
     # depth_image = np.load(filename)
-    #hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
     (nr, nc, n_tbins) = hist_img.shape
     depths = gt_depths_img.flatten()
 
@@ -102,36 +103,39 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
     params['imaging_schemes'] = [
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=16, pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
-                             pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
-                            pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_3'),
-                            pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_4'),
-                            pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_5'),
-                            pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc',
-                            model=os.path.join('bandlimited_models', 'version_6'),
-                            pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
+        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf,
+                            constant_pulse_energy=True),
+        #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
-        #                     account_irf=True, h_irf=irf),
+        #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
+        #                    pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
+        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30_v2'),
+        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k14_sigma30'),
+        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'version_6'),
+        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                             model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+                             account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                            model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak015_counts1000'),
+                            account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                            model=os.path.join('bandlimited_models', 'version_2'),
+                            account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k12_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=10, pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+                            constant_pulse_energy=True),
         #
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
+                            constant_pulse_energy=True),
 
 
     ]
@@ -147,7 +151,7 @@ if __name__ == '__main__':
     # Do either average photon count
     photon_counts = 1000
     sbr = 0.1
-    peak_factor = None
+    peak_factor = 0.015
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -171,8 +175,24 @@ if __name__ == '__main__':
 
     tic = time.perf_counter()
 
-    hist_img = np.roll(hist_img, 12, axis=-1)
-    #depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
+    #if n_tbins == 1024:
+        #hist_img = np.roll(hist_img, 12, axis=-1)
+        # depths_tmp = np.argmax(hist_img, axis=-1) * tbin_depth_res
+        # tmp = np.reshape(hist_img, (nr * nc, n_tbins)).copy()
+        # tmp = signalproc_ops.circular_corr(irf[np.newaxis, ...], tmp, axis=-1)
+        # tmp[tmp < 0] = 0
+        # for i in range(nr * nc):
+        #     first = tmp[i, :] * (photon_counts / np.sum(tmp[i, :]).astype(np.float64))
+        #     tmp[i, :] = first + ((photon_counts / sbr) / n_tbins)
+        # tmp = np.nan_to_num(tmp, nan=0.0, posinf=0.0, neginf=0.0)
+        # if peak_factor is not None:
+        #         # peak_val = np.max(incident)
+        #     incident = np.clip(tmp, 0, (peak_factor * photon_counts) + ((photon_counts / sbr)  / n_tbins))
+        #     if irf is not None:
+        #         tmp = signalproc_ops.circular_corr(irf[np.newaxis, ...], tmp, axis=-1)
+        # tmp = np.reshape(tmp, (nr, nc, n_tbins))
+
+
 
     for i in range(len(imaging_schemes)):
         imaging_scheme = imaging_schemes[i]
@@ -183,9 +203,14 @@ if __name__ == '__main__':
         rec_algo = imaging_scheme.rec_algo
 
         incident = np.zeros((nr * nc, n_tbins))
-        tmp = np.reshape(hist_img, (nr * nc, n_tbins))
+        tmp = np.reshape(hist_img, (nr * nc, n_tbins)).copy()
 
-        filt = light_obj.filtered_light_source.squeeze()
+        if imaging_scheme.constant_pulse_energy:
+            _, filt = light_obj.simulate_constant_pulse_energy(photon_counts, sbr, depths, peak_factor=peak_factor)
+            filt = filt.squeeze()
+        else:
+            filt = light_obj.filtered_light_source.squeeze()
+
         filt /= filt.sum()
 
         tmp = signalproc_ops.circular_corr(filt[np.newaxis, ...], tmp, axis=-1)
@@ -211,20 +236,34 @@ if __name__ == '__main__':
 
         tmp2 = np.reshape(incident, (nr, nc, n_tbins))
 
+        depths_tmp = np.argmax(tmp2, axis=-1) * tbin_depth_res
+        error_tmp = np.abs(depths_tmp - gt_depths_img)
+        mask = np.logical_not((error_tmp > 0.2))
+        gt_tmp = np.copy(gt_depths_img)
+        gt_tmp[mask] = depths_tmp[mask]
+        depths = gt_tmp.flatten()
 
-
-        #coded_vals = coding_obj.encode(incident, 1).squeeze()
-        coded_vals = coding_obj.encode_no_noise(incident).squeeze()
+        # if coding_scheme.startswith('Learned') or True:
+        #     tmp_hist = tmp2[150, 70, :] - (total_amb_photons / n_tbins)
+        #     tmp_hist = tmp_hist / tmp_hist.max()
+        #     true_hist = hist_img[150, 70, :]
+        #     true_hist = true_hist / true_hist.max()
+        #     true_hist = np.roll(true_hist, np.argmax(tmp_hist)-np.argmax(true_hist))
+        #     plt.plot(tmp_hist)
+        #     plt.plot(true_hist)
+        #     plt.show(block=True)
+        coded_vals = coding_obj.encode(incident, 1).squeeze()
+        #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
 
 
         if coding_scheme in ['sIdentity']:
             assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
-            decoded_depths = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
+            decoded_depthzs = coding_obj.maxgauss_peak_decoding(coded_vals, light_obj.sigma,
                                                                rec_algo_id=rec_algo) * tbin_depth_res
         else:
             decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
-
+        #decoded_depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
         error_maps[:, :, i] = np.abs(np.reshape(decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
         depth_images[:, :, i] = np.reshape(decoded_depths, (nr, nc))
         errors = np.abs(decoded_depths - depths.flatten()) * depth_res
@@ -234,7 +273,7 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+1, squeeze=False, figsize=(16, 5))
+    fig, axs = plt.subplots(2, len(params['imaging_schemes'])+2, squeeze=False, figsize=(16, 5))
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
     counter1 = 0
@@ -243,7 +282,6 @@ if __name__ == '__main__':
     axs[0][0].imshow(np.reshape(depths, (nr, nc)), vmax=depths.max(), vmin=depths.min())
     axs[1][0].imshow(rgb_img)
 
-
     for spine in axs[0][0].spines.values():
         spine.set_edgecolor('black')  # Set border color
         spine.set_linewidth(2)
@@ -251,9 +289,6 @@ if __name__ == '__main__':
     for spine in axs[1][0].spines.values():
         spine.set_edgecolor('black')  # Set border color
         spine.set_linewidth(2)
-
-
-
 
     axs[0][0].get_xaxis().set_ticks([])
     axs[0][0].get_yaxis().set_ticks([])
@@ -271,7 +306,7 @@ if __name__ == '__main__':
         #depth_map[depth_map < 1/2*np.min(depth_image)] = np.nan
         #depth_map[depth_map > 2*np.max(depth_image)] = np.nan
 
-        error_map = error_maps[:, :, i] * 10
+        error_map = error_maps[:, :, i] * 100
 
         depth_map[np.isnan(depth_map)] = 0
         depth_im = axs[counter1][i+1].imshow(depth_map, vmax=depths.max(), vmin=depths.min())
@@ -280,7 +315,7 @@ if __name__ == '__main__':
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
             spine.set_linewidth(4)
 
-        error_im = axs[counter2][i+1].imshow(error_map, vmin=0, vmax=5)
+        error_im = axs[counter2][i+1].imshow(error_map, vmin=0, vmax=20)
 
         for spine in axs[counter2][i+1].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
@@ -299,13 +334,13 @@ if __name__ == '__main__':
     axs[0, -1].axis('off')
     axs[1, -1].axis('off')
     cbar_im = fig.colorbar(depth_im, ax=axs[0, :], orientation='vertical', label='Depth (meters)')
-    cbar_error = fig.colorbar(error_im, ax=axs[1, :], orientation='vertical', label='Error (meters)')
+    cbar_error = fig.colorbar(error_im, ax=axs[1, :], orientation='vertical', label='Error (cm)')
 
     axs[0, -1].legend()
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
-    #fig.savefig('Z:\\Research_Users\\David\\Learned Coding Functions Paper\\supp_k4_sigma20_high.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('tmp2.svg', bbox_inches='tight', dpi=3000)
     plt.show(block=True)
     print()
 print('YAYYY')

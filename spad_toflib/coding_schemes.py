@@ -12,8 +12,8 @@ from felipe_utils.research_utils.signalproc_ops import gaussian_pulse, smooth_co
 from spad_toflib.spad_tof_utils import *
 import scipy as sp
 
-learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
-
+#learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
+learned_folder = '/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes'
 class Coding(ABC):
 
     def __init__(self, n_tbins, total_laser_cycles=None, binomial=False, gated=False,

@@ -39,17 +39,18 @@ if __name__ == '__main__':
     print()
 
     dSample = 0.5
-    depths = np.arange(0, params['dMax'], dSample)
+    depths = np.arange(1.0, params['dMax']-1.0, dSample)
     # depths = np.array([105.0])
 
-    photon_count =  500
+    photon_count =  1000
     sbrs = [0.1, 1.0]
-    fourier_coeffs = np.arange(10, 190, 10)
+    fourier_coeffs = np.arange(10, 100, 10)
 
-    peak_factors = [0.005, 0.015, 0.03]
-    #peak_factors = [None]
-    sigmas = [1, 5, 10]
-    #sigmas = [10, 20, 30]
+    #peak_factors = [0.005, 0.015, 0.030]
+    peak_factors = [None]
+    #sigmas = [1, 5, 10]
+    K=8
+    sigmas = [10, 20, 30]
 
 
     total_cycles = params['rep_freq'] * params['T']
@@ -71,28 +72,32 @@ if __name__ == '__main__':
     for i in range(len(peak_factors)):
         for j in range(len(sigmas)):
             sigma = sigmas[j]
-            if peak_factors[i] is not None:
-                peak_name =  f"{peak_factors[i]:.3f}".split(".")[-1]
+            peak_factor = peak_factors[i]
 
             for k in range(fourier_coeffs.shape[0]):
                 fourier_coeff = fourier_coeffs[k]
-
                 irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
-                params['imaging_schemes'] = [
-                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
-                                        account_irf=True,
-                                        h_irf=irf),
-                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                        model=os.path.join('bandlimited_peak_models',
-                                                           f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
-                                        account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
 
-                    # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                    #                      model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
-                    #                     account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
-
-
-                ]
+                if peak_factors[i] is not None:
+                    peak_name = f"{peak_factors[i]:.3f}".split(".")[-1]
+                    params['imaging_schemes'] = [
+                        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                            account_irf=True,
+                                            h_irf=irf),
+                        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                            model=os.path.join('bandlimited_peak_models',
+                                                               f'n1024_k{K}_sigma{sigma}_peak{peak_name}_counts1000'),
+                                            account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
+                    ]
+                else:
+                    params['imaging_schemes'] = [
+                        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                            account_irf=True,
+                                            h_irf=irf),
+                        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                             model=os.path.join('bandlimited_models', f'n1024_k{K}_sigma{sigma}'),
+                                            account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff),
+                    ]
 
                 init_coding_list(n_tbins, params, t_domain=t_domain)
                 imaging_schemes = params['imaging_schemes']
@@ -104,14 +109,6 @@ if __name__ == '__main__':
                     light_obj = imaging_scheme.light_obj
                     light_source = imaging_scheme.light_id
                     rec_algo = imaging_scheme.rec_algo
-
-                    try:
-                        #filename = imaging_schemes.model
-                        filename = imaging_scheme.model
-                        peak_factor = int(filename.split('_')[-2].split('peak')[-1]) * (1/1000)
-                    except:
-                        peak_factor = 1.0
-                        #pass
 
 
                     incident_low, tmp_irf = light_obj.simulate_average_photons(photon_count, sbrs[0], depths, peak_factor=peak_factor)
@@ -136,7 +133,7 @@ if __name__ == '__main__':
                     errors_all[i, j, k, l, 0] = error_metrix_low['rmse']
                     errors_all[i, j, k, l, 1] = error_metrix_high['rmse']
 
-            filename = 'fourier_performance_peak.npz'
-            outfile = '.\\data\\results\\fourier_performance\\' + filename
+            filename = f'fourier_performance_k{K}_bandlimited.npz'
+            outfile = './data/results/fourier_performance/' + filename
 
-            np.savez(outfile, params=params, results=errors_all, fourier_coeffs=fourier_coeffs)
+            np.savez(outfile, params=params, results=errors_all, fourier_coeffs=fourier_coeffs, peak_factors=peak_factors, sigmas=sigmas)

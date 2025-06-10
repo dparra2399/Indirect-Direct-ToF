@@ -72,7 +72,7 @@ if __name__ == '__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     fig, axs = plt.subplots(1, 3, figsize=(10, 2))
@@ -92,7 +92,7 @@ if __name__ == '__main__':
         peak_factor = None
         #pass
 
-    incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor))
+    incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)[0])
 
     filtered_illum = np.roll(incident[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
 
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     # axs[1].add_patch(rect)
 
     rect = patches.Rectangle((0, 7*100+1), img.shape[1], 96, linewidth=1, edgecolor='purple', facecolor='none')
-    axs[1].add_patch(rect)
+    #axs[1].add_patch(rect)
 
     #axs[2].plot(coding_obj.decode_corrfs[:, 5], linewidth=1.5, color='orange')
     #axs[2].plot(coding_obj.decode_corrfs[:, 6], linewidth=1.5, color='orange')
@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
 #fig.tight_layout()
 fig.subplots_adjust(wspace=0.05, hspace=0.05)
-fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\toy_example_figure.png', bbox_inches='tight', dpi=300)
+fig.savefig(f'toy_example_figure.svg', bbox_inches='tight', dpi=300)
 plt.show(block=True)
 
 print()

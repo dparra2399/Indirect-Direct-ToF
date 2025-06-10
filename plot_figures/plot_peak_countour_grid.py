@@ -73,7 +73,7 @@ for i in range(len(sigmas)):
         tbin_res = params['rep_tau'] / params['n_tbins']
         tbin_depth_res = tof_utils_felipe.time2depth(tbin_res)
 
-        target = next((obj for obj in imaging_schemes if obj.coding_id == 'Greys'), None)
+        target = next((obj for obj in imaging_schemes if obj.coding_id == 'Identity'), None)
         base = next((obj for obj in imaging_schemes if obj.model == f'bandlimited_peak_models/n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'), None)
 
         base_idx = imaging_schemes.index(base)
@@ -127,7 +127,7 @@ cbar.add_lines(CS2)
 
 plt.legend()
 fig.subplots_adjust(wspace=0.04, hspace=0.04)
-fig.savefig(r'Z:\Research_Users\David\Learned Coding Functions Paper\contour_peak_grid_identity_mae.svg', bbox_inches='tight')
+fig.savefig(r'/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/Learned Coding Functions Paper/tmp2.svg', bbox_inches='tight')
 plt.show()
 
 

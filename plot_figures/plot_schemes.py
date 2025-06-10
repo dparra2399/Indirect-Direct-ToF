@@ -36,9 +36,9 @@ if __name__ == '__main__':
     params['freq_idx'] = [1]
 
     params['imaging_schemes'] = [
-        # ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
-        #                     account_irf=True,
-        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
+                             account_irf=True,
+                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
         #
         # ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
         #                     account_irf=True, h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
@@ -48,9 +48,9 @@ if __name__ == '__main__':
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
                             model=os.path.join('bandlimited_models', f'n1024_k8_sigma10'),
                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
-                            model=os.path.join('bandlimited_models', f'n1024_k8_sigma20'),
-                            h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 20, circ_shifted=True)),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
+        #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma20'),
+        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 20, circ_shifted=True)),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
                             model=os.path.join('bandlimited_models', f'n1024_k8_sigma30'),
                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     fig = plt.figure(figsize=(15, 5))
@@ -108,12 +108,12 @@ if __name__ == '__main__':
             peak_factor = None
             #pass
 
-        incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, peak_factor=peak_factor))
+        incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)[0])
 
         filtered_illum = np.roll(incident[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
 
         inner_gs = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i],
-                                                    height_ratios=[3, 3, 1], hspace=0.17, wspace=0.05)
+                                                    height_ratios=[3, 3, 1], hspace=0.0, wspace=0.0)
 
         # Image on top
         ax_img = fig.add_subplot(inner_gs[1])
@@ -148,8 +148,8 @@ if __name__ == '__main__':
         for spine in ax1.spines.values():
             spine.set_edgecolor('black')  # Set border color
             spine.set_linewidth(1.5)  # Set border thickness
-        ax1.set_ylabel('Intensity')
-        ax1.set_xlabel('Time')
+        #ax1.set_ylabel('Intensity')
+        #ax1.set_xlabel('Time')
 
         ax1.set_xlim(0, 1024)
 
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     #fig.tight_layout()
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
-    fig.savefig(f'Z:\\Research_Users\\David\\Learned Coding Functions Paper\\overview_schemes.png', bbox_inches='tight', dpi=300)
+    fig.savefig('overview_schemes.svg', bbox_inches='tight', dpi=300)
     plt.show(block=True)
 
 print()

@@ -63,16 +63,16 @@ def simple_tonemap(rgb_img):
 
 # Press the green button in the gutter to run the script.
 
-n_rows = 240 // 2
-n_cols = 320 // 2
+n_rows = 240
+n_cols = 320
 n_tbins = 2000
 n_samples = 2048
 
-data_dirpath = r'Z:\Research_Users\David\sample_transient_images-20240724T164104Z-001\sample_transient_images'
-transient_data_dirpath = r'{}\transient_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
-rgb_data_dirpath = r'{}\rgb_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
-gt_depths_data_dirpath = r'{}\depth_images_{}x{}_nt-{}'.format(data_dirpath,n_rows, n_cols, n_tbins, )
-
+#data_dirpath = r'Z:\Research_Users\David\sample_transient_images-20240724T164104Z-001\sample_transient_images'
+data_dirpath = '/Volumes/velten/Research_Users/David/sample_transient_images-20240724T164104Z-001/sample_transient_images'
+transient_data_dirpath = r'{}/transient_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
+rgb_data_dirpath = r'{}/rgb_images_{}x{}_nt-{}'.format(data_dirpath, n_rows, n_cols, n_tbins, )
+gt_depths_data_dirpath = r'{}/depth_images_{}x{}_nt-{}'.format(data_dirpath,n_rows, n_cols, n_tbins, )
 
 
 render_params_str = 'nr-{}_nc-{}_nt-{}_samples-{}'.format(n_rows, n_cols, n_tbins, n_samples)
@@ -80,16 +80,22 @@ render_params_str = 'nr-{}_nc-{}_nt-{}_samples-{}'.format(n_rows, n_cols, n_tbin
 if __name__ == '__main__':
 
 
+    #scene_id = 'bedroom'
     scene_id = 'living-room-2'
+
+    if scene_id == 'bedroom':
+        x1, y1 = (250, 200)
+    elif scene_id == 'living-room-2':
+        x1, y1 = (180, 220)
     scene_filename = r'{}_{}_view-0'.format(scene_id, render_params_str)
     print("Loading: {}".format(scene_filename))
-    gt_depths_img = np.load(r'{}\{}.npy'.format(gt_depths_data_dirpath, scene_filename))
-    rgb_img = np.load(r'{}\{}.npy'.format(rgb_data_dirpath, scene_filename))
-    hist_img = np.load(r'{}\{}.npz'.format(transient_data_dirpath, scene_filename))['arr_0']
+    gt_depths_img = np.load(r'{}/{}.npy'.format(gt_depths_data_dirpath, scene_filename))
+    rgb_img = np.load(r'{}/{}.npy'.format(rgb_data_dirpath, scene_filename))
+    hist_img = np.load(r'{}/{}.npz'.format(transient_data_dirpath, scene_filename))['arr_0']
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
     # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
     # depth_image = np.load(filename)
-    #hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
     (nr, nc, n_tbins) = hist_img.shape
     depths = gt_depths_img.flatten()
 
@@ -114,9 +120,9 @@ if __name__ == '__main__':
     photon_counts = 1000
     sbr = 0.1
     #peak_factors = None
-    peak_factor = None
-    n_codes = [8, 10, 12]
-    sigma = 30
+    peak_factor = 0.015
+    n_codes = [8, 10]
+    sigma = 10
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -137,27 +143,41 @@ if __name__ == '__main__':
 
     depth_images = np.zeros((nr, nc, len(n_codes), schemes_num+1))
     error_maps = np.zeros((nr, nc, len(n_codes), schemes_num+1))
+
     #hist_img = np.roll(hist_img, 12, axis=-1)
     #depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
 
-    if peak_factor is not None:
-        peak_name =  f"{peak_factor:.3f}".split(".")[-1]
 
     for j in range(len(n_codes)):
         n_code = n_codes[j]
 
         irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
-        params['imaging_schemes'] = [
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=n_code, pulse_width=1,
-                                account_irf=True, h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                 model=os.path.join('bandlimited_models', f'n{n_tbins}_k{n_code}_sigma{sigma}'),
-                                account_irf=True, h_irf=irf),
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf),
+        if peak_factor is None:
+            params['imaging_schemes'] = [
+                ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=n_code, pulse_width=1,
+                                    account_irf=True, h_irf=irf),
+                ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                     model=os.path.join('bandlimited_models', f'n{n_tbins}_k{n_code}_sigma{sigma}'),
+                                    account_irf=True, h_irf=irf),
+                ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf),
 
-            ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
-        ]
+            ]
+        else:
+            peak_name = f"{peak_factor:.3f}".split(".")[-1]
+            params['imaging_schemes'] = [
+                ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=n_code, pulse_width=1,
+                                    account_irf=True, h_irf=irf),
+                ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                                    model=os.path.join('bandlimited_peak_models',
+                                                       f'n{params["n_tbins"]}_k{n_code}_sigma{sigma}_peak015_counts1000'),
+                                    h_irf=irf),
+                ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf),
+
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+
+            ]
 
         init_coding_list(n_tbins, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
@@ -196,7 +216,13 @@ if __name__ == '__main__':
                     coding_obj.update_tmp_irf(tmp_irf)
                     coding_obj.update_C_derived_params()
 
-                #tmp2 = np.reshape(incident, (nr, nc, n_tbins))
+            tmp2 = np.reshape(incident, (nr, nc, n_tbins))
+            depths_tmp = np.argmax(tmp2, axis=-1) * tbin_depth_res
+            error_tmp = np.abs(depths_tmp - gt_depths_img)
+            mask = np.logical_not((error_tmp > 0.2))
+            gt_tmp = np.copy(gt_depths_img)
+            gt_tmp[mask] = depths_tmp[mask]
+            depths = gt_tmp.flatten()
 
             coded_vals = coding_obj.encode(incident, 1).squeeze()
             #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
@@ -217,8 +243,8 @@ if __name__ == '__main__':
             mae[j, k] = error_metrix['mae']
 
     n_codes_size = len(n_codes)
-    fig = plt.figure(figsize=(25, 10))
-    gs = gridspec.GridSpec(n_codes_size, schemes_num+1, figure=fig, hspace=0.05, wspace=0.05)
+    fig = plt.figure(figsize=(13, 5))
+    gs = gridspec.GridSpec(n_codes_size + 1, schemes_num+1, figure=fig, hspace=0.05, wspace=0.05)
 
     for j in range(n_codes_size):
         for k in range(schemes_num):
@@ -235,19 +261,34 @@ if __name__ == '__main__':
                 2, 2,  # x, y pixel coordinates
                 f"MAE: {mae[j, k] / 10:.2f} cm \nRMSE {rmse[j, k] / 10: .2f} cm",  # your text
                 color='white',
-                fontsize=10,
+                fontsize=8,
                 ha='left', va='top',  # align text relative to point
                 bbox=dict(facecolor='black', alpha=0.5, pad=2)  # optional background box
             )
-
-            if j == n_codes_size - 1:
-                cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
-                cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)', pad=0.04)
-
             ax_low.get_xaxis().set_ticks([])
             ax_low.get_yaxis().set_ticks([])
             ax_high.get_xaxis().set_ticks([])
             ax_high.get_yaxis().set_ticks([])
+            if j == n_codes_size - 1:
+                inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[j + 1, k],
+                                                            width_ratios=[1, 1], hspace=0, wspace=0.05)
+
+                ax_low = fig.add_subplot(inner_gs[0, 0])
+                ax_high = fig.add_subplot(inner_gs[0, 1])
+
+                ax_low.get_xaxis().set_ticks([])
+                ax_low.get_yaxis().set_ticks([])
+                ax_high.get_xaxis().set_ticks([])
+                ax_high.get_yaxis().set_ticks([])
+
+                cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
+                cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)',
+                                          pad=0.04)
+
+                #cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
+                #cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)', pad=0.04)
+
+
 
             print(f'Scheme: {imaging_schemes[k].coding_id}, RMSE: {rmse[j, k] / 10: .2f} cm, MAE: {mae[j, k] / 10:.2f} cm')
 
@@ -264,12 +305,14 @@ if __name__ == '__main__':
 
                 #ax_low.set_title(str_name)
 
-        if j == 0:
+        if j == 2:
             inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[j, k + 1], width_ratios=[1, 1], hspace=0,
                                                         wspace=0.05)
 
             ax_rgb = fig.add_subplot(inner_gs[0, 0])
             ax_rgb.imshow(gt_depths_img)
+            ax_rgb.plot(x1, y1, 'o', color='blue', markersize=6)
+            ax_rgb.plot(220, 180, 'o', color='orange', markersize=6)
             ax_rgb.get_xaxis().set_ticks([])
             ax_rgb.get_yaxis().set_ticks([])
 
@@ -287,10 +330,8 @@ if __name__ == '__main__':
             ax_high = fig.add_subplot(inner_gs[0, 1])
 
             depth_im = ax_low.imshow(depth_images[:,:, j, k+1], vmin=depths.min(), vmax=depths.max())
-            ax_low.plot(100, 100, 'o', color='blue', markersize=6)
-            ax_low.plot(110, 90, 'o', color='orange', markersize=6)
-
-
+            ax_low.plot(x1, y1, 'o', color='blue', markersize=6)
+            ax_low.plot(220, 180, 'o', color='orange', markersize=6)
             error_im = ax_high.imshow(error_maps[:, :, j, k+1] * 100, vmin=0, vmax=30)
 
             ax_low.get_xaxis().set_ticks([])
@@ -298,18 +339,18 @@ if __name__ == '__main__':
             ax_high.get_xaxis().set_ticks([])
             ax_high.get_yaxis().set_ticks([])
 
-            cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
-            cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm) and RGB', pad=0.04)
+            #cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
+            #cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm) and RGB', pad=0.04)
 
             ax_low.text(
                 2, 2,  # x, y pixel coordinates
                 f"MAE: {mae[j, k+1] / 10:.2f} cm \nRMSE {rmse[j, k+1] / 10: .2f} cm",  # your text
                 color='white',
-                fontsize=10,
+                fontsize=8,
                 ha='left', va='top',  # align text relative to point
                 bbox=dict(facecolor='black', alpha=0.5, pad=2)  # optional background box
             )
-        elif j == 2:
+        elif j == 0:
             inner_gs = gridspec.GridSpecFromSubplotSpec(
                 1, 2, subplot_spec=gs[j, k + 1], width_ratios=[1, 1], hspace=0, wspace=0.05
             )
@@ -318,26 +359,55 @@ if __name__ == '__main__':
             ax_high = fig.add_subplot(inner_gs[0, 1])
 
             # Plot the histograms
-            ax_low.plot(hist_img[100, 100, :], color='blue')
-            ax_high.plot(hist_img[90, 110, :], color='orange')
+            ax_low.plot(hist_img[y1, x1], color='blue')
+            #ax_low.plot(hist_img[210, 220], color='orange')
 
-            ax_low.set_xticks((np.linspace(0, 2000, 3)))
-            ax_low.set_xticklabels((np.linspace(0, 2000, 3) * tbin_res * 1e9).astype(int))
+            ax_low.set_ylim(-0.00001, 0.0003)
+            ax_high.plot(hist_img[180, 220], color='orange')
+            ax_high.set_ylim(-0.00001, 0.0003)
+
+            #ax_low.set_xticks((np.linspace(0, 2000, 3)))
+            #ax_low.set_xticklabels((np.linspace(0, 2000, 3) * tbin_res * 1e9).astype(int))
+            #ax_low.tick_params(axis='both', which='major', labelsize=6)
             ax_low.set_yticks([])
-            ax_low.set_xlabel('Time (ns)')
-            ax_low.set_ylabel('Counts')
-            ax_low.set_box_aspect(1 / 1.5)  # match 1 row : 2 cols like your images
+            ax_low.set_xticks([])
+
+            ax_low.set_xlabel('Time')
+            ax_low.set_title('Blue Dot')
+            #ax_low.set_ylabel('Counts')
+            ax_low.set_box_aspect(1 / 2)  # match 1 row : 2 cols like your images
 
 
-            ax_high.set_xticks((np.linspace(0, 2000, 3)))
-            ax_high.set_xticklabels((np.linspace(0, 2000, 3) * tbin_res * 1e9).astype(int))
+            #ax_high.set_xticks((np.linspace(0, 2000, 3)))
+            #ax_high.set_xticklabels((np.linspace(0, 2000, 3) * tbin_res * 1e9).astype(int))
+            #ax_high.tick_params(axis='both', which='major', labelsize=6)
             ax_high.set_yticks([])
-            ax_high.set_xlabel('Time (ns)')
-            ax_high.set_box_aspect(1 / 1.5)  # match 1 row : 2 cols like your images
+            ax_high.set_xticks([])
 
+            ax_high.set_xlabel('Time')
+            ax_high.set_title('Orange Dot')
+            ax_high.set_box_aspect(1 / 2)  # match 1 row : 2 cols like your images
+
+    inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[j + 1, k+1],
+                                                    width_ratios=[1, 1], hspace=0, wspace=0.05)
+
+    ax_low = fig.add_subplot(inner_gs[0, 0])
+    ax_high = fig.add_subplot(inner_gs[0, 1])
+
+    ax_low.get_xaxis().set_ticks([])
+    ax_low.get_yaxis().set_ticks([])
+    ax_high.get_xaxis().set_ticks([])
+    ax_high.get_yaxis().set_ticks([])
+
+    cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
+    cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)',
+                                  pad=0.04)
+
+        # cbar_im = fig.colorbar(depth_im, ax=ax_low, orientation='horizontal', label='Depth (meters)', pad=0.04)
+        # cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)', pad=0.04)
 
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
-    #fig.savefig(f'bit_depth_grid_peak.svg', bbox_inches='tight')
+    fig.savefig(f'bit_depth_grid_band.svg', bbox_inches='tight')
     plt.show(block=True)
 
 print('YAYYY')
