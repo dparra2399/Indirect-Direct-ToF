@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # Press the green button in the gutter to run the script.
     if __name__ == '__main__':
         params = {}
-        params['n_tbins'] = 1024
+        params['n_tbins'] = 2000
         # params['dMax'] = 5
         # params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
         params['rep_freq'] = 5 * 1e6
@@ -35,20 +35,39 @@ if __name__ == '__main__':
         sigma = 30
         irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
         params['imaging_schemes'] = [
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf, quant=False),
+            #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
 
-            # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-            ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=False,
-                                h_irf=irf, quant=True),
-            #
+            ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=8),
+            #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=False,
+            #                    h_irf=irf),
+            #        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
+        #                    account_irf=True, h_irf=irf),
+        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', pulse_width=1,
+        #                    model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
+        #                    account_irf=True, h_irf=irf, quant=None),
+        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', pulse_width=1,
+        #                    model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
+        #                    account_irf=True, h_irf=irf, quant=None),
+        # ImagingSystemParams('LearnedImpulse', 'Gaussian', 'zncc', pulse_width=1,
+        #                    model=os.path.join('bandlimited_models', 'n2000_k14_sigma30'),
+        #                    account_irf=True, h_irf=irf, quant=None),
             # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_mae_fourier'),
             #                    account_irf=True, h_irf=irf),
             # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
             #                     model=os.path.join('bandlimited_models', 'n1024_k8_sigma30'),
             #                     account_irf=True, h_irf=irf),
-            ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
-                                account_irf=True, h_irf=irf, quant=True),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak015_counts1000'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak015_counts1000'),
+            #                     account_irf=True, h_irf=irf),
+            # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+            #                     model=os.path.join('bandlimited_peak_models', 'n1024_k14_sigma10_peak015_counts1000'),
+            #                     account_irf=True, h_irf=irf),
             # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
             #                     model=os.path.join('bandlimited_models', 'version_2'),
             #                     account_irf=True, h_irf=irf),
@@ -102,7 +121,7 @@ if __name__ == '__main__':
         init_coding_list(n_tbins, params, t_domain=t_domain)
         imaging_schemes = params['imaging_schemes']
 
-        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4, figsize=(8, 4))
+        fig, axs = plt.subplots(nrows=len(imaging_schemes), ncols=4, figsize=(8, 4), squeeze=False)
 
         axs[0][1].set_title('Input Illumination f(t)')
         axs[0][3].set_title('Rows 2 and 7 of D')
@@ -137,11 +156,11 @@ if __name__ == '__main__':
             img = np.repeat(coding_obj.correlations.transpose(), 100, axis=0)
             axs[i][2].imshow(img, cmap='gray', aspect='auto')
 
-            rect = patches.Rectangle((0, 1 * 100), img.shape[1], 100, linewidth=2, edgecolor='orange', facecolor='none')
-            axs[i][2].add_patch(rect)
+            #rect = patches.Rectangle((0, 1 * 100), img.shape[1], 100, linewidth=2, edgecolor='orange', facecolor='none')
+            #axs[i][2].add_patch(rect)
 
-            rect = patches.Rectangle((0, 6 * 100), img.shape[1], 100, linewidth=2, edgecolor='purple', facecolor='none')
-            axs[i][2].add_patch(rect)
+            #rect = patches.Rectangle((0, 6 * 100), img.shape[1], 100, linewidth=2, edgecolor='purple', facecolor='none')
+            #axs[i][2].add_patch(rect)
 
             axs[i][2].set_axis_off()
 
@@ -184,6 +203,6 @@ if __name__ == '__main__':
             color='black', linewidth=1
         ))
 
-    fig.savefig(f'Z:\\Research_Users\\David\\ICCP 2025 Hardware-aware codes\\Learned Coding Functions Paper\\supp figures\\supp_sigma{sigma}_coding.png', bbox_inches='tight', dpi=300)
+    fig.savefig(f'supp_sigma{sigma}_k{10}_coding.png', bbox_inches='tight', dpi=3000)
     plt.show()
 

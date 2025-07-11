@@ -7,18 +7,22 @@ from IPython.core import debugger
 
 from plot_figures.plot_utils import get_scheme_color
 from utils.coding_schemes_utils import ImagingSystemParams, init_coding_list
-from felipe_utils.research_utils.np_utils import calc_error_metrics
+from felipe_utils.research_utils.np_utils import calc_error_metrics, print_error_metrics
 from felipe_utils.research_utils.signalproc_ops import gaussian_pulse
 from felipe_utils import tof_utils_felipe
 import felipe_utils.research_utils.signalproc_ops as signalproc_ops
 import numpy as np
 from matplotlib import rc
-import glob
 import matplotlib.gridspec as gridspec
+
+import glob
+import matplotlib
+
+from utils.file_utils import get_string_name
 
 font = {'family': 'serif',
         'weight': 'bold',
-        'size': 24}
+        'size': 18}
 
 rc('font', **font)
 
@@ -57,7 +61,7 @@ def simple_tonemap(rgb_img):
 
 
 # Press the green button in the gutter to run the script.
-factor = 2
+factor = 1
 n_rows = 240 // factor
 n_cols = 320 // factor
 n_tbins = 2000
@@ -97,7 +101,8 @@ if __name__ == '__main__':
     # rgb_image = np.load(os.path.join(rgb_folder, filename))
     # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
     # depth_image = np.load(filename)
-    hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    #hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    hist_img = np.pad(hist_img, ((0, 0), (0, 0), (0, 48)))
     (nr, nc, n_tbins) = hist_img.shape
     depths = gt_depths_img.flatten()
 
@@ -110,68 +115,22 @@ if __name__ == '__main__':
     params['rep_tau'] = 1. / params['rep_freq']
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
+
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)
     constant_pulse_energy = False
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
     params['imaging_schemes'] = [
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
                             constant_pulse_energy=True),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
                             constant_pulse_energy=False),
-
-        # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
         ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=12, pulse_width=1, account_irf=True, h_irf=irf,
                             constant_pulse_energy=constant_pulse_energy),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
-        #                    pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30_v2'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k14_sigma30'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'version_6'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2048_k12_sigma30'),
+                             pulse_width=1, account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                      model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak015_counts1000'),
-        #                      account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak015_counts1000'),
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma5_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak005_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak005_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma5_peak030_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma5_peak030_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak015_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak015_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k14_sigma10_peak015_counts1000'),
-        #                     account_irf=True, h_irf=irf),
-        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k12_sigma30'),
-        #                     pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=12, pulse_width=1, account_irf=True, h_irf=irf,
                             constant_pulse_energy=constant_pulse_energy),
         #
 
@@ -188,7 +147,7 @@ if __name__ == '__main__':
     # Do either average photon count
     photon_counts = 1000
     sbr = 0.1
-    peak_factor = 0.030
+    peak_factor = None #0.005
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -228,8 +187,6 @@ if __name__ == '__main__':
         else:
             incident, tmp_irf = light_obj.simulate_average_photons(photon_counts, sbr, np.array([0]), peak_factor=peak_factor)
 
-
-        print(f'photon counts: {np.sum(incident[0, 0,: ])}')
         coding_obj.update_tmp_irf(tmp_irf)
         coding_obj.update_C_derived_params()
 
@@ -283,6 +240,7 @@ if __name__ == '__main__':
         else:
             depths = depths_clip
 
+        #decoded_depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
         error_maps[:, :, i] = np.abs(np.reshape(decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
         depth_images[:, :, i] = np.reshape(decoded_depths, (nr, nc))
         errors = np.abs(decoded_depths - depths.flatten()) * depth_res
@@ -295,7 +253,7 @@ if __name__ == '__main__':
             tmp2_learned = tmp[y2, x2, :]
             tmp3_learned = tmp[y3, x3, :]
             tmp4_learned = tmp[y4, x4, :]
-        elif 'Identity' in imaging_schemes[i].coding_id:
+        elif 'TruncatedFourier' in imaging_schemes[i].coding_id:
             tmp1 = tmp[y1, x1, :]
             tmp2 = tmp[y2, x2, :]
             tmp3 = tmp[y3, x3, :]
@@ -303,23 +261,28 @@ if __name__ == '__main__':
 
     toc = time.perf_counter()
 
-    n_rows = 3  # 2 main rows + 1 short bottom row
-    n_cols = len(params['imaging_schemes']) + 1
+    n_cols = 3  # 2 main rows + 1 short bottom row
+    n_rows = len(params['imaging_schemes'])
 
-    fig = plt.figure(figsize=(20.5, 8))
-    gs = gridspec.GridSpec(nrows=n_rows, ncols=n_cols, height_ratios=[1, 1, 0.6])  # Shorter last row
+    fig = plt.figure(figsize=(7.91, 10))
+    gs = gridspec.GridSpec(nrows=n_rows, ncols=n_cols, height_ratios=[1] * n_rows, width_ratios=[1, 1, 1] )  # Shorter last row
     axs = np.empty((n_rows, n_cols), dtype=object)
 
     # Create subplots manually
     for i in range(n_rows):
         for j in range(n_cols):
-            axs[i, j] = fig.add_subplot(gs[i, j])
+            if (i == 2 and j== n_cols -1) or (i == 3 and j==n_cols-1):  # last column gets stacked plots
+                inner_gs = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=gs[i, j], hspace=0.05)
+                axs[i, j] = [fig.add_subplot(inner_gs[0]), fig.add_subplot(inner_gs[1])]
+            else:
+                axs[i, j] = fig.add_subplot(gs[i, j])
 
     plt.subplots_adjust(hspace=0.05, wspace=0.05)
 
     counter1 = 0
     counter2 = 1
 
+    row = -1
     for i in range(len(params['imaging_schemes'])):
 
         scheme = params['imaging_schemes'][i]
@@ -332,90 +295,146 @@ if __name__ == '__main__':
 
         depth_map[np.isnan(depth_map)] = 0
 
-        if scheme.coding_id == 'Identity':
-            depth_im = axs[counter1][i].imshow(rgb_img, vmax=depths.max(), vmin=depths.min())
-            axs[counter1][i].plot(x1, y1, 'o', color='purple', markersize=10)
-            axs[counter1][i].plot(x2, y2, 'o', color='green', markersize=10)
-            axs[counter1][i].plot(x3, y3, 'o', color='blue', markersize=10)
-            axs[counter1][i].plot(x4, y4, 'o', color='red', markersize=10)
+        if scheme.coding_id == 'Identity' and scheme.constant_pulse_energy:
+            continue
+
+        row = row + 1  # now schemes are rows
+
+        if scheme.coding_id == 'Identity' and False:
+            depth_im = axs[row][counter1].imshow(rgb_img)
+            # axs[row][counter1].plot(x1, y1, 'o', color='purple', markersize=10)
+            # axs[row][counter1].plot(x2, y2, 'o', color='green', markersize=10)
+            # axs[row][counter1].plot(x3, y3, 'o', color='blue', markersize=10)
+            # axs[row][counter1].plot(x4, y4, 'o', color='red', markersize=10)
+        elif scheme.coding_id == 'Identity':
+            depth_im = axs[row][counter1].imshow(depth_map, vmax=depths.max(), vmin=depths.min())
+            # axs[row][counter1].plot(x1, y1, 'o', color='purple', markersize=10)
+            # axs[row][counter1].plot(x2, y2, 'o', color='green', markersize=10)
+            # axs[row][counter1].plot(x3, y3, 'o', color='blue', markersize=10)
+            # axs[row][counter1].plot(x4, y4, 'o', color='red', markersize=10)
         else:
-            depth_im = axs[counter1][i].imshow(depth_map, vmax=depths.max(), vmin=depths.min())
+            depth_im = axs[row][counter1].imshow(depth_map, vmax=depths.max(), vmin=depths.min())
 
-        for spine in axs[counter1][i].spines.values():
-            spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
+        for spine in axs[row][counter1].spines.values():
+            spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))
             spine.set_linewidth(2)
 
-        error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=6)
+        error_im = axs[row][counter2].imshow(error_map, vmin=0, vmax=6)
 
-        for spine in axs[counter2][i].spines.values():
-            spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
+        for spine in axs[row][counter2].spines.values():
+            spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))
             spine.set_linewidth(2)
 
-        axs[counter1][i].get_xaxis().set_ticks([])
-        axs[counter1][i].get_yaxis().set_ticks([])
-        axs[counter2][i].get_xaxis().set_ticks([])
-        axs[counter2][i].get_yaxis().set_ticks([])
-        #if counter == 2:
-        axs[counter1][i].text(
-                2, 2,  # x, y pixel coordinates
-                f"RMSE:{rmse[i] / 10:.1f} cm\nMAE:{mae[i] / 10:.1f} cm",  # your text
-                color='white',
-                fontsize=20,
-                ha='left', va='top',  # align text relative to point
-                bbox=dict(facecolor='black', alpha=0.5, pad=1)  # optional background box
-            )
+        axs[row][counter1].get_xaxis().set_ticks([])
+        axs[row][counter1].get_yaxis().set_ticks([])
+        axs[row][counter2].get_xaxis().set_ticks([])
+        axs[row][counter2].get_yaxis().set_ticks([])
+
+        axs[row][counter1].text(
+            0.15, 0.15,
+            f"RMSE: {rmse[i] / 10:.1f} cm\nMAE: {mae[i] / 10:.1f} cm",
+            fontsize=12,
+            color='white',
+            ha='left', va='top',
+            bbox=dict(facecolor='black', alpha=0.6, pad=3)
+        )
 
         if scheme.coding_id.startswith('TruncatedFourier'):
             str_name = 'Trunc. Fourier'
         elif scheme.coding_id == 'Identity':
-            str_name = 'RGB & FRH'
+            str_name = 'RGB & FRH' if n_tbins == 2000 else 'FRH'
         elif scheme.coding_id == 'Greys':
             str_name = 'Count. Gray'
         elif scheme.coding_id.startswith('Learned'):
             str_name = 'Optimized'
-        axs[0][i].set_title(str_name)
-        print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[i] / 10: .2f} cm, MAE: {mae[i] / 10:.2f} cm')
 
+        #axs[row][0].set_ylabel(str_name, fontsize=16)
+        print(f'Scheme: {scheme.coding_id}, RMSE: {rmse[i] / 10: .2f} cm, MAE: {mae[i] / 10:.2f} cm')
 
     # axs[0][-1].plot(tmp_learned, color='crimson', label='Non-pulse')
     # axs[1][-1].plot(tmp2_learned, color='green', label='Non-pulse')
     # axs[2][-1].plot(tmp3_learned, color='blue', label='Non-pulse')
     # axs[3][-1].plot(tmp4_learned, color='red', label='Non-pulse')
 
-    if n_tbins == 2000:
-        axs[-1][0].plot(tmp1[500:1700], color='purple', label='Pulse', linewidth=2.5)
-        axs[-1][1].plot(tmp2[500:1700], color='green', label='Pulse', linewidth=2.5)
-        axs[-1][2].plot(tmp3[500:1700], color='blue', label='Pulse', linewidth=2.5)
-        axs[-1][3].plot(tmp4[500:1700], color='red', label='Pulse', linewidth=2.5)
+    if n_tbins >= 2000:
+        #axs[0][-1].plot(tmp1[500:1700], color='purple', label='Pulse', linewidth=2.5)
+        #axs[1][-1].plot(tmp2[500:1700], color='green', label='Pulse', linewidth=2.5)
+
+        axs[1][-1].imshow(gt_depths_img)
+        axs[0][-1].imshow(rgb_img)
+        axs[1][-1].get_xaxis().set_ticks([])
+        axs[0][-1].get_yaxis().set_ticks([])
+        axs[1][-1].get_xaxis().set_ticks([])
+        axs[0][-1].get_yaxis().set_ticks([])
+
+        axs[1][-1].plot(x1, y1, 'o', color='purple', markersize=10)
+        axs[1][-1].plot(x2, y2, 'o', color='green', markersize=10)
+        axs[1][-1].plot(x3, y3, 'o', color='blue', markersize=10)
+        axs[1][-1].plot(x4, y4, 'o', color='red', markersize=10)
+
+        axs[2][-1][0].plot(tmp1[500:1700], color='purple', label='Pulse', linewidth=2.5)
+        axs[2][-1][1].plot(tmp2[500:1700], color='green', label='Pulse', linewidth=2.5)
+        axs[3][-1][0].plot(tmp3[500:1700], color='blue', label='Pulse', linewidth=2.5)
+        axs[3][-1][1].plot(tmp4[500:1700], color='red', label='Pulse', linewidth=2.5)
+
 
         xticks = np.linspace(0, 1200, 5)
         xtick_labels = (np.linspace(500, 1650, 5) * tbin_res * 1e9).astype(int)
     else:
-        axs[-1][0].plot(tmp1[100:1000], color='purple', label='Pulse', linewidth=2.5)
-        axs[-1][1].plot(tmp2[100:1000], color='green', label='Pulse', linewidth=2.5)
-        axs[-1][2].plot(tmp3[100:1000], color='blue', label='Pulse', linewidth=2.5)
-        axs[-1][3].plot(tmp4[100:1000], color='red', label='Pulse', linewidth=2.5)
+        axs[1][-1].imshow(gt_depths_img)
+        axs[0][-1].imshow(rgb_img)
+        axs[1][-1].get_xaxis().set_ticks([])
+        axs[0][-1].get_yaxis().set_ticks([])
+        axs[1][-1].get_xaxis().set_ticks([])
+        axs[0][-1].get_yaxis().set_ticks([])
+
+        axs[1][-1].plot(x1, y1, 'o', color='purple', markersize=10)
+        axs[1][-1].plot(x2, y2, 'o', color='green', markersize=10)
+        axs[1][-1].plot(x3, y3, 'o', color='blue', markersize=10)
+        axs[1][-1].plot(x4, y4, 'o', color='red', markersize=10)
+
+        axs[2][-1][0].plot(tmp1[100:1000], color='purple', label='Pulse', linewidth=2.5)
+        axs[2][-1][1].plot(tmp2[100:1000], color='green', label='Pulse', linewidth=2.5)
+        axs[3][-1][0].plot(tmp3[100:1000], color='blue', label='Pulse', linewidth=2.5)
+        axs[3][-1][1].plot(tmp4[100:1000], color='red', label='Pulse', linewidth=2.5)
+
+
+        # axs[0][0][0].legend()
+        # axs[0][0][1].legend()
+        # axs[1][0][0].legend()
+        # axs[1][0][1].legend()
 
         xticks = np.linspace(0, 900, 5)
         xtick_labels = (np.linspace(100, 1050, 5) * tbin_res * 1e9).astype(int)
-    for i in range(4):
-        axs[-1][i].set_yticks([])
-        axs[-1][i].set_xticks(xticks)
-        axs[-1][i].set_xticklabels(xtick_labels, fontsize=20)  # <-- Set desired font size here
 
-    axs[0, -1].axis('off')
-    axs[1, -1].axis('off')
-    axs[2, -1].axis('off')
-    cbar_im = fig.colorbar(depth_im, ax=axs[0, :], orientation='vertical')
-    cbar_error = fig.colorbar(error_im, ax=axs[1, :], orientation='vertical')
-    cbar_im.ax.tick_params(labelsize=20)
-    cbar_error.ax.tick_params(labelsize=20)
+    axs[0][-1].set_yticks([])
+    axs[0][-1].set_title('Sample Hist.')
 
-    axs[0, -1].legend()
-    axs[1, -1].legend()
-    #fig.tight_layout()
+    axs[2][-1][0].set_yticks([])
+    axs[2][-1][1].set_yticks([])
+    axs[3][-1][0].set_yticks([])
+    axs[3][-1][1].set_yticks([])
+    axs[2][-1][0].set_xticks([])
+    axs[2][-1][1].set_xticks([])
+    axs[3][-1][0].set_xticks([])
+    axs[3][-1][1].set_xticks(xticks)
+    axs[3][-1][1].set_xticklabels(xtick_labels, fontsize=16)  # <-- Set desired font size here
+    #axs[3][-1][1].set_xlabel('Time (ns)', fontsize=16)
+
+    axs[-1, 0].axis('off')
+    axs[-1, 1].axis('off')
+    cbar_im = fig.colorbar(depth_im, ax=axs[-1, 0], orientation='horizontal', label='Depth (meters)')
+    cbar_error = fig.colorbar(error_im, ax=axs[-1, 1], orientation='horizontal', label='Error (cm)')
+    axs[-1, 0].invert_xaxis()
+    axs[-1, 1].invert_xaxis()
+
+    cbar_im.ax.tick_params(labelsize=16)
+    cbar_error.ax.tick_params(labelsize=16)
+    axs[-1, 0].legend()
+    axs[-1, 1].legend()
+
     plt.subplots_adjust(hspace=0.02, wspace=0.02)
-    #fig.savefig('tmp2.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('tmp2.svg', bbox_inches='tight', dpi=3000)
     plt.show(block=True)
     print()
 print('YAYYY')

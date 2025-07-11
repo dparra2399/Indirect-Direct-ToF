@@ -31,6 +31,16 @@ import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
+# for k in [8, 10, 14]:
+#     coding = np.load(f'/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes/bandlimited_models/n2048_k{k}_sigma30/coded_model.npy')
+#     coding = np.pad(coding, ((0, 48), (0, 0)))
+#     np.save(f'/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes/bandlimited_models/n2048_k{k}_sigma30/coded_model.npy', coding)
+#     illum = np.load(f'/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes/bandlimited_models/n2048_k{k}_sigma30/illum_model.npy')
+#     illum = np.pad(illum, ((0, 0), (0, 48)))
+#     np.save(f'/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes/bandlimited_models/n2048_k{k}_sigma30/illum_model.npy', illum)
+#
+
+
 
 def get_unique_scene_ids(transient_dirpath, render_params_str):
     unique_scene_filepaths = glob.glob('{}/*{}_view-0*'.format(transient_dirpath, render_params_str))
@@ -62,9 +72,9 @@ def simple_tonemap(rgb_img):
 
 
 # Press the green button in the gutter to run the script.
-
-n_rows = 240
-n_cols = 320
+factor = 1
+n_rows = 240 // factor
+n_cols = 320 // factor
 n_tbins = 2000
 n_samples = 2048
 
@@ -85,8 +95,15 @@ if __name__ == '__main__':
 
     if scene_id == 'bedroom':
         x1, y1 = (250, 200)
+        x2, y2 = (220, 180)
+        x3, y3 = (75, 75)
+        x4, y4 = (130, 80)
     elif scene_id == 'living-room-2':
-        x1, y1 = (180, 220)
+        x1, y1 = (100 // factor , 100 // factor)
+        x2, y2 = (220 // factor, 180 // factor)
+        x3, y3 = (177 // factor, 76 // factor)
+        x4, y4 = (178 // factor, 198 // factor)
+
     scene_filename = r'{}_{}_view-0'.format(scene_id, render_params_str)
     print("Loading: {}".format(scene_filename))
     gt_depths_img = np.load(r'{}/{}.npy'.format(gt_depths_data_dirpath, scene_filename))
@@ -96,6 +113,8 @@ if __name__ == '__main__':
     # filename = r'C:\Users\Patron\PycharmProjects\Indirect-Direct-ToF\data\horse_depth_map.npy'
     # depth_image = np.load(filename)
     hist_img = np.pad(hist_img[..., ::2] + hist_img[..., 1::2], ((0, 0), (0, 0), (0, 24)))
+    #hist_img = np.pad(hist_img, ((0, 0), (0, 0), (0, 48)))
+
     (nr, nc, n_tbins) = hist_img.shape
     depths = gt_depths_img.flatten()
 
@@ -121,7 +140,7 @@ if __name__ == '__main__':
     sbr = 0.1
     #peak_factors = None
     peak_factor = 0.015
-    n_codes = [8, 10]
+    n_codes = [8, 12]
     sigma = 10
 
     n_tbins = params['n_tbins']
@@ -154,28 +173,35 @@ if __name__ == '__main__':
         irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
         if peak_factor is None:
             params['imaging_schemes'] = [
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+
                 ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=n_code, pulse_width=1,
                                     account_irf=True, h_irf=irf),
                 ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
                                      model=os.path.join('bandlimited_models', f'n{n_tbins}_k{n_code}_sigma{sigma}'),
                                     account_irf=True, h_irf=irf),
                 ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf),
-
                 ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
 
             ]
         else:
             peak_name = f"{peak_factor:.3f}".split(".")[-1]
             params['imaging_schemes'] = [
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=True),
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
+                                    constant_pulse_energy=False),
+
                 ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=n_code, pulse_width=1,
-                                    account_irf=True, h_irf=irf),
+                                    account_irf=True, h_irf=irf, constant_pulse_energy=True),
                 ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
                                     model=os.path.join('bandlimited_peak_models',
-                                                       f'n{params["n_tbins"]}_k{n_code}_sigma{sigma}_peak015_counts1000'),
+                                                       f'n{params["n_tbins"]}_k{n_code}_sigma{sigma}_peak{peak_name}_counts1000'),
                                     h_irf=irf),
-                ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf),
-
-                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
+                ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=n_code, pulse_width=1, account_irf=True, h_irf=irf,
+                                    constant_pulse_energy=True),
+                ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
+                                    constant_pulse_energy=True),
 
             ]
 
@@ -189,43 +215,53 @@ if __name__ == '__main__':
             light_source = imaging_scheme.light_id
             rec_algo = imaging_scheme.rec_algo
 
-            incident = np.zeros((nr * nc, n_tbins))
-            tmp = np.reshape(hist_img, (nr * nc, n_tbins))
+            if imaging_scheme.constant_pulse_energy:
+                incident, tmp_irf = light_obj.simulate_constant_pulse_energy(photon_counts, sbr, np.array([0]),
+                                                                             peak_factor=peak_factor)
+            else:
+                incident, tmp_irf = light_obj.simulate_average_photons(photon_counts, sbr, np.array([0]),
+                                                                       peak_factor=peak_factor)
 
-            filt = light_obj.filtered_light_source.squeeze()
-            filt /= filt.sum()
+            coding_obj.update_tmp_irf(tmp_irf)
+            coding_obj.update_C_derived_params()
 
-            tmp = signalproc_ops.circular_corr(filt[np.newaxis, ...], tmp, axis=-1)
-            tmp[tmp < 0] = 0
+            incident = np.squeeze(incident)
+            hist_img /= np.sum(hist_img, axis=-1, keepdims=True)
+            tmp = np.zeros_like(hist_img)
+            for r in range(nr):
+                for c in range(nc):
+                    tmp[r, c, :] = signalproc_ops.circular_conv(hist_img[r, c, :][np.newaxis, ...], incident, axis=-1)
 
-            total_amb_photons = photon_counts / sbr
-            tmp_irf = np.copy(irf)
-            for pp in range(nr * nc):
-                first = tmp[pp, :] * (photon_counts / np.sum(tmp[pp, :]).astype(np.float64))
-                tmp_irf = tmp_irf * (photon_counts / np.sum(tmp_irf).astype(np.float64))
-                incident[pp, :] = first + (total_amb_photons / n_tbins)
-            incident = np.nan_to_num(incident, nan=0.0, posinf=0.0, neginf=0.0)
+            if coding_scheme == 'Identity' and imaging_scheme.constant_pulse_energy == True:
+                coded_vals_tmp = coding_obj.encode_no_noise(np.reshape(tmp, (nr * nc, n_tbins))).squeeze()
+                depths_tmp = np.reshape(
+                    coding_obj.max_peak_decoding(coded_vals_tmp, rec_algo_id=rec_algo) * tbin_depth_res,
+                    (nr, nc))
+                # depths_tmp = np.argmax(tmp, axis=-1) * tbin_depth_res
+                # band_hist_img = np.reshape(signalproc_ops.circular_corr(np.squeeze(tmp_irf)[np.newaxis, ...],
+                #                np.reshape(hist_img, (nr*nc, n_tbins)).copy(), axis=-1), (nr, nc, n_tbins))
+                # depths_tmp = np.argmax(tmp, axis=-1) * tbin_depth_res
+                error_tmp = np.abs(depths_tmp - gt_depths_img)
+                mask = np.logical_not((error_tmp > 0.2))
+                gt_tmp = np.copy(gt_depths_img)
+                gt_tmp[mask] = depths_tmp[mask]
+                depths_const = gt_tmp.flatten()
+            elif coding_scheme == 'Identity':
+                coded_vals_tmp = coding_obj.encode_no_noise(np.reshape(tmp, (nr * nc, n_tbins))).squeeze()
+                depths_tmp = np.reshape(
+                    coding_obj.max_peak_decoding(coded_vals_tmp, rec_algo_id=rec_algo) * tbin_depth_res,
+                    (nr, nc))
+                # depths_tmp = np.argmax(tmp, axis=-1) * tbin_depth_res
+                # band_hist_img = np.reshape(signalproc_ops.circular_corr(np.squeeze(tmp_irf)[np.newaxis, ...],
+                #                np.reshape(hist_img, (nr*nc, n_tbins)).copy(), axis=-1), (nr, nc, n_tbins))
+                # depths_tmp = np.argmax(tmp, axis=-1) * tbin_depth_res
+                error_tmp = np.abs(depths_tmp - gt_depths_img)
+                mask = np.logical_not((error_tmp > 0.2))
+                gt_tmp = np.copy(gt_depths_img)
+                gt_tmp[mask] = depths_tmp[mask]
+                depths_clip = gt_tmp.flatten()
 
-            if peak_factor is not None:
-                    # peak_val = np.max(incident)
-                incident = np.clip(incident, 0, (peak_factor * photon_counts) + (total_amb_photons / n_tbins))
-                tmp_irf = np.clip(tmp_irf, 0, (peak_factor * photon_counts))
-                if irf is not None:
-                    incident = np.transpose(signalproc_ops.circular_conv(irf[:, np.newaxis], np.transpose(incident), axis=0))
-                    tmp_irf = signalproc_ops.circular_conv(irf[:, np.newaxis], tmp_irf[:, np.newaxis], axis=0)
-                    coding_obj.update_tmp_irf(tmp_irf)
-                    coding_obj.update_C_derived_params()
-
-            tmp2 = np.reshape(incident, (nr, nc, n_tbins))
-            depths_tmp = np.argmax(tmp2, axis=-1) * tbin_depth_res
-            error_tmp = np.abs(depths_tmp - gt_depths_img)
-            mask = np.logical_not((error_tmp > 0.2))
-            gt_tmp = np.copy(gt_depths_img)
-            gt_tmp[mask] = depths_tmp[mask]
-            depths = gt_tmp.flatten()
-
-            coded_vals = coding_obj.encode(incident, 1).squeeze()
-            #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
+            coded_vals = coding_obj.encode(np.reshape(tmp, (nr * nc, n_tbins)), 1).squeeze()
 
             if coding_scheme in ['sIdentity']:
                 assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
@@ -234,13 +270,23 @@ if __name__ == '__main__':
             else:
                 decoded_depths = coding_obj.max_peak_decoding(coded_vals, rec_algo_id=rec_algo) * tbin_depth_res
 
+            # decoded_depths = np.argmax(hist_img, axis=-1).flatten() * tbin_depth_res
+            if imaging_scheme.constant_pulse_energy:
+                depths = depths_const
+            else:
+                depths = depths_clip
 
-            error_maps[:, :, j, k] = np.abs(np.reshape(decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
-            depth_images[:, :, j, k] = np.reshape(decoded_depths, (nr, nc))
+            if k == 0 or k==1:
+                continue
+            error_maps[:, :, j, k-2] = np.abs(np.reshape(decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
+            depth_images[:, :, j, k-2] = np.reshape(decoded_depths, (nr, nc))
             errors = np.abs(decoded_depths - depths.flatten()) * depth_res
             error_metrix = calc_error_metrics(errors)
-            rmse[j, k] = error_metrix['rmse']
-            mae[j, k] = error_metrix['mae']
+            rmse[j, k-2] = error_metrix['rmse']
+            mae[j, k-2] = error_metrix['mae']
+
+    #errors_maps = error_maps[:, :, :, 1:]
+    #depth_images = depth_images[:, :, :, 1:]
 
     n_codes_size = len(n_codes)
     fig = plt.figure(figsize=(13, 5))
@@ -248,6 +294,7 @@ if __name__ == '__main__':
 
     for j in range(n_codes_size):
         for k in range(schemes_num):
+
             inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[j, k],
                                                         width_ratios=[1, 1], hspace=0, wspace=0.05)
 
@@ -255,7 +302,7 @@ if __name__ == '__main__':
             ax_high = fig.add_subplot(inner_gs[0, 1])
 
             depth_im = ax_low.imshow(depth_images[:,:, j, k], vmin=depths.min(), vmax=depths.max())
-            error_im = ax_high.imshow(error_maps[:, :, j, k] * 100, vmin=0, vmax=30)
+            error_im = ax_high.imshow(error_maps[:, :, j, k] * 100, vmin=0, vmax=26)
 
             ax_low.text(
                 2, 2,  # x, y pixel coordinates
@@ -311,8 +358,8 @@ if __name__ == '__main__':
 
             ax_rgb = fig.add_subplot(inner_gs[0, 0])
             ax_rgb.imshow(gt_depths_img)
-            ax_rgb.plot(x1, y1, 'o', color='blue', markersize=6)
-            ax_rgb.plot(220, 180, 'o', color='orange', markersize=6)
+            ax_rgb.plot(x4, y4, 'o', color='blue', markersize=6)
+            ax_rgb.plot(x2, y2, 'o', color='orange', markersize=6)
             ax_rgb.get_xaxis().set_ticks([])
             ax_rgb.get_yaxis().set_ticks([])
 
@@ -330,9 +377,9 @@ if __name__ == '__main__':
             ax_high = fig.add_subplot(inner_gs[0, 1])
 
             depth_im = ax_low.imshow(depth_images[:,:, j, k+1], vmin=depths.min(), vmax=depths.max())
-            ax_low.plot(x1, y1, 'o', color='blue', markersize=6)
-            ax_low.plot(220, 180, 'o', color='orange', markersize=6)
-            error_im = ax_high.imshow(error_maps[:, :, j, k+1] * 100, vmin=0, vmax=30)
+            ax_low.plot(x4, y4, 'o', color='blue', markersize=6)
+            ax_low.plot(x2, y2, 'o', color='orange', markersize=6)
+            error_im = ax_high.imshow(error_maps[:, :, j, k+1] * 100, vmin=0, vmax=26)
 
             ax_low.get_xaxis().set_ticks([])
             ax_low.get_yaxis().set_ticks([])
@@ -359,12 +406,12 @@ if __name__ == '__main__':
             ax_high = fig.add_subplot(inner_gs[0, 1])
 
             # Plot the histograms
-            ax_low.plot(hist_img[y1, x1], color='blue')
+            ax_low.plot(hist_img[y4, x4], color='blue')
             #ax_low.plot(hist_img[210, 220], color='orange')
 
-            ax_low.set_ylim(-0.00001, 0.0003)
-            ax_high.plot(hist_img[180, 220], color='orange')
-            ax_high.set_ylim(-0.00001, 0.0003)
+            #ax_low.set_ylim(-0.00001, 0.0003)
+            ax_high.plot(hist_img[y2, x2], color='orange')
+            #ax_high.set_ylim(-0.00001, 0.0003)
 
             #ax_low.set_xticks((np.linspace(0, 2000, 3)))
             #ax_low.set_xticklabels((np.linspace(0, 2000, 3) * tbin_res * 1e9).astype(int))
@@ -373,7 +420,6 @@ if __name__ == '__main__':
             ax_low.set_xticks([])
 
             ax_low.set_xlabel('Time')
-            ax_low.set_title('Blue Dot')
             #ax_low.set_ylabel('Counts')
             ax_low.set_box_aspect(1 / 2)  # match 1 row : 2 cols like your images
 
@@ -385,7 +431,6 @@ if __name__ == '__main__':
             ax_high.set_xticks([])
 
             ax_high.set_xlabel('Time')
-            ax_high.set_title('Orange Dot')
             ax_high.set_box_aspect(1 / 2)  # match 1 row : 2 cols like your images
 
     inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[j + 1, k+1],
@@ -407,7 +452,7 @@ if __name__ == '__main__':
         # cbar_error = fig.colorbar(error_im, ax=ax_high, orientation='horizontal', label='Error (cm)', pad=0.04)
 
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
-    fig.savefig(f'bit_depth_grid_band.svg', bbox_inches='tight')
+    fig.savefig(f'bit_depth_grid_band.svg', bbox_inches='tight', dpi=1000)
     plt.show(block=True)
 
 print('YAYYY')

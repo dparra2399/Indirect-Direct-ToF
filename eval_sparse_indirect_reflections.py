@@ -23,7 +23,7 @@ breakpoint = debugger.set_trace
 if __name__ == '__main__':
 
     params = {}
-    params['n_tbins'] = 2000
+    params['n_tbins'] = 1024
     #params['dMax'] = 5
     #params['rep_freq'] = direct_tof_utils.depth2freq(params['dMax'])
     params['rep_freq'] = 5 * 1e6
@@ -35,9 +35,11 @@ if __name__ == '__main__':
     #irf = np.genfromtxt(r'C:\Users\Patron\PycharmProjects\Flimera-Processing\irfs\pulse_10mhz.csv', delimiter=',')
     irf=None
 
-    sigma = 30
-    K = 10
-    peak_factor = None #0.015
+    sigma = 10
+    sigmas = [5, 10]
+    K = 12
+    constant_pulse_energy = True
+    peak_factor = 0.005
     irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
 
 
@@ -61,17 +63,22 @@ if __name__ == '__main__':
 
             ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
                                 model=os.path.join('bandlimited_peak_models',
-                                                   f'n{params["n_tbins"]}_k{K}_sigma{sigma}_peak015_counts1000'),
+                                                   f'n{params["n_tbins"]}_k{K}_sigma{sigma}_peak{peak_name}_counts1000'),
                                 h_irf=irf),
+            #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+            #                    model=os.path.join('bandlimited_peak_models',
+            #                                       f'n{params["n_tbins"]}_k{K}_sigma{sigmas[1]}_peak015_counts1000'),
+            #                    h_irf=irf),
 
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+                                constant_pulse_energy=constant_pulse_energy),
 
             ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-                                h_irf=irf),
+                                h_irf=irf, constant_pulse_energy=constant_pulse_energy),
         ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 5000
+    params['trials'] = 1
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
@@ -83,10 +90,12 @@ if __name__ == '__main__':
 
     photon_count =  1000
     sbr = 0.1
-    total_photons_indirects = 2 * [100, 300, 500, 700, 1000]
+    total_photons_indirects = [100, 1000]
+    #total_photons_indirects = [i/8 for i in total_photons_indirects]
+
+    positions = [100, 500]
     if peak_factor is not None:
-        total_photons_indirects = [25, 75, 125, 175, 250]
-    positions = [100, 200, 300, 400, 500]
+        positions = [75, 350]
 
     total_cycles = params['rep_freq'] * params['T']
 
@@ -105,7 +114,12 @@ if __name__ == '__main__':
     init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
-    fig, axs = plt.subplots(len(total_photons_indirects), len(positions), figsize=(10, 10))
+    fig, axs = plt.subplots(len(total_photons_indirects), len(positions), figsize=(5, 5))
+    colors = [['purple', 'green'], ['blue', 'red']]
+    colors2 = [['violet', 'lightgreen'], ['lightblue', 'orange']]
+    #colors3 = [['black', 'darkgreen'], ['darkblue', 'darkred']]
+
+
     for k in range(len(total_photons_indirects)):
         total_photons_indirect = total_photons_indirects[k]
         for l in range(len(positions)):
@@ -122,10 +136,15 @@ if __name__ == '__main__':
                 light_source = imaging_scheme.light_id
                 rec_algo = imaging_scheme.rec_algo
 
+                if 'Learned' in coding_scheme:
+                    flag=False
+                else:
+                    flag = constant_pulse_energy
 
                 incident, tmp_irf = light_obj.simulate_average_photons_sparse_indirect_reflections(photon_count, sbr,
                                                                                             total_photons_indirect,
-                                                                                            position, depths, peak_factor=peak_factor)
+                                                                                            position, depths, peak_factor=peak_factor,
+                                                                                                   constant_pulse_energy=flag)
 
                 print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbr) / n_tbins))}')
 
@@ -165,31 +184,31 @@ if __name__ == '__main__':
                     depth_choice = 10
 
                 if 'Learned' in coding_scheme and peak_factor is not None:
-                    axs[k, l].plot(incident[depth_choice, 0, :], color='orange', alpha=0.6)
+                    axs[k, l].plot(np.roll(incident[0, 0, :], n_tbins//2), color=colors2[k][l])
                 elif 'Greys' in coding_scheme:
-                    axs[k, l].plot(incident[depth_choice, 0, 200:1400], color='blue', alpha=0.6)
+                    axs[k, l].plot(np.roll(incident[0, 0, :], n_tbins//2), color=colors[k][l])
 
-                if coding_scheme != 'Identity':
-                    axs[k, l].axvline(x=int(np.mean(decoded_depths[:, depth_choice]) / tbin_depth_res)-200,
-                                      color=get_scheme_color(coding_scheme, k, cw_tof=False,
-                                                constant_pulse_energy=imaging_scheme.constant_pulse_energy),
-                                      linestyle='--', linewidth=2)
-                    handles.append(Line2D([], [], linestyle='None', marker='',
-                                          label=f'{str_name}: {error_metrix['rmse'] / 10:.2f}cm'))
+                # if coding_scheme != 'Identity':
+                #     axs[k, l].axvline(x=int(np.mean(decoded_depths[:, depth_choice]) / tbin_depth_res)-100,
+                #                       color=get_scheme_color(coding_scheme, k, cw_tof=False,
+                #                                 constant_pulse_energy=imaging_scheme.constant_pulse_energy),
+                #                       linestyle='--', linewidth=2)
+                #     handles.append(Line2D([], [], linestyle='None', marker='',
+                #                           label=f'{str_name}: {error_metrix['rmse'] / 10:.2f}cm'))
 
-            legend = axs[k, l].legend(handles=handles, loc='upper right',handlelength=0,handletextpad=0, fontsize=5)
-            legend.get_texts()[0].set_color('black')
-            for tmp in range(len(imaging_schemes)):
-                legend.get_texts()[tmp+1].set_color(color=get_scheme_color(imaging_schemes[tmp].coding_id, k,
-                                                                         cw_tof=imaging_schemes[tmp].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes[tmp].constant_pulse_energy))
-
+            # legend = axs[k, l].legend(handles=handles, loc='upper right',handlelength=0,handletextpad=0, fontsize=5)
+            # legend.get_texts()[0].set_color('black')
+            # for tmp in range(len(imaging_schemes)):
+            #     legend.get_texts()[tmp+1].set_color(color=get_scheme_color(imaging_schemes[tmp].coding_id, k,
+            #                                                              cw_tof=imaging_schemes[tmp].cw_tof,
+            #                                           constant_pulse_energy=imaging_schemes[tmp].constant_pulse_energy))
+            #
             axs[k, l].set_xticklabels([])
             axs[k, l].set_yticklabels([])
 
             axs[len(positions)-1, l].set_xlabel(f'Time (ns)')
-            axs[len(positions)-1, l].set_xticks((np.linspace(0, 1100, 5)))
-            axs[len(positions)-1, l].set_xticklabels((np.linspace(200, 1300, 5) * tbin_res * 1e9).astype(int))
+            axs[len(positions)-1, l].set_xticks((np.linspace(0, n_tbins, 5)))
+            axs[len(positions)-1, l].set_xticklabels((np.linspace(0, n_tbins-1, 5) * tbin_res * 1e9).astype(int))
 
             axs[k, 0].set_ylabel('Intensity')
             #ax_high.tick_params(axis='both', which='major', labelsize=6)
@@ -198,11 +217,12 @@ if __name__ == '__main__':
 
     fig.tight_layout()
     plt.subplots_adjust(wspace=0.05, hspace=0.05)
-    if peak_factor is not None:
-        fig.savefig(f'sparse_indirect_reflections_peakk{K}_fig.svg', bbox_inches='tight', dpi=3000)
-    else:
-        fig.savefig(f'sparse_indirect_reflections_bandlimitedk{K}_fig.svg', bbox_inches='tight', dpi=3000)
+    # if peak_factor is not None:
+    #     fig.savefig(f'sparse_indirect_reflections_peakk{K}_fig.svg', bbox_inches='tight', dpi=3000)
+    # else:
+    #     fig.savefig(f'sparse_indirect_reflections_bandlimitedk{K}_fig.svg', bbox_inches='tight', dpi=3000)
 
+    fig.savefig('tmp.svg', bbox_inches='tight', dpi=1000)
     plt.show()
 
 

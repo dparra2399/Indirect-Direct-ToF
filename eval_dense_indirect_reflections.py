@@ -12,7 +12,7 @@ from matplotlib.lines import Line2D
 
 font = {'family': 'serif',
         'weight': 'bold',
-        'size': 12}
+        'size': 18}
 
 matplotlib.rc('font', **font)
 
@@ -36,8 +36,9 @@ if __name__ == '__main__':
     irf=None
 
     sigma = 10
-    peak_factor = 0.015
+    peak_factor = 0.005
     irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
+    constant_pulse_energy = True
 
 
     if peak_factor is None:
@@ -63,14 +64,14 @@ if __name__ == '__main__':
                                                    f'n{params["n_tbins"]}_k8_sigma{sigma}_peak015_counts1000'),
                                 h_irf=irf),
 
-            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
+            ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf, constant_pulse_energy=constant_pulse_energy),
 
             ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-                                h_irf=irf),
+                                h_irf=irf, constant_pulse_energy=constant_pulse_energy),
         ]
 
     params['meanBeta'] = 1e-4
-    params['trials'] = 5000
+    params['trials'] = 5
     params['freq_idx'] = [1]
 
     print(f'max depth: {params["dMax"]} meters')
@@ -82,10 +83,10 @@ if __name__ == '__main__':
 
     photon_count =  1000
     sbr = 0.1
-    decays = [80, 200, 300, 400, 500]
+    decays = [80, 1000]
     if peak_factor is not None:
-        decays = [600, 700, 800, 900, 1000]
-    amps = [1, 0.75, 0.05, 0.25, 0.05]
+        decays = [80, 1000]
+    amps = [0.05, 1]
 
     total_cycles = params['rep_freq'] * params['T']
 
@@ -105,6 +106,10 @@ if __name__ == '__main__':
     imaging_schemes = params['imaging_schemes']
 
     fig, axs = plt.subplots(len(decays), len(amps), figsize=(10, 10))
+
+    colors = [['purple', 'green'], ['blue', 'red']]
+    colors2 = [['violet', 'lightgreen'], ['lightblue', 'orange']]
+
     for k in range(len(decays)):
         decay = decays[k]
         for l in range(len(amps)):
@@ -121,10 +126,16 @@ if __name__ == '__main__':
                 light_source = imaging_scheme.light_id
                 rec_algo = imaging_scheme.rec_algo
 
+                if 'Learned' in coding_scheme:
+                    flag = False
+                else:
+                    flag = constant_pulse_energy
 
                 incident, tmp_irf = light_obj.simulate_average_photons_dense_indirect_reflections(photon_count, sbr,
-                                                                                            decay,
-                                                                                            amp, depths, peak_factor=peak_factor)
+                                                                                                  decay,
+                                                                                                  amp, depths,
+                                                                                                  peak_factor=peak_factor,
+                                                                                                  constant_pulse_energy=flag)
 
                 print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbr) / n_tbins))}')
 
@@ -164,31 +175,31 @@ if __name__ == '__main__':
                     depth_choice = 10
 
                 if 'Learned' in coding_scheme and peak_factor is not None:
-                    axs[k, l].plot(incident[depth_choice, 0, :], color='orange', alpha=0.6)
+                    axs[k, l].plot(np.roll(incident[0, 0, :], n_tbins//2), color=colors2[k][l])
                 elif 'Greys' in coding_scheme:
-                    axs[k, l].plot(incident[depth_choice, 0, 200:1400], color='blue', alpha=0.6)
+                    axs[k, l].plot(np.roll(incident[0, 0, :], n_tbins//2), color=colors[k][l])
 
-                if coding_scheme != 'Identity':
-                    axs[k, l].axvline(x=int(np.mean(decoded_depths[:, depth_choice]) / tbin_depth_res)-200,
-                                      color=get_scheme_color(coding_scheme, k, cw_tof=False,
-                                                constant_pulse_energy=imaging_scheme.constant_pulse_energy),
-                                      linestyle='--', linewidth=2)
-                    handles.append(Line2D([], [], linestyle='None', marker='',
-                                          label=f'{str_name}: {error_metrix['rmse'] / 10:.2f}cm'))
+                # if coding_scheme != 'Identity':
+                #     axs[k, l].axvline(x=int(np.mean(decoded_depths[:, depth_choice]) / tbin_depth_res)-200,
+                #                       color=get_scheme_color(coding_scheme, k, cw_tof=False,
+                #                                 constant_pulse_energy=imaging_scheme.constant_pulse_energy),
+                #                       linestyle='--', linewidth=2)
+                #     handles.append(Line2D([], [], linestyle='None', marker='',
+                #                           label=f'{str_name}: {error_metrix['rmse'] / 10:.2f}cm'))
 
-            legend = axs[k, l].legend(handles=handles, loc='upper right',handlelength=0,handletextpad=0, fontsize=5)
-            legend.get_texts()[0].set_color('black')
-            for tmp in range(len(imaging_schemes)):
-                legend.get_texts()[tmp+1].set_color(color=get_scheme_color(imaging_schemes[tmp].coding_id, k,
-                                                                         cw_tof=imaging_schemes[tmp].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes[tmp].constant_pulse_energy))
+            # legend = axs[k, l].legend(handles=handles, loc='upper right',handlelength=0,handletextpad=0, fontsize=5)
+            # legend.get_texts()[0].set_color('black')
+            # for tmp in range(len(imaging_schemes)):
+            #     legend.get_texts()[tmp+1].set_color(color=get_scheme_color(imaging_schemes[tmp].coding_id, k,
+            #                                                              cw_tof=imaging_schemes[tmp].cw_tof,
+            #                                           constant_pulse_energy=imaging_schemes[tmp].constant_pulse_energy))
 
             axs[k, l].set_xticklabels([])
             axs[k, l].set_yticklabels([])
 
             axs[len(amps)-1, l].set_xlabel(f'Time (ns)')
-            axs[len(amps)-1, l].set_xticks((np.linspace(0, 1100, 5)))
-            axs[len(amps)-1, l].set_xticklabels((np.linspace(200, 1300, 5) * tbin_res * 1e9).astype(int))
+            axs[len(amps)-1, l].set_xticks((np.linspace(0, n_tbins, 5)))
+            axs[len(amps)-1, l].set_xticklabels((np.linspace(0, n_tbins-100, 5) * tbin_res * 1e9).astype(int))
 
             axs[k, 0].set_ylabel('Intensity')
             #ax_high.tick_params(axis='both', which='major', labelsize=6)
@@ -197,10 +208,11 @@ if __name__ == '__main__':
 
     fig.tight_layout()
     plt.subplots_adjust(wspace=0.05, hspace=0.05)
-    if peak_factor is not None:
-        fig.savefig('dense_indirect_reflections_peakk8_fig.svg', bbox_inches='tight', dpi=3000)
-    else:
-        fig.savefig('dense_indirect_reflections_bandlimitedk8_fig.svg', bbox_inches='tight', dpi=3000)
+    # if peak_factor is not None:
+    #     fig.savefig('dense_indirect_reflections_peakk8_fig.svg', bbox_inches='tight', dpi=3000)
+    # else:
+    #     fig.savefig('dense_indirect_reflections_bandlimitedk8_fig.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('tmp2.svg', bbox_inches='tight', dpi=1000)
 
     plt.show()
 

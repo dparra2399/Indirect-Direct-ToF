@@ -33,21 +33,19 @@ filenames = [
             ]
 # filenames = [
 # #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
-# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_mae_constant_pulse_energy.npz',
-# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
 #
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak015_mae.npz',
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak015_mae.npz',
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak005_mae.npz',
+#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak005_rmse.npz',
+#             # '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
 #
 #     #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
 #
 # ]
 
 # filenames = [
-#              '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
-#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
-#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
+#              '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak005_mae_constant_pulse_energy.npz',
+#             #'../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
+#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak005_rmse_constant_pulse_energy.npz',
 #
 #     #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
 #
@@ -56,7 +54,7 @@ filenames = [
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
 num = 8 #high SBR
-num2 = 11 #Low Photon count
+num2 = 3 #Low Photon count
 num3 = 1 #Low SBR
 num4 = 1 #High photon count
 grid_size = 4
@@ -165,7 +163,7 @@ for i, filename in enumerate(filenames):
     elif 'peak015' in filename:
         axs[0][i].set_zlim(0, 60)
     elif 'peak005' in filename:
-        axs[0][i].set_zlim(0, 400)
+        axs[0][i].set_zlim(0, 250)
 
 fig.tight_layout()
 
@@ -175,7 +173,7 @@ fig.tight_layout()
 
 #fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
 
-fig.savefig(os.path.join(save_folder, 'tmp.svg'), bbox_inches='tight', dpi=3000)
+fig.savefig('tmp.svg', bbox_inches='tight', dpi=3000)
 
 plt.show(block=True)
 

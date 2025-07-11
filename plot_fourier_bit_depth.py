@@ -13,11 +13,17 @@ from plot_figures.plot_utils import *
 from matplotlib import rc
 import matplotlib.gridspec as gridspec
 import copy
+import seaborn as sns
+import matplotlib.transforms as mtransforms
 
-font = {'family': 'serif',
-        'size': 18}
-
-rc('font', **font)
+sns.set_theme(style="ticks")
+sns.set_context("paper", font_scale=1.8)  # scale font size
+sns.set_style("ticks", {'font.family': 'serif', 'font.size': 24})
+#
+# font = {'family': 'serif',
+#         'size': 18}
+#
+# rc('font', **font)
 #matplotlib.use('QTkAgg')
 breakpoint = debugger.set_trace
 
@@ -47,7 +53,7 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     photon_count =  1000
-    sbrs = [0.1, 1.0]
+    sbrs = [0.1]
     fourier_coeffs = np.arange(10, 100, 10)
     sigmas = [30, 10]
     peak_factors = [None, 0.030]
@@ -69,29 +75,40 @@ if __name__ == '__main__':
 
 
     error_arr_quants = np.zeros((len(sigmas), len(quants), len(sbrs), 3))
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
 
     for q in range(len(sigmas)):
         sigma = sigmas[q]
         peak_factor = peak_factors[q]
+        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
         for j in range(len(quants)):
             quant = quants[j]
-            params['imaging_schemes'] = [
-                ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-
-                ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,  account_irf=True,
-                                    h_irf=irf, quant=quant),
-            ]
-
             if peak_factor is None:
-                params['imaging_schemes'].append(ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                 model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
-                                account_irf=True, h_irf=irf, quant=quant))
+                params['imaging_schemes'] = [
+                    ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True,
+                                        h_irf=irf, ),
+
+                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                        account_irf=True,
+                                        h_irf=irf, quant=quant),
+                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                        model=os.path.join('bandlimited_models', f'n1024_k8_sigma{sigma}'),
+                                        account_irf=True, h_irf=irf, quant=quant)
+                ]
+
             else:
                 peak_name = f"{peak_factor:.3f}".split(".")[-1]
-                params['imaging_schemes'].append(ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                 model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
-                                 account_irf=True, h_irf=irf, quant=quant))
+                params['imaging_schemes'] = [
+                    ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True,
+                                        h_irf=irf, constant_pulse_energy=True),
+
+                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                        account_irf=True,
+                                        h_irf=irf, quant=quant, constant_pulse_energy=True),
+                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                        model=os.path.join('bandlimited_peak_models',
+                                                           f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
+                                        account_irf=True, h_irf=irf, quant=quant)
+                ]
 
             init_coding_list(n_tbins, params, t_domain=t_domain)
             imaging_schemes = params['imaging_schemes']
@@ -135,29 +152,36 @@ if __name__ == '__main__':
     imaging_schemes_tmp = copy.deepcopy(params['imaging_schemes'])
 
     error_arr_fourier = np.zeros((len(sigmas), fourier_coeffs.shape[0], len(sbrs), 2))
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
 
     for q in range(len(sigmas)):
         sigma = sigmas[q]
         peak_factor = peak_factors[q]
+        irf = gaussian_pulse(np.arange(params['n_tbins']), 0, sigma, circ_shifted=True)
         for j in range(fourier_coeffs.shape[0]):
             fourier_coeff = fourier_coeffs[j]
-            params['imaging_schemes'] = [
-                ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True,
-                                    h_irf=irf, fourier_coeff=fourier_coeff),
-            ]
+
 
             if peak_factor is None:
-                params['imaging_schemes'].append(ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                                                     model=os.path.join('bandlimited_models',
-                                                                                        f'n1024_k8_sigma{sigma}'),
-                                                                     account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff))
+                params['imaging_schemes'] = [
+                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                        account_irf=True,
+                                        h_irf=irf, fourier_coeff=fourier_coeff),
+                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                        model=os.path.join('bandlimited_models',
+                                                           f'n1024_k8_sigma{sigma}'),
+                                        account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff)
+                ]
             else:
                 peak_name = f"{peak_factor:.3f}".split(".")[-1]
-                params['imaging_schemes'].append(ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                                                                     model=os.path.join('bandlimited_peak_models',
-                                                                                        f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
-                                                                     account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff))
+                params['imaging_schemes'] = [
+                    ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1,
+                                        account_irf=True,
+                                        h_irf=irf, fourier_coeff=fourier_coeff, constant_pulse_energy=True),
+                    ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                                        model=os.path.join('bandlimited_peak_models',
+                                                           f'n1024_k8_sigma{sigma}_peak{peak_name}_counts1000'),
+                                        account_irf=True, h_irf=irf, fourier_coeff=fourier_coeff)
+                ]
 
 
             init_coding_list(n_tbins, params, t_domain=t_domain)
@@ -201,36 +225,36 @@ if __name__ == '__main__':
 
     imaging_schemes_tmp2 = copy.deepcopy(params['imaging_schemes'])
 
-    fig = plt.figure(figsize=(15, 5))
-    gs = gridspec.GridSpec(len(sigmas), 2, figure=fig, hspace=0.05, wspace=0.08)
+    fig = plt.figure(figsize=(8, 5))
+    gs = gridspec.GridSpec(len(sigmas), 2, figure=fig, hspace=0.05, wspace=0.05)
 
     for q in range(len(sigmas)):
-        inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[q, 0],
-                                                    width_ratios=[1, 1], hspace=0, wspace=0.05)
+        inner_gs = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs[q, 0],
+                                                    width_ratios=[1], hspace=0, wspace=0.05)
 
         ax_low = fig.add_subplot(inner_gs[0, 0])
-        ax_high = fig.add_subplot(inner_gs[0, 1], sharey=ax_low)
+        #ax_high = fig.add_subplot(inner_gs[0, 1], sharey=ax_low)
 
         ax_low.grid(True)
-        ax_high.grid(True)
+        #ax_high.grid(True)
 
-        plt.setp(ax_high.get_yticklabels(), visible=False)
-        ax_high.tick_params(left=False)
+        #plt.setp(ax_high.get_yticklabels(), visible=False)
+        #ax_high.tick_params(left=False)
 
 
         if q != len(sigmas) - 1:
             ax_low.set_xticks(np.arange(len(quants)))
             ax_low.set_xticklabels(quants)
-            ax_high.set_xticks(np.arange(len(quants)))
-            ax_high.set_xticklabels(quants)
-            plt.setp(ax_high.get_xticklabels(), visible=False)
+            #ax_high.set_xticks(np.arange(len(quants)))
+            #ax_high.set_xticklabels(quants)
+            #plt.setp(ax_high.get_xticklabels(), visible=False)
             plt.setp(ax_low.get_xticklabels(), visible=False)
         else:
             ax_low.set_xticks(np.arange(len(quants)))
             ax_low.set_xticklabels(quants)
-            ax_high.set_xticks(np.arange(len(quants)))
-            ax_high.set_xticklabels(quants)
-            ax_high.set_xlabel('# of Bits')
+            #ax_high.set_xticks(np.arange(len(quants)))
+            #ax_high.set_xticklabels(quants)
+            ax_low.set_xlabel('Num. of Bits')
 
         if q == 0:
             ax_low.set_ylabel(r'$\sigma=30\Delta$' + '\n' + r'$\mathrm{p^{factor}}=\infty$' + '\n RMSE (cm)')
@@ -241,8 +265,8 @@ if __name__ == '__main__':
         for label in ax_low.get_yticklabels():
             label.set_rotation(90)
 
-        for label in ax_high.get_yticklabels():
-            label.set_rotation(90)
+        #for label in ax_high.get_yticklabels():
+        #    label.set_rotation(90)
 
         for l in range(len(imaging_schemes_tmp)):
 
@@ -260,21 +284,21 @@ if __name__ == '__main__':
                            color=get_scheme_color(imaging_schemes_tmp[l].coding_id, 8, cw_tof=imaging_schemes_tmp[l].cw_tof,
                                                       constant_pulse_energy=imaging_schemes_tmp[l].constant_pulse_energy))
 
-            ax_high.plot(error_arr_quants[q, :, 1, l] / 10, marker='o', linestyle='-', label=str_name,
-                           color=get_scheme_color(imaging_schemes_tmp[l].coding_id, 8, cw_tof=imaging_schemes_tmp[l].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes_tmp[l].constant_pulse_energy))
+            #ax_high.plot(error_arr_quants[q, :, 1, l] / 10, marker='o', linestyle='-', label=str_name,
+            #               color=get_scheme_color(imaging_schemes_tmp[l].coding_id, 8, cw_tof=imaging_schemes_tmp[l].cw_tof,
+            #                                          constant_pulse_energy=imaging_schemes_tmp[l].constant_pulse_energy))
 
-        inner_gs = gridspec.GridSpecFromSubplotSpec(1, 2, subplot_spec=gs[q, 1],
-                                                    width_ratios=[1, 1], hspace=0, wspace=0.05)
+        inner_gs = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs[q, 1],
+                                                    width_ratios=[1], hspace=0, wspace=0.05)
 
         ax_low2 = fig.add_subplot(inner_gs[0, 0])
-        ax_high2 = fig.add_subplot(inner_gs[0, 1], sharey=ax_low2)
+        #ax_high2 = fig.add_subplot(inner_gs[0, 1], sharey=ax_low2)
 
         ax_low2.grid(True)
-        ax_high2.grid(True)
+        #ax_high2.grid(True)
 
-        plt.setp(ax_high2.get_yticklabels(), visible=False)
-        ax_high2.tick_params(left=False)
+        #plt.setp(ax_high2.get_yticklabels(), visible=False)
+        #ax_high2.tick_params(left=False)
 
         if q != len(sigmas) - 1:
             ax_low2.set_xticks(np.arange(fourier_coeffs.shape[0]))
@@ -282,12 +306,12 @@ if __name__ == '__main__':
                 str(fourier_coeffs[i]) if i % 2 == 0 else ''
                 for i in range(fourier_coeffs.shape[0])
             ])
-            ax_high2.set_xticks(np.arange(fourier_coeffs.shape[0]))
-            ax_high2.set_xticklabels([
-                str(fourier_coeffs[i]) if i % 2 == 0 else ''
-                for i in range(fourier_coeffs.shape[0])
-            ])
-            plt.setp(ax_high2.get_xticklabels(), visible=False)
+            #ax_high2.set_xticks(np.arange(fourier_coeffs.shape[0]))
+            #ax_high2.set_xticklabels([
+            #    str(fourier_coeffs[i]) if i % 2 == 0 else ''
+            #    for i in range(fourier_coeffs.shape[0])
+            #])
+            #plt.setp(ax_high2.get_xticklabels(), visible=False)
             plt.setp(ax_low2.get_xticklabels(), visible=False)
         else:
             ax_low2.set_xticks(np.arange(fourier_coeffs.shape[0]))
@@ -296,18 +320,17 @@ if __name__ == '__main__':
                 for i in range(fourier_coeffs.shape[0])
             ])
 
-            ax_high2.set_xticks(np.arange(fourier_coeffs.shape[0]))
-            ax_high2.set_xticklabels([
-                str(fourier_coeffs[i]) if i % 2 == 0 else ''
-                for i in range(fourier_coeffs.shape[0])
-            ])
-            ax_high2.set_xlabel('# of Fourier Coeff.')
+            #ax_high2.set_xticks(np.arange(fourier_coeffs.shape[0]))
+            #ax_high2.set_xticklabels([
+            #    str(fourier_coeffs[i]) if i % 2 == 0 else ''
+            #    for i in range(fourier_coeffs.shape[0])
+            #])
+            ax_low2.set_xlabel('Num. of Fourier Coeff.')
 
         for label in ax_low2.get_yticklabels():
             label.set_rotation(90)
-
-        for label in ax_high2.get_yticklabels():
-            label.set_rotation(90)
+        #for label in ax_high2.get_yticklabels():
+        #    label.set_rotation(90)
 
         for l in range(len(imaging_schemes_tmp2)):
 
@@ -325,20 +348,25 @@ if __name__ == '__main__':
                            color=get_scheme_color(imaging_schemes_tmp2[l].coding_id, 8, cw_tof=imaging_schemes_tmp2[l].cw_tof,
                                                       constant_pulse_energy=imaging_schemes_tmp2[l].constant_pulse_energy))
 
-            ax_high2.plot(error_arr_fourier[q, :, 1, l] / 10, marker='o', linestyle='-', label=str_name,
-                           color=get_scheme_color(imaging_schemes_tmp2[l].coding_id, 8, cw_tof=imaging_schemes_tmp2[l].cw_tof,
-                                                      constant_pulse_energy=imaging_schemes_tmp2[l].constant_pulse_energy))
+            #ax_high2.plot(error_arr_fourier[q, :, 1, l] / 10, marker='o', linestyle='-', label=str_name,
+            #               color=get_scheme_color(imaging_schemes_tmp2[l].coding_id, 8, cw_tof=imaging_schemes_tmp2[l].cw_tof,
+            #                                          constant_pulse_energy=imaging_schemes_tmp2[l].constant_pulse_energy))
+
+            ax_low.set_ylim(0, 119)
+            ax_low2.set_ylim(0, 119)
+            plt.setp(ax_low2.get_yticklabels(), visible=False)
+
 
             if q == 0:
-                ax_low.set_title('Low SNR')
-                ax_high.set_title('High SNR')
-                ax_low2.set_title('Low SNR')
-                ax_high2.set_title('High SNR')
+                #ax_low.set_title('Low SBR')
+                #ax_high.set_title('High SBR')
+                #ax_low2.set_title('Low SBR')
+                #ax_high2.set_title('High SBR')
 
                 ax_low.legend(fontsize=12)
-                ax_high.legend(fontsize=12)
+                #ax_high.legend(fontsize=12)
                 ax_low2.legend(fontsize=12)
-                ax_high2.legend(fontsize=12)
+                #ax_high2.legend(fontsize=12)
 
 
     fig.subplots_adjust(wspace=0.05, hspace=0.05)
