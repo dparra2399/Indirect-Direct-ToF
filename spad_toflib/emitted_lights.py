@@ -19,14 +19,13 @@ TauDefault = 1.
 AveragePowerDefault = TotalEnergyDefault / TauDefault
 
 #learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
-learned_folder = '/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes'
+learned_folder = '/Users/davidparra/PycharmProjects/Indirect-Direct-ToF/learned_codes'
 class LightSource(ABC):
 
-    def __init__(self, light_source, t, h_irf=None, rep_tau=None, num_measures=None):
+    def __init__(self, light_source, h_irf=None, rep_tau=None, num_measures=None):
         self.light_source = light_source
         self.set_tau(rep_tau)
         self.set_num_measures(num_measures)
-        self.set_integration_time(t)
         self.update_irf(h_irf)
         self.update_illum()
         # Find tirf pixels with no signal
@@ -67,19 +66,15 @@ class LightSource(ABC):
             return
         self.num_measures = input_num
 
-    def set_integration_time(self, input_t):
-        if (input_t is None):
-            self.t = None
-            return
-        self.t = input_t
+
 
 
 class SinglePhotonSource(LightSource):
 
-    def __init__(self, n_tbins, n_functions,split=False, binomial=False, t_domain=None, **kwargs):
+    def __init__(self, n_tbins, n_functions, gated=False, binomial=False, t_domain=None, **kwargs):
         self.n_tbins = n_tbins
         self.binomial = binomial
-        self.split = split
+        self.gated = gated
         self.set_t_domain(t_domain)
         self.n_functions = n_functions
         light_source = self.generate_source()
@@ -96,21 +91,13 @@ class SinglePhotonSource(LightSource):
     def generate_source(self):
         pass
 
-    def simulate_peak_photons(self, peak_photons, ambient_photons):
-        if self.binomial:
-            laser_cycles = (1. / self.tau) * self.t
-            v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
-            v_out = v_out / laser_cycles
-        else:
-            v_out = self.simulate_peak_photons_n_cycles(peak_photons, ambient_photons)
-        v_out[v_out < 0] = 0
-        return self.phase_shifted(v_out)
-
-    def simulate_average_photons(self, total_photons, sbr, depths, peak_factor=None, phase_shifted=True):
+    def simulate_average_photons(self, total_photons, sbr, depths, peak_factor=None, t=None, phase_shifted=True):
 
         if self.binomial:
-            laser_cycles = (1. / self.tau) * self.t
-            (v_out, tmp_irf) = self.simulate_average_photons_n_cycles(total_photons, sbr, peak_factor=peak_factor) / laser_cycles
+            assert t is not None, 'Need to define integration time t for binomial'
+            laser_cycles = (1. / self.tau) * t
+            (v_out, tmp_irf) = self.simulate_average_photons_n_cycles(total_photons, sbr, peak_factor=peak_factor)
+            v_out /= laser_cycles
         else:
             (v_out, tmp_irf) = self.simulate_average_photons_n_cycles(total_photons, sbr, peak_factor=peak_factor)
         v_out[v_out < 0] = 0
@@ -165,15 +152,20 @@ class SinglePhotonSource(LightSource):
         incident = np.zeros(self.filtered_light_source.shape)
 
         light_source = self.filtered_light_source
-        if self.split: total_photons = total_photons / self.n_functions
+        if self.gated and not self.binomial:
+            total_photons = total_photons / self.n_functions
+            #print('Dividing total photon count by {}'.format(self.n_functions))
+            #sbr = sbr / self.n_functions
 
-        total_amb_photons = total_photons / sbr
         scaled_modfs = np.copy(light_source)
-        tmp_irf = np.copy(self.h_irf)
-        #tmp_irf = np.copy(self.filtered_light_source.squeeze())
+        tmp_irf = np.copy(self.filtered_light_source[:, 0])
+
+        #tmp = [33.3, 33.3, 16.6, 16.6, 0, 0, 0, 0, 0, 0, 0, 0]
         for i in range(0, light_source.shape[-1]):
+            total_amb_photons = total_photons / sbr
             scaled_modfs[:, i] *= (total_photons / np.sum(light_source[:, i]))
-            tmp_irf *= (total_photons / np.sum(self.h_irf))
+            tmp_irf *= (total_photons / np.sum(tmp_irf))
+            #print(f'Photon Count of Incident {np.sum(scaled_modfs[:, i])}')
             incident[:, i] = (scaled_modfs[:, i] + (total_amb_photons / self.n_tbins))
         if peak_factor is not None:
             #peak_val = np.max(incident)
@@ -190,7 +182,7 @@ class SinglePhotonSource(LightSource):
         light_source = self.filtered_light_source
         total_amb_photons = total_photons / sbr
 
-        if self.split: total_photons = total_photons / self.n_functions
+        if self.gated and not self.binomial: total_photons = total_photons / self.n_functions
 
         scaled_modfs = np.copy(light_source)
         for i in range(0, light_source.shape[-1]):
@@ -227,19 +219,6 @@ class SinglePhotonSource(LightSource):
         else:
             return incident, tmp_irf
 
-    def simulate_peak_photons_n_cycles(self, peak_photons, ambient_photons):
-        incident = np.zeros(self.filtered_light_source.shape)
-        peak_modfs = np.copy(self.filtered_light_source)
-
-        if self.split:
-            peak_photons = peak_photons / self.n_functions
-            ambient_photons = ambient_photons / self.n_functions
-
-        for k in range(self.filtered_light_source.shape[-1]):
-            peak_modfs[:, k] = (peak_modfs[:, k] / peak_modfs[:, k].max()) * peak_photons
-            incident[:, k] = peak_modfs[:, k] + ambient_photons
-        return incident
-
     def phase_shifted(self, modfs, depths):
         shifted_modfs = np.zeros((depths.shape[0], modfs.shape[1], modfs.shape[0]))
         tbin_depth_res = time2depth(self.tau / modfs.shape[0])
@@ -250,14 +229,15 @@ class SinglePhotonSource(LightSource):
 
 
 class LearnedSource(SinglePhotonSource):
-    def __init__(self, model, n_functions, **kwargs):
+    def __init__(self, model, n_functions, gated=False, **kwargs):
         self.model = os.path.join(learned_folder, model, 'illum_model.npy')
         self.n_functions = n_functions
-        super().__init__(n_functions=n_functions,  **kwargs)
+        super().__init__(n_functions=n_functions, gated=gated, **kwargs)
 
     def generate_source(self):
         light_source = np.reshape(np.load(self.model), (self.n_tbins, 1))
-        #output_source = np.repeat(light_source, self.n_functions, axis=-1)
+        if self.gated:
+            light_source = np.repeat(light_source, self.n_functions, axis=-1)
         return light_source
 
 class KTapSinusoidSource(SinglePhotonSource):
@@ -275,9 +255,20 @@ class KTapSinusoidSource(SinglePhotonSource):
 
 
 class HamiltonianSource(SinglePhotonSource):
-    def __init__(self, n_functions, duty=None,  **kwargs):
+    def __init__(self, n_functions, gated=False, duty=None,  **kwargs):
         self.set_duty(duty, n_functions)
-        super().__init__(n_functions=n_functions, **kwargs)
+        n_functions = self.set_n_functions(gated, n_functions)
+        super().__init__(n_functions=n_functions, gated=gated, **kwargs)
+
+    def set_n_functions(self, gated, n_functions):
+        if gated:
+            if n_functions == 3:
+                n_functions = 4
+            elif n_functions == 4:
+                n_functions = 7
+            elif n_functions == 5:
+                n_functions = 16
+        return n_functions
 
     def set_duty(self, duty, n_functions):
         if duty is None:
@@ -302,16 +293,17 @@ class HamiltonianSource(SinglePhotonSource):
 
 class GaussianTIRF(SinglePhotonSource):
 
-    def __init__(self, mu=None, sigma=None, **kwargs):
+    def __init__(self, n_functions=None, mu=None, sigma=None, **kwargs):
         # Set mu, and sigma params
         (self.mu, self.sigma) = (0, 1.)
         if (not (mu is None)): self.mu = mu
         if (not (sigma is None)): self.sigma = sigma
         # Initialize the regular Temporal IRF
-        super().__init__(n_functions=1, **kwargs)
+        if n_functions is None: n_functions = 1
+        super().__init__(n_functions=n_functions, **kwargs)
 
     def generate_source(self):
         # Create a circular gaussian pulse
         gaussian_tirf = gaussian_pulse(self.t_domain, 0, self.sigma, circ_shifted=True)
-        gaussian_tirf = np.expand_dims(gaussian_tirf, axis=-1)
+        gaussian_tirf = np.tile(np.expand_dims(gaussian_tirf, axis=-1), self.n_functions)
         return gaussian_tirf

@@ -14,7 +14,23 @@ import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
 
 
+def format_revenue(revenue):
+  end_char = revenue[-1]
+  if end_char=='K':
+     revenue = 1000 * float(revenue[1:-1])
+  elif end_char=='M':
+     revenue = 1000000 * float(revenue[1:-1])
+  else:
+     revenue = float(revenue[1:])
+  return revenue
 
+revenue_list = [format_revenue(s) for s in ["$7.1M", "$5.1K", "110M", "75000"]]
+idx = 0
+for i in range(len(revenue_list)):
+  if revenue_list[idx] < revenue_list[i]:
+    idx = i
+print(idx)
+exit()
 #matplotlib.use('QTkAgg')
 breakpoint = debugger.set_trace
 
@@ -36,27 +52,40 @@ if __name__ == '__main__':
     params['freq_idx'] = [1]
 
     params['imaging_schemes'] = [
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
-                             account_irf=True,
-                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
-        #
-        # ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
-        #                     account_irf=True, h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
-        # ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=False,
+        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=1, n_bits=8,
+        #                    account_irf=True,
+        #                    h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 5, circ_shifted=True)),
+
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', pulse_width=30, n_bits=8,
+                             account_irf=True, h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
+        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=False,
         #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
-        # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=8),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
-                            model=os.path.join('bandlimited_models', f'n1024_k8_sigma10'),
-                            h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
+        ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=8),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
+        #                    model=os.path.join('bandlimited_models', f'n1024_k8_sigma10'),
+        #                    h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
         #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma20'),
         #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 20, circ_shifted=True)),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
-                            model=os.path.join('bandlimited_models', f'n1024_k8_sigma30'),
-                            h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', pulse_width=1, account_irf=True,
+        #                     model=os.path.join('bandlimited_models', f'n1024_k8_sigma30'),
+        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 30, circ_shifted=True)),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
-        #                     model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma1_peak005_counts1000'),
-        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)),
+        #                      model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma10_peak030_counts1000'),
+        #                      h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+                             model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma10_peak015_counts1000'),
+                             h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                    model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma10_peak005_counts1000'),
+        #                    h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)),
+        # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', account_irf=True,
+        #                     model=os.path.join('bandlimited_peak_models', f'n1024_k8_sigma10_peak005_counts1000'),
+        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True),
+        #                     quant=4, fourier_coeff=30),
+        # ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True,
+        #                     h_irf=gaussian_pulse(np.arange(params['n_tbins']), 0, 5, circ_shifted=True),
+        #                     constant_pulse_energy=True),
 
     ]
 
@@ -69,8 +98,8 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     photon_count =  1000
-    sbr = 0.001
-    peak_factor = None
+    sbr = 0.1
+    peak_factor = 0.005
 
     total_cycles = params['rep_freq'] * params['T']
 
@@ -105,12 +134,16 @@ if __name__ == '__main__':
             filename = imaging_scheme.model
             peak_factor = int(filename.split('_')[-2].split('peak')[-1]) * (1/1000)
         except:
-            peak_factor = None
+            peak_factor = 0.005
             #pass
-
+        print(f'Peak factor: {peak_factor}')
         incident = np.squeeze(light_obj.simulate_average_photons(photon_count, sbr, depths, peak_factor=peak_factor)[0])
-
         filtered_illum = np.roll(incident[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
+
+        if imaging_scheme.constant_pulse_energy:
+            incident = np.squeeze(light_obj.simulate_constant_pulse_energy(photon_count, sbr, depths, peak_factor=peak_factor)[0])
+            filtered_illum = np.roll(incident[0, :] - ((photon_count / sbr) / params['n_tbins']), int(n_tbins // 2))
+
 
         inner_gs = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[i],
                                                     height_ratios=[3, 3, 1], hspace=0.0, wspace=0.0)

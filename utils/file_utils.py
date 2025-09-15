@@ -14,7 +14,7 @@ def write_errors_to_file(params, results, depths, levels_one, levels_two, exp):
     trials = params['trials']
 
     filename = 'ntbins_{}_monte_{}_exp_{}.npz'.format(n_tbins, trials, exp)
-    outfile = '.\\data\\results\\' + filename
+    outfile = './' + filename
 
     np.savez(outfile, params=params, results=results, depths=depths,
              levels_one=levels_one, levels_two=levels_two)

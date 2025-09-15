@@ -13,11 +13,11 @@ from spad_toflib.spad_tof_utils import *
 import scipy as sp
 
 #learned_folder = r'C:\Users\clwalker4\PycharmProjects\Indirect-Direct-ToF\learned_codes'
-learned_folder = '/Users/Patron/PycharmProjects/Indirect-Direct-ToF/learned_codes'
+learned_folder = '/Users/davidparra/PycharmProjects/Indirect-Direct-ToF/learned_codes'
 class Coding(ABC):
 
-    def __init__(self, n_tbins, total_laser_cycles=None, binomial=False, gated=False,
-                 num_measures=None, after=False, h_irf=None, account_irf=False, quant=None):
+    def __init__(self, n_tbins, binomial=False, gated=False,
+                 after=False, h_irf=None, account_irf=False, quant=None):
 
         self.binomial = binomial
         self.after = after
@@ -26,14 +26,12 @@ class Coding(ABC):
         self.quant = quant
         self.update_irf(h_irf)
         self.account_irf = account_irf
-        self.set_laser_cycles(total_laser_cycles)
         if self.correlations is None: self.set_coding_scheme(n_tbins)
 
         if self.quant is not None:
             self.correlations = quantize_any_bits_numpy(self.correlations, bits=self.quant)[0]
 
         self.update_C_derived_params()
-        self.set_num_measures(num_measures)
 
 
     def update_C_derived_params(self):
@@ -42,6 +40,7 @@ class Coding(ABC):
 
 
         if (self.account_irf):
+            #print(self.tmp_irf[:, np.newaxis].shape, self.correlations.shape)
             self.decode_corrfs = signalproc_ops.circular_corr(self.tmp_irf[:, np.newaxis], self.correlations, axis=0)
         else:
             self.decode_corrfs = self.correlations
@@ -55,7 +54,7 @@ class Coding(ABC):
         pass
 
     @abstractmethod
-    def encode(self, incident, trails):
+    def encode(self, incident, trails, laser_cycles, debug=False):
         pass
 
     ''' Felipe's Code'''
@@ -137,114 +136,174 @@ class Coding(ABC):
     def set_correlations(self, modfs, demodfs):
         self.correlations = np.fft.ifft(np.fft.fft(modfs, axis=0).conj() * np.fft.fft(demodfs, axis=0), axis=0).real
 
-    def set_laser_cycles(self, input_cycles):
-        if input_cycles is None:
-            self.laser_cycles = None
-            return
-        assert self.binomial is True, 'To set laser cycles must be binomial poisson model'
-        self.laser_cycles = input_cycles
-
-    def set_num_measures(self, input_num):
-        if input_num is None:
-            self.num_measures = self.n_functions
-            return
-        self.num_measures = input_num
-
-    def get_num_measures(self):
-        return self.num_measures
 
 
 class ContinuousWave(Coding):
-    def __init__(self, split=False, **kwargs):
-        self.split = split
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def encode(self, incident, trials):
+    def encode(self, incident, trials, laser_cycles=None, debug=False):
         if self.binomial:
-            return self.encode_binomial(incident, trials)
+            assert laser_cycles is not None, 'Binomial encoding must have laser cycles'
+            return self.encode_binomial(incident, trials, laser_cycles, debug=debug)
         else:
-            return self.encode_poison(incident, trials)
+            return self.encode_poison(incident, trials, debug=debug)
 
-    def encode_poison(self, incident, trials):
+    def encode_poison(self, incident, trials, debug=False):
         a = np.copy(incident)
-        b = np.copy(self.demodfs)
+        if self.gated == False:
+            b = np.copy(self.demodfs)
+        else:
+             assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
+             b = np.copy(self.gated_demodfs)
         if not self.after:
            # inc = incident[18, 0, :]
-            if self.split == False:
-                a = poisson_noise_array(a[:, 0, :], trials)
-                #detected = a[100, 26, :]
-                intent = np.einsum('mnp,pq->mnq', a, b)
-            else:
-                a = poisson_noise_array(a, trials)
-                intent = np.einsum('mnqp,pq->mnq', a, b)
+            a = poisson_noise_array(a, trials)
+            intent = np.einsum('mnqp,pq->mnq', a, b)
         else:
-            if self.split == False:
-                a = a[:, 0, :]
-                intent = np.einsum('np,pq->nq', a, b)
-            else:
-                intent = np.einsum('nqp,pq->nq', a, b)
-                #intent = np.einsum('ijj->i', result)
+            intent = np.einsum('nqp,pq->nq', a, b)
             intent = poisson_noise_array(intent, trials)
 
+
+        if self.gated:
+            original_K = self.correlations.shape[-1]
+            temp = np.zeros((intent.shape[0], intent.shape[1], original_K))
+            counter = 0
+            for j, item in enumerate(self.gated_demodfs_arr):
+                for i in range(item.shape[-1]):
+                    temp[:, :, j] += intent[:, :, counter]
+                    counter += 1
+            intent = temp
+
+        if debug:
+            fig, axs = plt.subplots(nrows=1, ncols=4)
+            axs[0].plot(a[0, 10, 0, :])
+            axs[0].plot(incident[10, 0, :])
+            axs[1].imshow(np.repeat(np.transpose(self.demodfs), 100, axis=0), cmap='gray', aspect='auto')
+            axs[2].imshow(np.repeat(np.transpose(self.decode_corrfs), 100, axis=0), cmap='gray', aspect='auto')
+            axs[3].bar(np.arange(0, intent.shape[-1]), intent[0, 10, :])
+            plt.show()
+
         return intent
 
-    def encode_no_noise(self, incident):
-        intent = np.einsum('mqp,pq->mq', incident, self.demodfs)
-        return intent
-
-    def encode_binomial(self, incident, trials):
+    def encode_no_noise(self, incident, debug=False):
         a = np.copy(incident)
-        b = np.copy(self.demodfs)
-        if self.split == False:
-            a = a[:, 0, :]
-            photons = np.einsum('np,pq->nq', a, b)
+        if self.gated == False:
+            b = np.copy(self.demodfs)
         else:
-            photons = np.einsum('nqp,pq->nq', a, b)
+            assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
+            b = np.copy(self.gated_demodfs)
+        intent = np.einsum('nqp,pq->nq', a, b)
+
+        if self.gated:
+            original_K = self.correlations.shape[-1]
+            temp = np.zeros((intent.shape[0], original_K))
+            counter = 0
+            for j, item in enumerate(self.gated_demodfs_arr):
+                for i in range(item.shape[-1]):
+                    temp[:, j] += intent[:, counter]
+                    counter += 1
+            intent = temp
+        return intent
+
+    def encode_binomial(self, incident, trials, laser_cycles, debug=False):
+        a = np.copy(incident)
+        if self.gated == False:
+            b = np.copy(self.demodfs)
+        else:
+            assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
+            b = np.copy(self.gated_demodfs)
+
+
+        photons = np.einsum('nqp,pq->nq', a, b)
 
         probabilities = 1 - np.exp(-photons)
         rng = np.random.default_rng()
         new_shape = (trials,) + probabilities.shape
-        num_m = None
-        if self.gated is True:
-            num_m = self.num_measures
-        else:
-            num_m = 1
-        photon_counts = rng.binomial(int(self.laser_cycles / num_m), probabilities, size=new_shape)
-        return photon_counts
+
+        intent = rng.binomial(int(laser_cycles / b.shape[-1]), probabilities, size=new_shape)
+
+        if self.gated:
+            original_K = self.correlations.shape[-1]
+            temp = np.zeros((intent.shape[0], intent.shape[1], original_K))
+            counter = 0
+            for j, item in enumerate(self.gated_demodfs_arr):
+                for i in range(item.shape[-1]):
+                    temp[:, :, j] += intent[:, :, counter]
+                    counter += 1
+            intent = temp
+        return intent
 
 
 class ImpulseCoding(Coding):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def encode(self, incident, trials):
+    def encode(self, incident, trials, laser_cycles, debug=False):
         if self.binomial:
-            return self.encode_binomial(incident, trials)
+            assert laser_cycles is not None, 'Binomial encoding must have laser cycles'
+            return self.encode_binomial(incident, trials, laser_cycles, debug=debug)
         else:
-            return self.encode_poison(incident, trials)
+            return self.encode_poison(incident, trials, debug=debug)
 
-    def encode_poison(self, incident, trials):
+    def encode_poison(self, incident, trials, debug=False):
         a = np.copy(np.squeeze(incident))
         b = np.copy(self.correlations)
         a = poisson_noise_array(a, trials)
         #detected = a[100, 18, :]
 
-        intent = np.einsum('mnp,pq->mnq', a, b)
+        if self.quant and not self.gated:
+            return np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
+        elif self.gated:
+            intent = np.einsum('mnqp,pq->mnq', a, b)
+        else:
+            intent = np.einsum('mnp,pq->mnq', a, b)
+
+        if debug:
+            fig, axs = plt.subplots(nrows=1, ncols=3)
+            if self.gated:
+                axs[0].plot(a[0, 10, 0, :], label='Hist.')
+                axs[0].plot(incident[10, 0, :], label='Incident')
+            else:
+                axs[0].plot(a[0, 10, :], label='Hist.')
+                axs[0].plot(incident[10, :], label='Incident')
+            axs[0].set_title('Illumination')
+            axs[0].legend()
+            axs[1].imshow(np.repeat(np.transpose(self.correlations), 100, axis=0), cmap='gray', aspect='auto')
+            axs[1].set_title('Coding Matrix')
+            axs[2].bar(np.arange(0, self.n_functions), intent[0, 10, :])
+            axs[2].set_title('Coded Values')
+            plt.show()
         return intent
 
-    def encode_no_noise(self, incident):
-        return np.einsum('mp,pq->mq', incident.squeeze(), self.correlations)
+    def encode_no_noise(self, incident, debug=False):
+        a = np.copy(np.squeeze(incident))
+        b = np.copy(self.correlations)
+        if self.gated:
+            intent = np.einsum('nqp,pq->nq', a, b)
+        else:
+            intent = np.einsum('np,pq->nq', a, b)
+        return intent
 
-    def encode_binomial(self, incident, trials):
+    def encode_binomial(self, incident, trials, laser_cycles, debug=False):
 
         rng = np.random.default_rng()
         new_shape = (trials,) + incident.shape
         probabilities = 1 - np.exp(-incident)
-        incident_noisy = rng.binomial(int(self.laser_cycles), probabilities, size=new_shape)
+        incident_noisy = rng.binomial(int(laser_cycles / self.correlations.shape[-1]), probabilities, size=new_shape)
 
-        c_vals = np.matmul(incident_noisy[..., np.newaxis, :], self.correlations).squeeze(-2)
+        a = np.copy(incident_noisy)
+        b = np.copy(self.correlations)
+        if self.quant and not self.gated:
+            return np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
+        elif self.gated:
+            intent = np.einsum('mnqp,pq->mnq', a, b)
+        else:
+            intent = np.einsum('mnp,pq->mnq', a, b)
 
-        return c_vals
+        #c_vals = np.matmul(incident_noisy[..., np.newaxis, :], self.correlations).squeeze(-2)
+
+        return intent
 
 class LearnedImpulseCoding(ImpulseCoding):
     def __init__(self, n_tbins, n_codes, model, fourier_coeff, **kwargs):
@@ -285,6 +344,8 @@ class KTapSinusoidCoding(ContinuousWave):
     def set_coding_scheme(self, n_tbins):
         (self.modfs, self.demodfs) = CodingFunctionsFelipe.GetCosCos(N=n_tbins, K=self.n_functions)
         self.set_correlations(self.modfs, self.demodfs)
+        if self.gated:
+            assert False, 'cannot do Sinusoid coding with gated camera'
 
 
 class HamiltonianCoding(ContinuousWave):
@@ -307,21 +368,6 @@ class HamiltonianCoding(ContinuousWave):
         else:
             self.duty = duty
 
-    def set_num_measures(self, input_num):
-        if input_num is None and self.gated:
-            if self.n_functions == 3:
-                self.num_measures = 4
-            elif self.n_functions == 4:
-                self.num_measures = 7
-            elif self.n_functions == 5:
-                self.num_measures = 16
-            else:
-                assert False, 'not implemented for k>5'
-            return
-        elif input_num is None:
-            self.num_measures = self.n_functions
-        else:
-            self.num_measures = input_num
 
     def set_coding_scheme(self, n_tbins):
         k = self.n_functions
@@ -338,23 +384,23 @@ class HamiltonianCoding(ContinuousWave):
 
         self.set_correlations(self.modfs, self.demodfs)
 
+        if self.gated:
+            self.gated_demodfs, self.gated_demodfs_arr = decompose_ham_codes(self.demodfs)
+            #self.demodfs = self.gated_demodfs
+            #self.set_correlations(np.repeat(self.modfs, 4, axis=1)[:, :self.demodfs.shape[-1]], self.demodfs)
 
-class GatedCoding(Coding):
-    '''
-        Gated coding class. Coding is applied like a gated camera or a coarse histogram in SPADs
-        In the extreme case that we have a gate for every time bin then the C matrix is an (n_maxres x n_maxres) identity matrix
-    '''
+class GatedCoding(ImpulseCoding):
 
     def __init__(self, n_gates=None, **kwargs):
         self.n_gates = n_gates
         self.correlations = None
         super().__init__(**kwargs)
 
-    def encode(self, incident, trials):
+    def encode(self, incident, trials, laser_cycles, debug=False):
         if self.binomial:
-            return self.encode_binomial(incident, trials)
+            return self.encode_binomial(incident, trials, laser_cycles, debug=debug)
         else:
-            return self.encode_poison(incident, trials)
+            return self.encode_poison(incident, trials, debug=debug)
 
     def set_coding_scheme(self, n_tbins):
         if self.n_gates == None:
@@ -366,58 +412,54 @@ class GatedCoding(Coding):
             start_tbin = i * self.gate_len
             end_tbin = start_tbin + self.gate_len
             self.correlations[start_tbin:end_tbin, i] = 1.
-
-    def encode_poison(self, transient_img, trials):
-        '''
-        Encode the transient image using the n_codes inside the self.C matrix
-        For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
-        '''
-        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
-        #inc = transient_img[18, :]
-        transient_img = poisson_noise_array(transient_img, trials)
-        #detected = np.squeeze(transient_img[100, 18, :])
-        #hist = transient_img[100, 18, :]
-        c_vals = np.array(transient_img[..., 0::self.gate_len])
-        for i in range(self.gate_len - 1):
-            start_idx = i + 1
-            c_vals += transient_img[..., start_idx::self.gate_len]
-        return c_vals
-
-    def encode_no_noise(self, transient_img):
-        '''
-        Encode the transient image using the n_codes inside the self.C matrix
-        For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
-        '''
-        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
-        #inc = transient_img[18, :]
-        #detected = np.squeeze(transient_img[100, 18, :])
-        #hist = transient_img[100, 18, :]
-        c_vals = np.array(transient_img[..., 0::self.gate_len])
-        for i in range(self.gate_len - 1):
-            start_idx = i + 1
-            c_vals += transient_img[..., start_idx::self.gate_len]
-        return c_vals
-
-
-    def encode_binomial(self, transient_img, trials):
-        assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
-        photons = np.array(transient_img[..., 0::self.gate_len])
-        for i in range(self.gate_len - 1):
-            start_idx = i + 1
-            photons += transient_img[..., start_idx::self.gate_len]
-
-        probabilities = 1 - np.exp(-photons)
-        rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
-
-        if not self.gated:
-            num_measures = 1
-        else:
-            num_measures = self.n_gates
-
-        photon_counts = rng.binomial(int(self.laser_cycles / num_measures), probabilities, size=new_shape)
-
-        return photon_counts
+    #
+    # def encode_poison(self, transient_img, trials):
+    #     '''
+    #     Encode the transient image using the n_codes inside the self.C matrix
+    #     For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
+    #     '''
+    #     assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+    #     #inc = transient_img[18, :]
+    #     transient_img = poisson_noise_array(transient_img, trials)
+    #     #detected = np.squeeze(transient_img[100, 18, :])
+    #     #hist = transient_img[100, 18, :]
+    #     c_vals = np.array(transient_img[..., 0::self.gate_len])
+    #     for i in range(self.gate_len - 1):
+    #         start_idx = i + 1
+    #         c_vals += transient_img[..., start_idx::self.gate_len]
+    #     return c_vals
+    #
+    # def encode_no_noise(self, transient_img):
+    #     '''
+    #     Encode the transient image using the n_codes inside the self.C matrix
+    #     For GatedCoding with many n_gates, encoding through matmul is quite slow, so we assign it differently
+    #     '''
+    #     assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+    #     #inc = transient_img[18, :]
+    #     #detected = np.squeeze(transient_img[100, 18, :])
+    #     #hist = transient_img[100, 18, :]
+    #     c_vals = np.array(transient_img[..., 0::self.gate_len])
+    #     for i in range(self.gate_len - 1):
+    #         start_idx = i + 1
+    #         c_vals += transient_img[..., start_idx::self.gate_len]
+    #     return c_vals
+    #
+    #
+    # def encode_binomial(self, transient_img, trials, laser_cycles):
+    #     assert (transient_img.shape[-1] == self.n_tbins), "Input c_vec does not have the correct dimensions"
+    #     photons = np.array(transient_img[..., 0::self.gate_len])
+    #     for i in range(self.gate_len - 1):
+    #         start_idx = i + 1
+    #         photons += transient_img[..., start_idx::self.gate_len]
+    #
+    #     probabilities = 1 - np.exp(-photons)
+    #     rng = np.random.default_rng()
+    #     new_shape = (trials,) + probabilities.shape
+    #
+    #
+    #     photon_counts = rng.binomial(int(laser_cycles / self.n_gates), probabilities, size=new_shape)
+    #
+    #     return photon_counts
 
     def matchfilt_reconstruction(self, c_vals):
         template = self.tmp_irf
@@ -483,11 +525,20 @@ class GrayCoding(ImpulseCoding):
         ext_x_lowres = np.arange(-1, self.min_gray_code_length + 1) * (1. / self.min_gray_code_length)
         ext_gray_codes = np.concatenate(
             (self.gray_codes[-1, :][np.newaxis, :], self.gray_codes, self.gray_codes[0, :][np.newaxis, :]), axis=0)
-        f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
+        if self.gated and False:
+            f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='previous', fill_value='extrapolate')
+        else:
+            f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
         self.correlations = f(self.x_fullres)
-        self.correlations = (self.correlations * 2) - 1
-        self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
-        print(f'Gray coding K={self.correlations.shape[-1]}')
+        if self.gated:
+            self.correlations, self.gated_correlations_arr = decompose_ham_codes(self.correlations)
+        else:
+            self.correlations = (self.correlations * 2) - 1
+            self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
+        #self.correlations[self.correlations > 0] = 1
+        #self.correlations[self.correlations < 0] = -1
+
+        #print(f'Gray coding K={self.correlations.shape[-1]}')
 
 
 

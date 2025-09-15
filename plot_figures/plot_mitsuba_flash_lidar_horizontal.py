@@ -122,15 +122,19 @@ if __name__ == '__main__':
                             constant_pulse_energy=True),
         ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
                             constant_pulse_energy=False),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf,
-                            constant_pulse_energy=constant_pulse_energy),
+        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf,
+        #                    constant_pulse_energy=constant_pulse_energy),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k12_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
         ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
                             model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
                             account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
-                            constant_pulse_energy=constant_pulse_energy),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
+                            constant_pulse_energy=False),
+        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf,
+                            constant_pulse_energy=False),
+       # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+       #                     constant_pulse_energy=constant_pulse_energy),
         #
 
     ]
@@ -144,7 +148,7 @@ if __name__ == '__main__':
 
 
     # Do either average photon count
-    photon_counts = 1000
+    photon_counts = 700
     sbr = 0.1
     peak_factor = 0.005
 
@@ -252,7 +256,7 @@ if __name__ == '__main__':
             tmp2_learned = tmp[y2, x2, :]
             tmp3_learned = tmp[y3, x3, :]
             tmp4_learned = tmp[y4, x4, :]
-        elif 'TruncatedFourier' in imaging_schemes[i].coding_id:
+        elif 'Identity' in imaging_schemes[i].coding_id and not imaging_scheme.constant_pulse_energy:
             tmp1 = tmp[y1, x1, :]
             tmp2 = tmp[y2, x2, :]
             tmp3 = tmp[y3, x3, :]

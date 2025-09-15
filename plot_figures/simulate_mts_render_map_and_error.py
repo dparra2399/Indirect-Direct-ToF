@@ -57,7 +57,7 @@ def simple_tonemap(rgb_img):
 
 
 # Press the green button in the gutter to run the script.
-factor = 2
+factor = 1
 n_rows = 240 // factor
 n_cols = 320 // factor
 n_tbins = 2000
@@ -119,8 +119,8 @@ if __name__ == '__main__':
                             constant_pulse_energy=False),
 
         # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=12, pulse_width=1, account_irf=True, h_irf=irf,
-                            constant_pulse_energy=constant_pulse_energy),
+        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf,
+        #                    constant_pulse_energy=constant_pulse_energy),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k8_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n2000_k10_sigma30'),
@@ -139,24 +139,22 @@ if __name__ == '__main__':
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak015_counts1000'),
         #                     account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma5_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-                            model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak030_counts1000'),
-                            account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma10_peak005_counts1000'),
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak030_counts1000'),
         #                     account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak005_counts1000'),
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma5_peak030_counts1000'),
         #                     account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
-        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k10_sigma5_peak030_counts1000'),
+        #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma10_peak030_counts1000'),
         #                     account_irf=True, h_irf=irf),
+        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+                            model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
+                            account_irf=True, h_irf=irf),
+        #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                    model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma10_peak005_counts1000'),
+        #                    account_irf=True, h_irf=irf, quant=4, fourier_coeff=30),
+
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                     model=os.path.join('bandlimited_peak_models', 'n1024_k12_sigma5_peak030_counts1000'),
         #                     account_irf=True, h_irf=irf),
@@ -171,8 +169,8 @@ if __name__ == '__main__':
         #                     account_irf=True, h_irf=irf),
         # ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_models', 'n1024_k12_sigma30'),
         #                     pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
-                            constant_pulse_energy=constant_pulse_energy),
+        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+        #                    constant_pulse_energy=constant_pulse_energy),
         #
 
     ]
@@ -186,9 +184,9 @@ if __name__ == '__main__':
 
 
     # Do either average photon count
-    photon_counts = 1000
+    photon_counts = 700
     sbr = 0.1
-    peak_factor = 0.030
+    peak_factor = 0.005
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -332,7 +330,7 @@ if __name__ == '__main__':
 
         depth_map[np.isnan(depth_map)] = 0
 
-        if scheme.coding_id == 'Identity':
+        if scheme.coding_id == 'Identityd':
             depth_im = axs[counter1][i].imshow(rgb_img, vmax=depths.max(), vmin=depths.min())
             axs[counter1][i].plot(x1, y1, 'o', color='purple', markersize=10)
             axs[counter1][i].plot(x2, y2, 'o', color='green', markersize=10)
@@ -345,7 +343,10 @@ if __name__ == '__main__':
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
             spine.set_linewidth(2)
 
-        error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=6)
+        if peak_factor is not None:
+            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=19)
+        else:
+            error_im = axs[counter2][i].imshow(error_map, vmin=0, vmax=6)
 
         for spine in axs[counter2][i].spines.values():
             spine.set_edgecolor(get_scheme_color(scheme.coding_id, k=scheme.coding_obj.n_functions))  # Set border color
@@ -415,7 +416,7 @@ if __name__ == '__main__':
     axs[1, -1].legend()
     #fig.tight_layout()
     plt.subplots_adjust(hspace=0.02, wspace=0.02)
-    #fig.savefig('tmp2.svg', bbox_inches='tight', dpi=3000)
+    fig.savefig('tmp2.svg', bbox_inches='tight', dpi=3000)
     plt.show(block=True)
     print()
 print('YAYYY')

@@ -35,6 +35,17 @@ def compute_metrics(depths, decoded_depths):
     return mae
 
 
+def decompose_ham_codes(demodfs):
+    gates = []
+    gates_two = []
+    for i in range(demodfs.shape[-1]):
+        gate_tmp = gated_ham(demodfs[:, i])
+        for j in range(gate_tmp.shape[-1]):
+            gates.append(gate_tmp[:, j])
+        gates_two.append(gate_tmp)
+    return np.stack(gates, axis=-1), gates_two
+
+
 def gated_ham(demod):
     n_tbins = demod.shape[0]
     gates = np.zeros((n_tbins, 1))

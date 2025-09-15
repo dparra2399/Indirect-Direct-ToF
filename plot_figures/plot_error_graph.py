@@ -21,40 +21,12 @@ breakpoint = debugger.set_trace
 
 save_folder = '/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/Learned Coding Functions Paper'
 filenames = [
-            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k10_sigma30_mae.npz',
-            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k12_sigma30_mae.npz',
-            '../data/results/bandlimit_simulation/ntbins_2000_monte_5000_exp_Learned_n2000_k14_sigma30_mae.npz',
-
-    # '../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_mae.npz',
-            #'../data/results/bandlimit_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_rmse.npz'
-            #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_mae_photonstarved.npz',
-            #'../data/results/bandlimit_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_rmse_photonstarved.npz'
-
+            '/Users/davidparra/PycharmProjects/Indirect-Direct-ToF/ntbins_1024_monte_1000_exp_tmp.npz'
             ]
-# filenames = [
-# #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma1_peak030_rmse.npz',
-#
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak005_mae.npz',
-#             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma5_peak005_rmse.npz',
-#             # '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_mae.npz',
-#
-#     #'../data/results/bandlimit_peak_simulation/ntbins_1024_monte_5000_exp_Learned_sigma10_peak015_rmse.npz',
-#
-# ]
-
-# filenames = [
-#              '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak005_mae_constant_pulse_energy.npz',
-#             #'../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak030_mae_constant_pulse_energy.npz',
-#             '../data/results/peak_simulation_constant_pulse_energy/ntbins_1024_monte_5000_exp_Learned_peak005_rmse_constant_pulse_energy.npz',
-#
-#     #             '../data/results/bandlimit_peak_simulation/ntbins_1024_monte_2000_exp_Learned_sigma10_peak015_rmse_constant_pulse_energy.npz',
-#
-# ]
-
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
-num = 8 #high SBR
-num2 = 3 #Low Photon count
+num = 1 #high SBR
+num2 = 1 #Low Photon count
 num3 = 1 #Low SBR
 num4 = 1 #High photon count
 grid_size = 4
@@ -98,15 +70,12 @@ for i, filename in enumerate(filenames):
             if imaging_schemes[j].pulse_width == 1:
                 pass
         elif imaging_schemes[j].coding_id.startswith('Hamiltonian'):
-            if imaging_schemes[j].coding_id.endswith('3') or imaging_schemes[j].coding_id.endswith('5'):
-                continue
             str_name = f'SiP Hamiltonian K={imaging_schemes[j].coding_id[-1]}'
         elif imaging_schemes[j].coding_id == 'Identity':
             if imaging_schemes[j].pulse_width == 1:
                 str_name = 'Full-Res. Hist. (Narrow)'
             else:
                 str_name = 'Full-Res. Hist. (Wide)'
-            pass
         elif imaging_schemes[j].coding_id.startswith('KTapSin'):
             if imaging_schemes[j].cw_tof is True:
                 str_name = 'i-ToF Sinusoid'
@@ -119,8 +88,7 @@ for i, filename in enumerate(filenames):
             pass
 
 
-        #k = imaging_schemes[j].coding_obj.n_functions
-        k = 4
+        k = imaging_schemes[j].coding_obj.n_functions
 
         label = get_string_name(imaging_schemes[j])
         surf = axs[0][i].plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
@@ -144,34 +112,13 @@ for i, filename in enumerate(filenames):
 
     if 'rmse' in filename:
         axs[0][i].set_zlabel('Root Mean Sq. Error (cm)')
-        # if 'photonstarved' in filename:
-        #     axs[0][i].set_zlim(0, 300)
-        # else:
-        #     axs[0][i].set_zlim(0, 15)
     else:
         axs[0][i].set_zlabel('Mean Abs. Error (cm)')
-        axs[0][i].set_zlim(0, 12)
-        # if 'photonstarved' in filename:
-        #     axs[0][i].set_zlim(0, 250)
-        # else:
-        #     axs[0][i].set_zlim(0, 12)
 
-    #axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
+    axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
 
-    if 'peak030' in filename:
-        axs[0][i].set_zlim(0, 30)
-    elif 'peak015' in filename:
-        axs[0][i].set_zlim(0, 60)
-    elif 'peak005' in filename:
-        axs[0][i].set_zlim(0, 250)
 
 fig.tight_layout()
-
-#fig.savefig(os.path.join(save_folder, 'sigma30_results_rmse_photonstarved.svg'), bbox_inches='tight', dpi=3000)
-#fig.savefig(os.path.join(save_folder, 'sigma10_20_30_results_rmse.svg'), bbox_inches='tight', dpi=3000)
-#fig.savefig(os.path.join(save_folder, 'sigma10_results_rmse_mae.svg'), bbox_inches='tight', dpi=3000)
-
-#fig.savefig(os.path.join(save_folder, 'sigma1_5_10_peak030_results_rmse.svg'), bbox_inches='tight', dpi=3000)
 
 fig.savefig('tmp.svg', bbox_inches='tight', dpi=3000)
 

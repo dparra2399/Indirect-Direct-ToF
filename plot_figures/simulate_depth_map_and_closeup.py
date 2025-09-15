@@ -25,8 +25,10 @@ import matplotlib.pyplot as plt
 
 breakpoint = debugger.set_trace
 
-depth_folder = r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\depth_images_240x320_nt-2000'
-rgb_folder =  r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\rgb_images_240x320_nt-2000'
+#depth_folder = r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\depth_images_240x320_nt-2000'
+#rgb_folder =  r'Z:\\Research_Users\\David\\sample_transient_images-20240724T164104Z-001\\sample_transient_images\\rgb_images_240x320_nt-2000'
+depth_folder = '/Volumes/velten/Research_Users/David/sample_transient_images-20240724T164104Z-001/sample_transient_images/depth_images_240x320_nt-2000'
+rgb_folder = '/Volumes/velten/Research_Users/David/sample_transient_images-20240724T164104Z-001/sample_transient_images/rgb_images_240x320_nt-2000'
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
@@ -40,19 +42,30 @@ if __name__ == '__main__':
     params['T'] = 0.1  # intergration time [used for binomial]
     params['depth_res'] = 1000  ##Conver to MM
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 5, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)
+
+    gated = True
     params['imaging_schemes'] = [
-        # ImagingSystemParams('Gated', 'Gaussian', 'linear', pulse_width=1, n_gates=32),
-        ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', n_codes=8, pulse_width=1, account_irf=True, h_irf=irf),
-        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc', model=os.path.join('bandlimited_peak_models', 'n1024_k8_sigma5_peak015_counts1000'),
-                           account_irf=True, h_irf=irf),
+        ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=50, n_gates=8, h_irf=irf, account_irf=True,
+                            gated=gated, binomial=False),
+        # ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, account_irf=True, h_irf=irf,
+        #                     gated=gated, binomial=False),
 
-        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf),
-        ImagingSystemParams('Identity', 'Gaussian', 'matchfilt', pulse_width=1, account_irf=True, h_irf=irf),
-
+        #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', pulse_width=1, n_codes=8, h_irf=irf, account_irf=True,
+        #                    gated=False, binomial=False),
+        ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc', pulse_width=1, duty=1/6, h_irf=irf, account_irf=True,
+                            gated=gated, binomial=False),
+        ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', pulse_width=1, duty=1/12, h_irf=irf, account_irf=True,
+                            gated=gated, binomial=False),
+        ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc', pulse_width=1, duty=1 / 30, h_irf=irf,
+                            account_irf=True,
+                            gated=gated, binomial=False),
+        #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
+        #                    model=os.path.join('bandlimited_binary_models', f'version_1'),
+        #                    gated=gated, account_irf=True, h_irf=irf),
 
     ]
+
 
     params['meanBeta'] = 1e-4
     params['trials'] = 1
@@ -65,19 +78,21 @@ if __name__ == '__main__':
     #filename = 'cbox_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'breakfast-hall_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
     #filename = 'hot-living_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    # filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
-    # depth_image = np.load(os.path.join(depth_folder, filename))
-    # rgb_image = np.load(os.path.join(rgb_folder, filename))
-    filename = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\data\cow_depth_map.npy'
-    depth_image = np.load(filename)
+    filename = 'staircase_nr-240_nc-320_nt-2000_samples-2048_view-0.npy'
+    depth_image = np.load(os.path.join(depth_folder, filename))
+    rgb_image = np.load(os.path.join(rgb_folder, filename))
+    #filename = r'C:\Users\elian\PycharmProjects\Indirect-Direct-ToF\data\cow_depth_map.npy'
+   # depth_image = np.load(filename)
     (nr, nc) = depth_image.shape
     depths = depth_image.flatten()
     print(f'Max Depth {depths.max()}')
 
     # Do either average photon count
-    peak_photon_counts = [1000]
-    ambient_counts = [0.1]
-    peak_factor = 0.015
+    peak_photon_counts = [200]
+    ambient_counts = [1.0]
+    peak_factor = None
+    laser_cycles = None
+    integration_time = None
 
     n_tbins = params['n_tbins']
     mean_beta = params['meanBeta']
@@ -91,7 +106,7 @@ if __name__ == '__main__':
     print(f'Time bin depth resolution {tbin_depth_res * 1000:.3f} mm')
     print()
 
-    init_coding_list(n_tbins, depths, params, t_domain=t_domain)
+    init_coding_list(n_tbins, params, t_domain=t_domain)
     imaging_schemes = params['imaging_schemes']
 
     depth_images = np.zeros((len(peak_photon_counts), nr, nc, len(params['imaging_schemes'])))
@@ -105,7 +120,7 @@ if __name__ == '__main__':
 
     for j in range(len(peak_photon_counts)):
         photon_count = peak_photon_counts[j]
-        ambient = ambient_counts[j]
+        sbr = ambient_counts[j]
         for i in range(len(imaging_schemes)):
             imaging_scheme = imaging_schemes[i]
             coding_obj = imaging_scheme.coding_obj
@@ -114,11 +129,26 @@ if __name__ == '__main__':
             light_source = imaging_scheme.light_id
             rec_algo = imaging_scheme.rec_algo
 
-            incident = light_obj.simulate_average_photons(photon_count, ambient, peak_factor=peak_factor)
+            if imaging_scheme.constant_pulse_energy:
+                incident, tmp_irf = light_obj.simulate_constant_pulse_energy(photon_count, sbr, depths,
+                                                                             peak_factor=peak_factor)
+            else:
+                incident, tmp_irf = light_obj.simulate_average_photons(photon_count, sbr, depths,
+                                                                       peak_factor=peak_factor, t=integration_time)
 
-            coded_vals = coding_obj.encode(incident, trials).squeeze()
+            # print(f'\nphoton_count : {np.sum(incident[0, 0, :] - ((photon_count / sbr) / n_tbins))}')
 
-            #coded_vals = coding_obj.encode_no_noise(incident).squeeze()
+            coded_vals = coding_obj.encode(incident, trials, laser_cycles).squeeze()
+
+            if light_source in 'Gaussian':
+                coding_obj.update_tmp_irf(tmp_irf)
+                coding_obj.update_C_derived_params()
+
+            # fig, axs = plt.subplots(1, 2, sharex=True)
+            # axs[0].imshow(np.repeat(coding_obj.decode_corrfs.transpose(), 100, axis=0), aspect='auto')
+            # axs[1].plot(coding_obj.decode_corrfs)
+            # plt.show()
+            # coded_vals = coding_obj.encode_no_noise(incident).squeeze()
 
             if coding_scheme in ['Identity']:
                 assert light_source in ['Gaussian'], 'Identity coding only available for IRF'
@@ -141,20 +171,21 @@ if __name__ == '__main__':
             else:
                 depths_masked = depths
 
-            normalized_decoded_depths = np.copy(decoded_depths)
-            normalized_decoded_depths[normalized_decoded_depths == 0] = np.nan
+            #normalized_decoded_depths = np.copy(decoded_depths)
+            #normalized_decoded_depths[normalized_decoded_depths == 0] = np.nan
             #vmin = np.nanmean(normalized_decoded_depths) - 30
             #vmax = np.nanmean(normalized_decoded_depths) + 30
-            vmin = 12#depths.min() - 20
-            vmax = 25 #depths.max() + 20
-            normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
-            normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
+            #vmin = 12#depths.min() - 20
+            #vmax = 25 #depths.max() + 20
+            #normalized_decoded_depths[normalized_decoded_depths > vmax] = np.nan
+            #normalized_decoded_depths[normalized_decoded_depths < vmin] = np.nan
+            normalized_decoded_depths = decoded_depths
 
 
             error_maps[j, :, :, i] = np.abs(np.reshape(normalized_decoded_depths, (nr, nc)) - np.reshape(depths, (nr, nc)))
             depth_images[j, :, :, i] = np.reshape(normalized_decoded_depths, (nr, nc))
             errors = np.abs(normalized_decoded_depths - depths_masked.flatten()[np.newaxis, :]) * depth_res
-            error_metrix = calc_error_metrics(errors[~np.isnan(errors)])
+            error_metrix = calc_error_metrics(normalized_decoded_depths)
 
 
             rmse[j, i] = error_metrix['rmse']

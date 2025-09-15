@@ -53,9 +53,11 @@ def get_scheme_color(coding_scheme, k, cw_tof=False, constant_pulse_energy=False
         color = '#2ca02c'
     elif coding_scheme.startswith('Hamiltonian'):
         if k==5:
-            color = '#1f77b4'
+            color = 'orange'
         elif k==4:
-            color = '#1f77b4'
+            color = 'green'
+        else:
+            color = 'purple'
     elif coding_scheme == 'Identity':
         if constant_pulse_energy:
             color = 'indigo'

@@ -3,33 +3,17 @@ import open3d as o3d
 from scipy.ndimage import gaussian_filter
 
 # FOV along the major axis (in degrees)
-fov_major_axis_deg = 100
+fov_major_axis_deg = 80
 fov_major_axis_rad = np.radians(fov_major_axis_deg)  # Convert to radians
 
-mask = plt.imread(r'/Users/Patron/PycharmProjects/Indirect-Direct-ToF/data/cow.png')
+mask = plt.imread(r'/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/data/cow.png')
 mask = mask[..., -1]
-depth_image = np.load('/Users/Patron/PycharmProjects/Indirect-Direct-ToF/data/cow_depth_map.npy') * mask
+depth_image = np.load('/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/data/cow_depth_map.npy') * mask
 depth_image = gaussian_filter(depth_image, sigma=2)
+
+depth_image = depth_image[::2, ::2]
 (nr, nc) = depth_image.shape
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import numpy as np
-
-X = np.linspace(-5, 5, nc)
-Y = np.linspace(-5, 5, nr)
-X, Y = np.meshgrid(X, Y)
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.plot_surface(X, Y, depth_image, cmap='viridis')
-
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-plt.show()
-
-exit(0)
 
 # Calculate focal length
 fx = nc / (2 * np.tan(fov_major_axis_rad / 2))
