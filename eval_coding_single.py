@@ -26,26 +26,31 @@ if __name__ == '__main__':
     params['dMax'] = tof_utils_felipe.freq2depth(params['rep_freq'])
     params['depth_res'] = 1000  ##Conver to MM
 
-    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 1, circ_shifted=True)
+    irf = gaussian_pulse(np.arange(params['n_tbins']), 0, 10, circ_shifted=True)
 
     gated = True
     binomial = False
-    debug = True
+    debug = False
+    split_measurements = False
     params['imaging_schemes'] = [
         ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=50, n_gates=8, h_irf=irf, account_irf=True,
-                            gated=gated, binomial=binomial),
-        #ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=4, pulse_width=1, account_irf=True, h_irf=irf,
-        #                     gated=gated, binomial=False),
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
+        ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=100, n_gates=4, h_irf=irf, account_irf=True,
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
+        ImagingSystemParams('Gated', 'Gaussian', 'zncc', pulse_width=120, n_gates=3, h_irf=irf, account_irf=True,
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
+        ImagingSystemParams('Greys', 'Gaussian', 'ncc', n_bits=8, pulse_width=1, account_irf=True, h_irf=irf,
+                             gated=gated, binomial=binomial, split_measurements=split_measurements),
 
         #ImagingSystemParams('TruncatedFourier', 'Gaussian', 'ifft', pulse_width=1, n_codes=8, h_irf=irf, account_irf=True,
         #                    gated=False, binomial=False),
         ImagingSystemParams('HamiltonianK3', 'HamiltonianK3', 'zncc', duty=1/6, h_irf=irf, account_irf=True,
-                            gated=gated, binomial=binomial),
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
         ImagingSystemParams('HamiltonianK4', 'HamiltonianK4', 'zncc', duty=1/12, h_irf=irf, account_irf=True,
-                            gated=gated, binomial=binomial),
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
         ImagingSystemParams('HamiltonianK5', 'HamiltonianK5', 'zncc', duty=1 / 30, h_irf=irf,
                             account_irf=True,
-                            gated=gated, binomial=binomial),
+                            gated=gated, binomial=binomial, split_measurements=split_measurements),
         #ImagingSystemParams('LearnedImpulse', 'Learned', 'zncc',
         #                    model=os.path.join('bandlimited_binary_models', f'version_1'),
         #                    gated=gated, account_irf=True, h_irf=irf),
@@ -65,7 +70,7 @@ if __name__ == '__main__':
     # depths = np.array([105.0])
 
     photon_count = 1000
-    sbr = 5.0
+    sbr = 0.1
     peak_factor = None #0.030
     laser_cycles = 1 * 1e6
     integration_time = 0.1 #in milliseconds

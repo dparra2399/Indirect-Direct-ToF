@@ -71,10 +71,12 @@ class LightSource(ABC):
 
 class SinglePhotonSource(LightSource):
 
-    def __init__(self, n_tbins, n_functions, gated=False, binomial=False, t_domain=None, **kwargs):
+    def __init__(self, n_tbins, n_functions, gated=False, split_measurements=False,
+                 binomial=False, t_domain=None, **kwargs):
         self.n_tbins = n_tbins
         self.binomial = binomial
         self.gated = gated
+        self.split_measurements = split_measurements
         self.set_t_domain(t_domain)
         self.n_functions = n_functions
         light_source = self.generate_source()
@@ -154,7 +156,7 @@ class SinglePhotonSource(LightSource):
         light_source = self.filtered_light_source
         if self.gated and not self.binomial:
             total_photons = total_photons / self.n_functions
-            #print('Dividing total photon count by {}'.format(self.n_functions))
+            print('Dividing total photon count by {}'.format(self.n_functions))
             #sbr = sbr / self.n_functions
 
         scaled_modfs = np.copy(light_source)
@@ -255,13 +257,13 @@ class KTapSinusoidSource(SinglePhotonSource):
 
 
 class HamiltonianSource(SinglePhotonSource):
-    def __init__(self, n_functions, gated=False, duty=None,  **kwargs):
+    def __init__(self, n_functions, gated=False, split_measurements=False, duty=None,  **kwargs):
         self.set_duty(duty, n_functions)
-        n_functions = self.set_n_functions(gated, n_functions)
-        super().__init__(n_functions=n_functions, gated=gated, **kwargs)
+        n_functions = self.set_n_functions(gated, split_measurements, n_functions)
+        super().__init__(n_functions=n_functions, gated=gated, split_measurements=split_measurements, **kwargs)
 
-    def set_n_functions(self, gated, n_functions):
-        if gated:
+    def set_n_functions(self, gated, split_measurements, n_functions):
+        if gated and split_measurements:
             if n_functions == 3:
                 n_functions = 4
             elif n_functions == 4:

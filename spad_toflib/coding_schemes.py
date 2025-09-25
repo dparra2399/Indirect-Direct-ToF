@@ -16,11 +16,12 @@ import scipy as sp
 learned_folder = '/Users/davidparra/PycharmProjects/Indirect-Direct-ToF/learned_codes'
 class Coding(ABC):
 
-    def __init__(self, n_tbins, binomial=False, gated=False,
+    def __init__(self, n_tbins, binomial=False, gated=False, split_measurements=False,
                  after=False, h_irf=None, account_irf=False, quant=None):
 
         self.binomial = binomial
         self.after = after
+        self.split_measurements = split_measurements
         self.gated = gated
         self.n_tbins = n_tbins
         self.quant = quant
@@ -151,11 +152,12 @@ class ContinuousWave(Coding):
 
     def encode_poison(self, incident, trials, debug=False):
         a = np.copy(incident)
-        if self.gated == False:
-            b = np.copy(self.demodfs)
+        if self.gated and self.split_measurements:
+            assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
+            b = np.copy(self.gated_demodfs)
         else:
-             assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
-             b = np.copy(self.gated_demodfs)
+            b = np.copy(self.demodfs)
+
         if not self.after:
            # inc = incident[18, 0, :]
             a = poisson_noise_array(a, trials)
@@ -165,7 +167,7 @@ class ContinuousWave(Coding):
             intent = poisson_noise_array(intent, trials)
 
 
-        if self.gated:
+        if self.gated and self.split_measurements:
             original_K = self.correlations.shape[-1]
             temp = np.zeros((intent.shape[0], intent.shape[1], original_K))
             counter = 0
@@ -188,14 +190,14 @@ class ContinuousWave(Coding):
 
     def encode_no_noise(self, incident, debug=False):
         a = np.copy(incident)
-        if self.gated == False:
-            b = np.copy(self.demodfs)
-        else:
+        if self.gated and self.split_measurements:
             assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
             b = np.copy(self.gated_demodfs)
+        else:
+            b = np.copy(self.demodfs)
         intent = np.einsum('nqp,pq->nq', a, b)
 
-        if self.gated:
+        if self.gated and self.split_measurements:
             original_K = self.correlations.shape[-1]
             temp = np.zeros((intent.shape[0], original_K))
             counter = 0
@@ -208,12 +210,11 @@ class ContinuousWave(Coding):
 
     def encode_binomial(self, incident, trials, laser_cycles, debug=False):
         a = np.copy(incident)
-        if self.gated == False:
-            b = np.copy(self.demodfs)
-        else:
+        if self.gated and self.split_measurements:
             assert self.gated_demodfs is not None, 'Coding Scheme must have binary gated demodulation functions'
             b = np.copy(self.gated_demodfs)
-
+        else:
+            b = np.copy(self.demodfs)
 
         photons = np.einsum('nqp,pq->nq', a, b)
 
@@ -223,7 +224,7 @@ class ContinuousWave(Coding):
 
         intent = rng.binomial(int(laser_cycles / b.shape[-1]), probabilities, size=new_shape)
 
-        if self.gated:
+        if self.gated and self.split_measurements:
             original_K = self.correlations.shape[-1]
             temp = np.zeros((intent.shape[0], intent.shape[1], original_K))
             counter = 0
@@ -384,7 +385,7 @@ class HamiltonianCoding(ContinuousWave):
 
         self.set_correlations(self.modfs, self.demodfs)
 
-        if self.gated:
+        if self.gated and self.split_measurements:
             self.gated_demodfs, self.gated_demodfs_arr = decompose_ham_codes(self.demodfs)
             #self.demodfs = self.gated_demodfs
             #self.set_correlations(np.repeat(self.modfs, 4, axis=1)[:, :self.demodfs.shape[-1]], self.demodfs)
@@ -530,11 +531,13 @@ class GrayCoding(ImpulseCoding):
         else:
             f = interpolate.interp1d(ext_x_lowres, ext_gray_codes, axis=0, kind='linear')
         self.correlations = f(self.x_fullres)
-        if self.gated:
+        if self.gated and self.split_measurements:
             self.correlations, self.gated_correlations_arr = decompose_ham_codes(self.correlations)
+        elif self.gated:
+            pass
         else:
             self.correlations = (self.correlations * 2) - 1
-            self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
+        self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
         #self.correlations[self.correlations > 0] = 1
         #self.correlations[self.correlations < 0] = -1
 

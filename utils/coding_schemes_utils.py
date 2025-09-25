@@ -28,18 +28,22 @@ def create_light_obj(coding_system, n_tbins, tbin_res, tau, t_domain=None):
     h_irf = coding_system.h_irf
     duty = coding_system.duty
     gated = coding_system.gated
+    split_measurements = coding_system.split_measurements
 
     if light_id == 'KTapSinusoid':
         light_obj = KTapSinusoidSource(n_functions=n_functions,
                                        h_irf=h_irf,rep_tau=tau, binomial=binomial, n_tbins=n_tbins)
     elif light_id == 'HamiltonianK3':
-        light_obj = HamiltonianSource(n_functions=3, gated=gated, duty=duty, binomial=binomial,
+        light_obj = HamiltonianSource(n_functions=3, gated=gated, split_measurements=split_measurements,
+                                      duty=duty, binomial=binomial,
                                       h_irf=h_irf, rep_tau=tau,  n_tbins=n_tbins)
     elif light_id == 'HamiltonianK4':
-        light_obj = HamiltonianSource(n_functions=4, gated=gated, duty=duty, binomial=binomial,
+        light_obj = HamiltonianSource(n_functions=4, gated=gated, split_measurements=split_measurements,
+                                      duty=duty, binomial=binomial,
                                       h_irf=h_irf, rep_tau=tau, n_tbins=n_tbins)
     elif light_id == 'HamiltonianK5':
-        light_obj = HamiltonianSource(n_functions=5, gated=gated, duty=duty, binomial=binomial,
+        light_obj = HamiltonianSource(n_functions=5, gated=gated,split_measurements=split_measurements,
+                                      duty=duty, binomial=binomial,
                                       h_irf=h_irf, rep_tau=tau,n_tbins=n_tbins)
     elif light_id == 'Gaussian' and gated is True:
         if pulse_width is None: pulse_width = 1
@@ -79,20 +83,25 @@ def create_coding_obj(coding_system, n_tbins):
     quant = coding_system.quant
     fourier_coeff = coding_system.fourier_coeff
     duty = coding_system.duty
+    split_measurements = coding_system.split_measurements
 
     if (coding_id == 'KTapSinusoid'):
         coding_obj = KTapSinusoidCoding(n_tbins=n_tbins, gated=gated, binomial=binomial,
+                                        split_measurements=split_measurements,
                                         ktaps=ktaps, after=cw_tof, account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK3'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, binomial=binomial,k=3,
+        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, split_measurements=split_measurements,
+                                       binomial=binomial,k=3,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK4'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, binomial=binomial, k=4,
+        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated,split_measurements=split_measurements,
+                                                binomial=binomial, k=4,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK5'):
-        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, binomial=binomial, k=5,
+        coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, split_measurements=split_measurements,
+                                                binomial=binomial, k=5,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Identity'):
@@ -100,12 +109,12 @@ def create_coding_obj(coding_system, n_tbins):
                                            h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
-        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, n_gates=n_gates,
-                                         account_irf=account_irf,h_irf=h_irf, quant=quant,)
+        coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, split_measurements=split_measurements,
+                                        n_gates=n_gates, account_irf=account_irf,h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Greys'):
         assert n_bits != None, 'Need to declare number of bits for greys coding'
-        coding_obj = GrayCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,  n_bits=n_bits,
-                                         account_irf=account_irf, h_irf=h_irf, quant=quant,)
+        coding_obj = GrayCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, split_measurements=split_measurements,
+                                        n_bits=n_bits,account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Fourier'):
         coding_obj = FourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
                                 freq_idx=freq_idx, n_codes=n_codes,
@@ -176,6 +185,7 @@ class ImagingSystemParams:
     binomial: bool = False
     cw_tof: bool = False
     gated: bool = False
+    split_measurements: bool = False
     pulse_width: int = None
     duty: float = None
     ktaps: int = None
