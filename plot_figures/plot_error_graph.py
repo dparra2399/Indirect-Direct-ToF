@@ -21,7 +21,7 @@ breakpoint = debugger.set_trace
 
 save_folder = '/Volumes/velten/Research_Users/David/ICCP 2025 Hardware-aware codes/Learned Coding Functions Paper'
 filenames = [
-            '/Users/davidparra/PycharmProjects/Indirect-Direct-ToF/ntbins_1024_monte_1000_exp_tmp.npz'
+            '/Volumes/velten/Research_Users/David/Gated Camera Project/monte_carlo_exp/ntbins_1024_monte_1000_exp_tmp.npz'
             ]
 fig, axs = plt.subplots(1, len(filenames), subplot_kw={"projection": "3d"}, figsize=(15, 10), squeeze=False)
 
@@ -34,7 +34,11 @@ grid_size = 4
 for i, filename in enumerate(filenames):
     file = np.load(filename, allow_pickle=True)
 
-    mae = file['results'][:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
+    try:
+        mae = file['rmse'][:, num3:-num, num2:-num4] * (1/10) #[:, num2:-num, num2:-num] * (1/10)
+    except KeyError:
+        mae = file['results'][:, num3:-num, num2:-num4] * (1 / 10)  # [:, num2:-num, num2:-num] * (1/10)
+
     levels_one = file['levels_one'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
     print(np.min(levels_one))
     levels_two = file['levels_two'][num3:-num, num2:-num4]#[num2:-num, num2:-num]
@@ -46,23 +50,8 @@ for i, filename in enumerate(filenames):
 
     for j in range(len(imaging_schemes)):
         tmp = mae[j, :, :]
-        #tmp[tmp > 500] = np.nan
-        # if imaging_schemes[j].coding_id == 'GrayTruncatedFourier':
-        #     continue
 
         str_name = ''
-        # if i == 0 and (j == 7 or j == 8):
-        #     continue
-        # if i == 1 and (j == 6 or j == 8):
-        #     continue
-        # if i == 2 and (j == 7 or j == 6):
-        #     continue
-        # if i == 0 and (j == 2 or j == 3):
-        #     continue
-        # if i == 1 and (j == 1 or j == 3):
-        #     continue
-        # if i == 2 and (j == 1 or j == 2):
-        #     continue
         if imaging_schemes[j].coding_id.startswith('TruncatedFourier'):
             str_name = 'Truncated Fourier (Wide)' + f'K={imaging_schemes[j].n_codes}'
         elif imaging_schemes[j].coding_id.startswith('Gated'):
@@ -90,6 +79,9 @@ for i, filename in enumerate(filenames):
 
         k = imaging_schemes[j].coding_obj.n_functions
 
+        if k != 3:
+            continue
+
         label = get_string_name(imaging_schemes[j])
         surf = axs[0][i].plot_surface(np.log10(levels_one),np.log10(levels_two), tmp,
                                label=label, alpha=0.6,
@@ -115,6 +107,7 @@ for i, filename in enumerate(filenames):
     else:
         axs[0][i].set_zlabel('Mean Abs. Error (cm)')
 
+    axs[0][i].set_zlim(0, 100)
     axs[0][i].legend(loc='upper right', bbox_to_anchor=(0.1, 0.8), fancybox=True)
 
 

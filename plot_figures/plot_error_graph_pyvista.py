@@ -71,18 +71,7 @@ for idx, filename in enumerate(filenames):
         tmp = mae[j, :, :]
         label = ''
 
-        # if idx == 0 and (j == 7 or j == 8 or j == 6):
-        #     continue
-        # if idx == 1 and (j == 6 or j == 8 or j == 7):
-        #     continue
-        # if idx == 2 and (j == 7 or j == 6):
-        #     continue
-        # if idx == 0 and (j == 1 or j == 2):
-        #     continue
-        # if idx == 1 and (j == 1 or j == 3):
-        #     continue
-        # if idx == 2 and (j == 1 or j == 2):
-        #     continue
+
 
         if scheme.coding_id == 'Greys':
             continue

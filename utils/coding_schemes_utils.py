@@ -91,17 +91,17 @@ def create_coding_obj(coding_system, n_tbins):
                                         ktaps=ktaps, after=cw_tof, account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK3'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, split_measurements=split_measurements,
-                                       binomial=binomial,k=3,
+                                       after=cw_tof,binomial=binomial,k=3,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK4'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated,split_measurements=split_measurements,
-                                                binomial=binomial, k=4,
+                                                after=cw_tof, binomial=binomial, k=4,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'HamiltonianK5'):
         coding_obj = HamiltonianCoding(n_tbins=n_tbins, gated=gated, split_measurements=split_measurements,
-                                                binomial=binomial, k=5,
+                                                after=cw_tof, binomial=binomial, k=5,
                                                 duty=duty, account_irf=account_irf,
                                                 h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Identity'):
@@ -110,24 +110,24 @@ def create_coding_obj(coding_system, n_tbins):
     elif (coding_id == 'Gated'):
         assert n_gates != None, 'Need to declare number of gates for gated coding'
         coding_obj = GatedCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, split_measurements=split_measurements,
-                                        n_gates=n_gates, account_irf=account_irf,h_irf=h_irf, quant=quant,)
+                                        after=cw_tof, n_gates=n_gates, account_irf=account_irf,h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Greys'):
         assert n_bits != None, 'Need to declare number of bits for greys coding'
         coding_obj = GrayCoding(n_tbins=n_tbins, binomial=binomial, gated=gated, split_measurements=split_measurements,
-                                        n_bits=n_bits,account_irf=account_irf, h_irf=h_irf, quant=quant,)
+                                        after=cw_tof, n_bits=n_bits,account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'Fourier'):
         coding_obj = FourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
-                                freq_idx=freq_idx, n_codes=n_codes,
+                                after=cw_tof, freq_idx=freq_idx, n_codes=n_codes,
                                 account_irf=account_irf, h_irf=h_irf, quant=quant,)
 
     elif (coding_id == 'TruncatedFourier'):
         coding_obj = TruncatedFourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
-                                n_freqs=n_freqs, n_codes=n_codes,
+                                after=cw_tof, n_freqs=n_freqs, n_codes=n_codes,
                                 account_irf=account_irf, h_irf=h_irf, quant=quant,)
 
     elif (coding_id == 'GrayTruncatedFourier'):
         coding_obj = GrayTruncatedFourierCoding(n_tbins=n_tbins, binomial=binomial, gated=gated,
-                                n_codes=n_codes,
+                                after=cw_tof, n_codes=n_codes,
                                 account_irf=account_irf, h_irf=h_irf, quant=quant,)
     elif (coding_id == 'LearnedImpulse'):
         model = coding_system.model
@@ -137,7 +137,7 @@ def create_coding_obj(coding_system, n_tbins):
             n_codes =  8
         print(f'Learned With Impulse K={n_codes}')
         coding_obj = LearnedImpulseCoding(n_tbins=n_tbins, n_codes=n_codes, model=model, fourier_coeff=fourier_coeff,
-                                   binomial=binomial, gated=gated,
+                                   after=cw_tof, binomial=binomial, gated=gated,
                                    account_irf=account_irf, h_irf=h_irf, quant=quant,)
     return coding_obj
 

@@ -159,7 +159,6 @@ class ContinuousWave(Coding):
             b = np.copy(self.demodfs)
 
         if not self.after:
-           # inc = incident[18, 0, :]
             a = poisson_noise_array(a, trials)
             intent = np.einsum('mnqp,pq->mnq', a, b)
         else:
@@ -216,13 +215,21 @@ class ContinuousWave(Coding):
         else:
             b = np.copy(self.demodfs)
 
-        photons = np.einsum('nqp,pq->nq', a, b)
+        if not self.after:
+           photons = np.copy(incident)
+           probabilities = 1 - np.exp(-photons)
+           rng = np.random.default_rng()
+           new_shape = (trials,) + probabilities.shape
+           a = rng.binomial(int(laser_cycles / b.shape[-1]), probabilities, size=new_shape)
+           intent = np.einsum('mnqp,pq->mnq', a, b)
 
-        probabilities = 1 - np.exp(-photons)
-        rng = np.random.default_rng()
-        new_shape = (trials,) + probabilities.shape
+        else:
+            photons = np.einsum('nqp,pq->nq', a, b)
+            probabilities = 1 - np.exp(-photons)
+            rng = np.random.default_rng()
+            new_shape = (trials,) + probabilities.shape
+            intent = rng.binomial(int(laser_cycles / b.shape[-1]), probabilities, size=new_shape)
 
-        intent = rng.binomial(int(laser_cycles / b.shape[-1]), probabilities, size=new_shape)
 
         if self.gated and self.split_measurements:
             original_K = self.correlations.shape[-1]
@@ -250,15 +257,26 @@ class ImpulseCoding(Coding):
     def encode_poison(self, incident, trials, debug=False):
         a = np.copy(np.squeeze(incident))
         b = np.copy(self.correlations)
-        a = poisson_noise_array(a, trials)
-        #detected = a[100, 18, :]
 
-        if self.quant and not self.gated:
-            return np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
-        elif self.gated:
-            intent = np.einsum('mnqp,pq->mnq', a, b)
+        if not self.after:
+           a = poisson_noise_array(a, trials)
+           if self.quant and not self.gated:
+               return np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
+           elif self.gated:
+               intent = np.einsum('mnqp,pq->mnq', a, b)
+           else:
+               intent = np.einsum('mnp,pq->mnq', a, b)
+
         else:
-            intent = np.einsum('mnp,pq->mnq', a, b)
+            if self.quant and not self.gated:
+                intent = np.einsum('nqp,pq->nq', a, b.astype(np.int16))
+            elif self.gated:
+                intent = np.einsum('nqp,pq->nq', a, b)
+            else:
+                intent = np.einsum('np,pq->nq', a, b)
+            intent = poisson_noise_array(intent, trials)
+
+
 
         if debug:
             fig, axs = plt.subplots(nrows=1, ncols=3)
@@ -287,22 +305,35 @@ class ImpulseCoding(Coding):
         return intent
 
     def encode_binomial(self, incident, trials, laser_cycles, debug=False):
-
-        rng = np.random.default_rng()
-        new_shape = (trials,) + incident.shape
-        probabilities = 1 - np.exp(-incident)
-        incident_noisy = rng.binomial(int(laser_cycles / self.correlations.shape[-1]), probabilities, size=new_shape)
-
-        a = np.copy(incident_noisy)
         b = np.copy(self.correlations)
-        if self.quant and not self.gated:
-            return np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
-        elif self.gated:
-            intent = np.einsum('mnqp,pq->mnq', a, b)
-        else:
-            intent = np.einsum('mnp,pq->mnq', a, b)
 
-        #c_vals = np.matmul(incident_noisy[..., np.newaxis, :], self.correlations).squeeze(-2)
+        if not self.after:
+            rng = np.random.default_rng()
+            new_shape = (trials,) + incident.shape
+            probabilities = 1 - np.exp(-incident)
+            incident_noisy = rng.binomial(int(laser_cycles / self.correlations.shape[-1]), probabilities,
+                                          size=new_shape)
+
+            a = np.copy(incident_noisy)
+            if self.quant and not self.gated:
+                intent = np.einsum('mnp,pq->mnq', a, b.astype(np.int16))
+            elif self.gated:
+                intent = np.einsum('mnqp,pq->mnq', a, b)
+            else:
+                intent = np.einsum('mnp,pq->mnq', a, b)
+        else:
+            a = np.copy(incident)
+            if self.quant and not self.gated:
+                b = np.einsum('np,pq->nq', a, b.astype(np.int16))
+            elif self.gated:
+                b = np.einsum('nqp,pq->nq', a, b)
+            else:
+                b = np.einsum('np,pq->nq', a, b)
+            rng = np.random.default_rng()
+            new_shape = (trials,) + b.shape
+            probabilities = 1 - np.exp(-b)
+            intent = rng.binomial(int(laser_cycles / self.correlations.shape[-1]), probabilities,
+                                          size=new_shape)
 
         return intent
 
@@ -537,11 +568,9 @@ class GrayCoding(ImpulseCoding):
             pass
         else:
             self.correlations = (self.correlations * 2) - 1
-        self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
-        #self.correlations[self.correlations > 0] = 1
-        #self.correlations[self.correlations < 0] = -1
+            self.correlations = self.correlations - self.correlations.mean(axis=-2, keepdims=True)
 
-        #print(f'Gray coding K={self.correlations.shape[-1]}')
+        print(f'Gray coding K={self.correlations.shape[-1]}')
 
 
 
